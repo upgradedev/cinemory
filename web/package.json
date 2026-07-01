@@ -1,0 +1,13 @@
+{
+  "name": "cinemory-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cinemory web client — request a reel, watch provenance-sealed output.",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0"
+  }
+}

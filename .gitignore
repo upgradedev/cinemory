@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+.mypy_cache/
+
+# Env / secrets — NEVER commit real credentials
+.env
+.env.*
+!.env.example
+
+# Node / web
+web/node_modules/
+web/dist/
+web/package-lock.json
+
+# Generated demo output
+out/
+sample-data/generated/
+*.mp4
+!sample-data/**/*.md
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# PII SAFETY: never commit real personal media or the private cinemory content
+# The public repo uses SYNTHETIC demo memories only (see src/cinemory/synthetic.py).
+*.jpg
+*.jpeg
+*.heic
+private/
+real-memories/

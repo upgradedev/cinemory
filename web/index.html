@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cinemory — your memories, made into film</title>
+  </head>
+  <body>
+    <main>
+      <h1>Cinemory</h1>
+      <p>Turn a set of memories into a scored, provenance-sealed video reel.</p>
+      <button id="generate">Generate demo reel</button>
+      <pre id="output"></pre>
+    </main>
+    <script type="module">
+      import { main } from "./dist/main.js";
+      document.getElementById("generate").addEventListener("click", () => {
+        main().catch((e) => {
+          document.getElementById("output").textContent = String(e);
+        });
+      });
+    </script>
+  </body>
+</html>
