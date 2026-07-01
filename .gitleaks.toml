@@ -1,0 +1,18 @@
+# Gitleaks configuration for Cinemory.
+# Uses the full default rule set, with a narrow allowlist for test fixtures.
+# The repo contains NO real credentials (offline-by-default; live creds come only
+# from the environment). The only matches are synthetic, deterministic hash
+# strings used as test fixtures.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic test fixtures and credential-free example env"
+paths = [
+    '''tests/.*''',            # unit/integration/e2e fixtures — synthetic hashes only
+    '''\.env\.example''',      # placeholder / empty values only
+]
+regexes = [
+    '''abcdef0123456789''',    # synthetic content-hash fixture used in key tests
+]

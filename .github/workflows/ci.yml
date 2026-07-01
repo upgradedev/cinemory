@@ -22,7 +22,7 @@ jobs:
           VER=8.18.4
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz" \
             | tar -xz gitleaks
-          ./gitleaks detect --source . --no-banner --redact --verbose
+          ./gitleaks detect --source . --config .gitleaks.toml --no-banner --redact --verbose
 
   # ── 2. Python: lint -> unit -> integration -> e2e -> dependency audit ───────
   python:
