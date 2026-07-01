@@ -10,7 +10,7 @@ def test_hierarchical_key_layout():
 def test_flat_key_layout():
     key = make_key(KeyStrategy.FLAT, reel="demo", kind="clips",
                    sha256="abcdef", name="c0.mp4")
-    assert key == "abcdef-c0.mp4"
+    assert key == "abcdef-c0.mp4"  # gitleaks:allow (synthetic fixture, not a secret)
 
 
 def test_content_addressing_dedupes_identical_bytes():
