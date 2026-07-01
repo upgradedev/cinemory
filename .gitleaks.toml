@@ -1,15 +1,19 @@
 # Gitleaks configuration for Cinemory.
-# Full default rule set retained (the whole tree is scanned, including tests).
-# The repo contains NO real credentials: it is offline-by-default and live creds
-# come only from the environment at runtime. The single synthetic test fixture
-# that trips the generic-api-key heuristic is suppressed inline with a
-# `# gitleaks:allow` comment, so no source path is broadly excluded.
+# Full default rule set retained; the whole tree AND git history are scanned
+# (no source path is broadly excluded). The repo contains NO real credentials:
+# it is offline-by-default and live creds come only from the environment at
+# runtime. One synthetic test fixture string trips the generic-api-key heuristic
+# (a fake object-store key in a `key == "..."` assertion) — it is suppressed by
+# an exact-value regex so real secrets anywhere in the tree are still caught.
 
 [extend]
 useDefault = true
 
 [allowlist]
-description = "Credential-free example env only"
+description = "Credential-free example env + one exact synthetic test fixture"
 paths = [
     '''\.env\.example''',      # placeholder / empty values only
+]
+regexes = [
+    '''abcdef-c0\.mp4''',      # tests/unit/test_keys.py — synthetic key fixture
 ]
