@@ -35,6 +35,7 @@ def build_manifest(result: ReelResult) -> dict:
         "schema": "cinemory/manifest/v1",
         "reel_name": result.reel_name,
         "occasion": result.occasion,
+        "occasion_style": result.occasion_style,
         "reel_asset": _asset_dict(result.reel_asset),
         "steps": [_step_dict(s) for s in result.steps],
     }

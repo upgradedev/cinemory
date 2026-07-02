@@ -66,7 +66,10 @@ class ReelPipeline:
 
     # ── main ─────────────────────────────────────────────────────────────────
     def run(self, spec: ReelSpec) -> ReelResult:
+        from .occasions import get_occasion
+
         reel = spec.name
+        occ = get_occasion(spec.occasion)
         steps: list[StepRecord] = []
         clips: list[bytes] = []
 
@@ -75,13 +78,18 @@ class ReelPipeline:
             for photo in chapter.photos:
                 self._store(reel, "photos", photo.filename, photo.data, "image/png")
 
-        # 2. Photo -> video clip (image-to-video), one per photo.
+        # 2. Photo -> video clip (image-to-video), one per photo. The occasion's
+        #    pacing/music direction rides on each step's params (and is thereby
+        #    sealed into the manifest); the fake provider hashes only
+        #    model/prompt/modality/inputs, so clip bytes stay deterministic.
         for chapter in spec.chapters:
             for photo in chapter.photos:
                 rec = self._step(
                     model=self.video_model, prompt=chapter.prompt, modality=Modality.VIDEO,
-                    inputs=[photo.data], params={"aspect_ratio": spec.aspect_ratio,
-                                                 "chapter": chapter.id},
+                    inputs=[photo.data],
+                    params={"aspect_ratio": spec.aspect_ratio, "chapter": chapter.id,
+                            "target_seconds": occ.seconds_per_clip, "tempo": occ.tempo,
+                            "music_style": occ.music_style},
                     reel=reel, kind="clips", name=f"{chapter.id}_{photo.filename}.mp4",
                 )
                 steps.append(rec)
@@ -109,8 +117,18 @@ class ReelPipeline:
         reel_bytes = self.stitcher.stitch(clips)
         reel_asset = self._store(reel, "reels", "reel.mp4", reel_bytes, "video/mp4")
 
-        result = ReelResult(reel_name=reel, reel_asset=reel_asset, steps=steps,
-                            occasion=spec.occasion)
+        result = ReelResult(
+            reel_name=reel, reel_asset=reel_asset, steps=steps, occasion=occ.key,
+            occasion_style={
+                "label": occ.label,
+                "music_style": occ.music_style,
+                "tempo": occ.tempo,
+                "seconds_per_clip": occ.seconds_per_clip,
+                "transition": occ.transition,
+                "title_style": occ.title_style,
+                "aspect_ratio": occ.aspect_ratio,
+            },
+        )
 
         # 5. Seal provenance and persist manifest to B2, then embed it in the reel.
         manifest = build_manifest(result)

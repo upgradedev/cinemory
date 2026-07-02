@@ -51,3 +51,10 @@ def test_create_reel_with_occasion_is_sealed_in_manifest():
     assert r.json()["occasion"] == "graduation"
     manifest = client.get("/reels/gradreel").json()
     assert manifest["occasion"] == "graduation"
+    # The occasion's full creative direction is sealed into the manifest, and
+    # pacing/music ride on each generative step's params.
+    style = manifest["occasion_style"]
+    assert style["title_style"] and style["transition"] and style["music_style"]
+    clip_step = next(s for s in manifest["steps"] if s["params"].get("chapter"))
+    assert clip_step["params"]["target_seconds"] == style["seconds_per_clip"]
+    assert clip_step["params"]["music_style"] == style["music_style"]

@@ -93,5 +93,8 @@ class ReelResult:
     reel_asset: Asset
     steps: list[StepRecord]
     occasion: str = "anniversary"
+    #: The occasion's full creative direction (music/pacing/title/transition),
+    #: sealed into the manifest so the reel's styling is part of provenance.
+    occasion_style: dict = field(default_factory=dict)
     manifest_uri: str | None = None
     manifest_hash: str | None = None
