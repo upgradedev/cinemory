@@ -109,7 +109,8 @@ class ReelPipeline:
         reel_bytes = self.stitcher.stitch(clips)
         reel_asset = self._store(reel, "reels", "reel.mp4", reel_bytes, "video/mp4")
 
-        result = ReelResult(reel_name=reel, reel_asset=reel_asset, steps=steps)
+        result = ReelResult(reel_name=reel, reel_asset=reel_asset, steps=steps,
+                            occasion=spec.occasion)
 
         # 5. Seal provenance and persist manifest to B2, then embed it in the reel.
         manifest = build_manifest(result)

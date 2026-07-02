@@ -2,6 +2,7 @@
 
 Routes:
   GET  /health           liveness + active mode
+  GET  /occasions        list selectable occasion presets (themes)
   POST /reels            generate a reel from a synthetic spec, return provenance
   GET  /reels/{name}     fetch the stored provenance manifest for a reel
 
@@ -17,6 +18,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from . import config
+from .occasions import list_occasions
 from .pipeline import ReelPipeline
 from .synthetic import synth_reel_spec
 
@@ -31,6 +33,7 @@ class ReelRequest(BaseModel):
     name: str = "demo-reel"
     chapters: int = 3
     per_chapter: int = 2
+    occasion: str = "anniversary"
 
 
 @app.get("/health")
@@ -38,12 +41,19 @@ def health() -> dict:
     return {"status": "ok", "service": "cinemory-api", "mode": config.mode()}
 
 
+@app.get("/occasions")
+def occasions() -> dict:
+    return {"occasions": list_occasions()}
+
+
 @app.post("/reels")
 def create_reel(req: ReelRequest) -> dict:
-    spec = synth_reel_spec(req.name, chapters=req.chapters, per_chapter=req.per_chapter)
+    spec = synth_reel_spec(req.name, chapters=req.chapters, per_chapter=req.per_chapter,
+                           occasion=req.occasion)
     result = _pipeline.run(spec)
     return {
         "reel_name": result.reel_name,
+        "occasion": result.occasion,
         "reel_url": result.reel_asset.url,
         "reel_sha256": result.reel_asset.sha256,
         "manifest_uri": result.manifest_uri,

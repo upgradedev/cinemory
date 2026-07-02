@@ -34,3 +34,20 @@ def test_get_reel_returns_verifiable_manifest():
 
 def test_get_unknown_reel_is_404():
     assert client.get("/reels/does-not-exist").status_code == 404
+
+
+def test_list_occasions():
+    r = client.get("/occasions")
+    assert r.status_code == 200
+    keys = {o["key"] for o in r.json()["occasions"]}
+    assert {"anniversary", "graduation", "birthday", "wedding",
+            "year-in-review", "business-event"}.issubset(keys)
+
+
+def test_create_reel_with_occasion_is_sealed_in_manifest():
+    r = client.post("/reels", json={"name": "gradreel", "chapters": 2,
+                                    "per_chapter": 1, "occasion": "graduation"})
+    assert r.status_code == 200
+    assert r.json()["occasion"] == "graduation"
+    manifest = client.get("/reels/gradreel").json()
+    assert manifest["occasion"] == "graduation"

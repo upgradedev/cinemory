@@ -53,6 +53,8 @@ class ReelSpec:
     bridges: list[Bridge] = field(default_factory=list)
     music_filename: str | None = None
     aspect_ratio: str = "16:9"
+    #: Selected occasion preset key (see ``cinemory.occasions``).
+    occasion: str = "anniversary"
 
     def photo_count(self) -> int:
         return sum(len(c.photos) for c in self.chapters)
@@ -90,5 +92,6 @@ class ReelResult:
     reel_name: str
     reel_asset: Asset
     steps: list[StepRecord]
+    occasion: str = "anniversary"
     manifest_uri: str | None = None
     manifest_hash: str | None = None
