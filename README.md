@@ -7,6 +7,11 @@
 
 Built for the [Backblaze Generative Media Hackathon](https://backblaze-generative-media.devpost.com/).
 
+> **This is the live repo** (`memoryreel-genblaze`). The local folder
+> `C:\dev\solutions\cinemory` is an older, deprecated scaffold — do not build or
+> demo from it. Feature roadmap, opt-in connectors, show-stoppers and go-live
+> steps: **[`ROADMAP.md`](ROADMAP.md)**.
+
 ---
 
 ## Origin story
@@ -47,7 +52,7 @@ Given a set of (synthetic) memories organised into *chapters*:
 ```
                      ┌──────────────────────────────┐
   Browser client ───▶│  Cinemory API (FastAPI)       │
-  (web/, TS)         │  /health · /reels · /reels/id  │
+  (web/, TS)         │ /health·/occasions·/reels·/id  │
                      └───────────────┬───────────────┘
                                      │
                          ┌───────────▼────────────┐
@@ -116,6 +121,44 @@ Models are configurable per pipeline; any Genblaze-supported provider works.
 
 ---
 
+## Occasions, sharing & opt-in connectors
+
+Beyond the core pipeline, Cinemory adds distribution and personalization — the
+core stays offline/PII-safe; the connectors are **opt-in and consent-gated**
+(never in CI or the default demo). Full detail + go-live steps in
+**[`ROADMAP.md`](ROADMAP.md)**.
+
+- **Occasion themes** ([`occasions.py`](src/cinemory/occasions.py)) — six
+  config-driven presets (anniversary, graduation, birthday, wedding,
+  year-in-review, business-event/award-ceremony) that adjust scene labels,
+  prompt direction, music mood, pacing and aspect ratio. Select via
+  `--occasion`, `POST /reels` or `GET /occasions`; recorded in the sealed
+  manifest. Add a theme = add one dict entry.
+- **Web Share + export** ([`web/src/lib/share.ts`](web/src/lib/share.ts)) —
+  native OS share sheet (`navigator.share({files})`) to Instagram / Facebook /
+  LinkedIn / YouTube with **no platform API review**, plus a download button and
+  per-platform deep-links.
+- **Google Photos Picker** ([`connectors/google_photos.py`](src/cinemory/connectors/google_photos.py))
+  — OAuth consent → Picker session → user hand-picks in Google's UI → poll →
+  download picked bytes. (Library auto-curation is impossible since Google
+  removed the read-scopes; the **pick** flow is the sanctioned path.)
+- **YouTube upload** ([`connectors/youtube.py`](src/cinemory/connectors/youtube.py))
+  + **LinkedIn share** ([`connectors/linkedin.py`](src/cinemory/connectors/linkedin.py))
+  — implemented where the API allows; account-type/audit caveats in `ROADMAP.md`.
+
+Every connector runs through an injectable HTTP transport seam, so the
+multi-step flows are unit-tested offline with a fake transport — no network, no
+credentials, no third-party import in CI. Enable the live path with
+`pip install 'cinemory[connectors]'`.
+
+**Not built (show-stoppers, see `ROADMAP.md`):** an Apple/iCloud *server*
+connector (no third-party API exists — only a native iOS PhotoKit app; the
+mobile `<input type=file>` already streams iCloud originals), and *personal*
+Instagram/Facebook auto-posting (Graph API is Business/Creator-only — the
+share-sheet covers it).
+
+---
+
 ## Quickstart
 
 ### Offline (no credentials — this is what CI runs)
@@ -157,8 +200,8 @@ A full testing pyramid runs offline (fakes for Genblaze + B2, no creds):
 
 | Layer | Location | Proves |
 |---|---|---|
-| **Unit** | `tests/unit/` | provenance hashing/verify/tamper-detection, key strategy, synthetic photos, beat-cut planning, fakes |
-| **Integration** | `tests/integration/` | pipeline wiring (photos→clips→bridges→reel), FastAPI routes, real ffmpeg stitch (skipped if ffmpeg absent) |
+| **Unit** | `tests/unit/` | provenance hashing/verify/tamper-detection, key strategy, synthetic photos, beat-cut planning, occasion presets, fakes |
+| **Integration** | `tests/integration/` | pipeline wiring (photos→clips→bridges→reel), FastAPI routes (incl. `/occasions`), opt-in connector flows via a fake HTTP transport, real ffmpeg stitch (skipped if ffmpeg absent) |
 | **E2E** | `tests/e2e/` | synthetic memories → reel → B2 → reload manifest → **assert on real SHA-256 the provenance layer recomputes** |
 
 ```bash
@@ -202,14 +245,20 @@ src/cinemory/
   stitch.py        FakeStitcher (offline) · FfmpegStitcher (real grade)
   music.py         beat-cut planning (pure) + optional librosa analysis
   synthetic.py     PII-safe synthetic photo generation
+  occasions.py     config-driven occasion presets (themes)
   config.py        offline/live adapter selection
   api.py           FastAPI app
   cli.py           end-to-end CLI
   adapters/
     fake_provider.py · fake_storage.py     offline
     genblaze_provider.py · b2_storage.py   live
-web/               minimal typed browser client (TS)
+  connectors/      opt-in, consent-gated live integrations
+    _http.py                      injectable HTTP transport seam
+    google_photos.py              OAuth + Photos Picker flow
+    youtube.py · linkedin.py      upload / share
+web/               typed browser client (TS) — Web Share + export
 tests/             unit · integration · e2e
+ROADMAP.md         features · show-stoppers · connector go-live steps
 ```
 
 ## License
