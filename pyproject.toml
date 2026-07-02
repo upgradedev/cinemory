@@ -25,6 +25,9 @@ live = [
 # Optional real audio analysis.
 audio = ["librosa>=0.10", "numpy>=1.26"]
 server = ["uvicorn>=0.29"]
+# Opt-in live connectors (Google Photos Picker, YouTube, LinkedIn). The offline
+# package and CI do NOT need this — connectors are tested via a fake transport.
+connectors = ["requests>=2.31"]
 
 [project.scripts]
 cinemory = "cinemory.cli:main"
