@@ -9,11 +9,37 @@
     <main>
       <h1>Cinemory</h1>
       <p>Turn a set of memories into a scored, provenance-sealed video reel.</p>
-      <button id="generate">Generate demo reel</button>
+
+      <label for="occasion">Occasion</label>
+      <select id="occasion">
+        <option value="anniversary">Anniversary</option>
+      </select>
+
+      <p>
+        <button id="generate">Generate demo reel</button>
+      </p>
+
       <pre id="output"></pre>
+
+      <section id="share-panel">
+        <h2>Share</h2>
+        <p>
+          <button id="share" disabled>Share…</button>
+          <button id="download" disabled>Download .mp4</button>
+        </p>
+        <div id="deeplinks"></div>
+        <p id="share-status"></p>
+      </section>
     </main>
     <script type="module">
-      import { main } from "./dist/main.js";
+      import { main, loadOccasions } from "./dist/main.js";
+      import { CinemoryClient } from "./dist/lib/api.js";
+
+      const API_BASE = globalThis.CINEMORY_API ?? "";
+      loadOccasions(new CinemoryClient(API_BASE)).catch(() => {
+        /* keep the default option if the API is unreachable */
+      });
+
       document.getElementById("generate").addEventListener("click", () => {
         main().catch((e) => {
           document.getElementById("output").textContent = String(e);

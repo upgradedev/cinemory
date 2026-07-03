@@ -55,10 +55,23 @@ def synth_photo(filename: str, *, seed: int, size: tuple[int, int] = (512, 288))
 
 
 def synth_reel_spec(
-    name: str = "demo-reel", *, chapters: int = 3, per_chapter: int = 2
+    name: str = "demo-reel",
+    *,
+    chapters: int = 3,
+    per_chapter: int = 2,
+    occasion: str | None = None,
 ) -> ReelSpec:
-    """Build a full synthetic ReelSpec ready for the pipeline."""
-    labels = ["Arrival", "The Coast", "Golden Hour", "Night Market", "Farewell"]
+    """Build a full synthetic ReelSpec ready for the pipeline.
+
+    ``occasion`` selects a preset (see :mod:`cinemory.occasions`) that adjusts
+    scene labels, prompt direction, music mood and aspect ratio. Defaults to the
+    anniversary preset — Cinemory's origin — when omitted.
+    """
+    from .occasions import get_occasion
+
+    occ = get_occasion(occasion)
+    default_labels = ["Arrival", "The Coast", "Golden Hour", "Night Market", "Farewell"]
+    labels = occ.scene_labels or default_labels
     prompts = [
         "gentle camera push-in, warm morning light, cinematic",
         "slow pan across a sunlit shoreline, soft waves",
@@ -66,7 +79,12 @@ def synth_reel_spec(
         "handheld stroll through glowing stalls, bokeh lights",
         "slow fade under a starlit sky, calm and reflective",
     ]
-    spec = ReelSpec(name=name)
+    spec = ReelSpec(
+        name=name,
+        aspect_ratio=occ.aspect_ratio,
+        occasion=occ.key,
+        music_filename=f"{occ.key}-{occ.music_style.replace(' ', '-')}",
+    )
     seed = 0
     for c in range(chapters):
         photos = [
@@ -75,6 +93,6 @@ def synth_reel_spec(
         ]
         spec.chapters.append(
             Chapter(id=f"c{c}", label=labels[c % len(labels)],
-                    prompt=prompts[c % len(prompts)], photos=photos)
+                    prompt=occ.style_prompt(prompts[c % len(prompts)]), photos=photos)
         )
     return spec

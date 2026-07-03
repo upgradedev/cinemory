@@ -30,11 +30,15 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--name", default="demo-reel")
     ap.add_argument("--chapters", type=int, default=3)
     ap.add_argument("--per-chapter", type=int, default=2)
+    ap.add_argument("--occasion", default="anniversary",
+                    help="occasion preset: anniversary | graduation | birthday | "
+                         "wedding | year-in-review | business-event")
     ap.add_argument("--bridges", action="store_true", help="add chapter-to-chapter bridges")
     ap.add_argument("--out", type=Path, default=Path("out"))
     args = ap.parse_args(argv)
 
-    spec = synth_reel_spec(args.name, chapters=args.chapters, per_chapter=args.per_chapter)
+    spec = synth_reel_spec(args.name, chapters=args.chapters, per_chapter=args.per_chapter,
+                           occasion=args.occasion)
     if args.bridges:
         for i in range(len(spec.chapters) - 1):
             spec.bridges.append(
