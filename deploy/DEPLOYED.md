@@ -7,8 +7,9 @@
 | Project | `upgradegr-cinemory` (billing `01A97A-55FE41-BC2FC8`) |
 | Region | `europe-west1` |
 | Service | `cinemory` |
-| Revision | `cinemory-00001-7sm` |
-| Image | `europe-west1-docker.pkg.dev/upgradegr-cinemory/cinemory/cinemory:20260704-175240` |
+| Revision | `cinemory-00002-nnj` (reproducible clean-git build) |
+| Image | `europe-west1-docker.pkg.dev/upgradegr-cinemory/cinemory/cinemory:20260704-180155-clean` |
+| Built from | git `7cb94a5` on `feat/cloud-run-deploy` — **image == PR #3** (no local WIP) |
 | Mode | `offline` (CINEMORY_MODE=offline, CINEMORY_STITCH=fake) — zero credentials |
 | Auth | public (`--allow-unauthenticated`) |
 | **URL** | **https://cinemory-595784992266.europe-west1.run.app** |

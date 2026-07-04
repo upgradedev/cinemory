@@ -67,6 +67,10 @@ GMI_API_KEY='<gmi cloud key>' \
 
 `ffmpeg` is already installed in the image, so `CINEMORY_STITCH=ffmpeg` works.
 
+> The script **rebuilds the image from local source**. After Gate A merges, run
+> `git checkout main && git pull` **before** the cutover, or the rebuilt image
+> still lacks the Option B code and the canonical B2 names silently mis-resolve.
+
 ### ⚠️ Two gates before the live command works
 
 1. **Gate A — Option B config-fallback PR must be merged.** This live command
@@ -103,6 +107,12 @@ gcloud beta run domain-mappings describe \
   --domain cinemory.ai --region europe-west1 \
   --format='value(status.resourceRecords)'
 ```
+
+> `run domain-mappings` is not offered in every region. `europe-west1` is
+> expected to support it; if `create` returns a region error, either map from a
+> supported region or front the service with a global external HTTPS load
+> balancer + a serverless NEG (the portable fallback) and point `cinemory.ai` at
+> the LB's IP instead.
 
 Step 3 prints four **A** records (IPv4) and four **AAAA** records (IPv6). Add
 them at the registrar for the apex (`@`) host. For `www.cinemory.ai`, map that
