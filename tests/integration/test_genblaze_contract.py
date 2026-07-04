@@ -42,10 +42,50 @@ def _mock_provider(assets):
     return MockProvider(name="mock-video", assets=assets)
 
 
-def _gb_asset(url: str, media_type: str, sha256: str):
+def _gb_asset(url: str, media_type: str, sha256: str, size_bytes: int | None = None):
     from genblaze_core.models.asset import Asset as GbAsset
 
-    return GbAsset(url=url, media_type=media_type, sha256=sha256)
+    return GbAsset(url=url, media_type=media_type, sha256=sha256, size_bytes=size_bytes)
+
+
+def _mem_backend():
+    """A faithful in-memory implementation of Genblaze's ``StorageBackend`` ABC.
+
+    Exercises the *real* sink → store → readback path offline (no B2 creds), so
+    the load-bearing branch of the adapter is genuinely covered — not hidden
+    behind ``# pragma: no cover``.
+    """
+    from genblaze_core.storage.base import StorageBackend
+
+    class MemBackend(StorageBackend):
+        _PREFIX = "memory://bucket/"
+
+        def __init__(self) -> None:
+            self.store: dict[str, bytes] = {}
+
+        def put(self, key, data, *, content_type=None, metadata=None, extra_args=None):
+            self.store[key] = bytes(data) if isinstance(data, (bytes, bytearray)) else data.read()
+            return key
+
+        def get(self, key):
+            return self.store[key]
+
+        def exists(self, key):
+            return key in self.store
+
+        def delete(self, key):
+            self.store.pop(key, None)
+
+        def get_url(self, key, *, expires_in=3600):
+            return self.get_durable_url(key)
+
+        def get_durable_url(self, key):
+            return f"{self._PREFIX}{key}"
+
+        def key_from_url(self, url):
+            return url[len(self._PREFIX) :] if url.startswith(self._PREFIX) else None
+
+    return MemBackend()
 
 
 # ---------------------------------------------------------------------------
@@ -78,6 +118,41 @@ def test_adapter_drives_real_pipeline_and_returns_bytes():
     assert seen["url"] == url
 
     # Genblaze sealed a manifest for the run and we surfaced it (provenance chain).
+    assert adapter.last_manifest is not None
+    assert adapter.last_manifest.verify_hash() is True
+
+
+# ---------------------------------------------------------------------------
+# 1b. The load-bearing path: Genblaze's ObjectStorageSink persists the asset and
+#     the adapter reads the durable bytes back THROUGH the same backend (no
+#     network download). This exercises sink attachment + URL->key roundtrip +
+#     backend readback + sha256 chaining, fully offline against the real SDK.
+# ---------------------------------------------------------------------------
+def test_adapter_reads_back_through_genblaze_sink():
+    payload = b"REAL-CLIP-BYTES" + b"\x07\x08" * 400
+    sha = hashlib.sha256(payload).hexdigest()
+
+    backend = _mem_backend()
+    key = "assets/clip0.mp4"
+    backend.put(key, payload)  # asset already lives in the backend
+    url = backend.get_durable_url(key)
+
+    # size_bytes + sha256 present => the sink recognises the asset as already
+    # transferred and keeps the durable URL (the real B2 steady state).
+    provider = _mock_provider([_gb_asset(url, "video/mp4", sha, size_bytes=len(payload))])
+
+    def _forbid_download(_u: str) -> bytes:
+        raise AssertionError("must read back through the backend, not download")
+
+    adapter = GenblazeMediaProvider(
+        provider_obj=provider,
+        backend=backend,  # adapter attaches ObjectStorageSink(backend) internally
+        downloader=_forbid_download,
+    )
+
+    out = adapter.generate(model="m", prompt="p", modality=Modality.VIDEO)
+
+    assert out == payload  # bytes came back through backend.get(key_from_url(url))
     assert adapter.last_manifest is not None
     assert adapter.last_manifest.verify_hash() is True
 

@@ -12,9 +12,9 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 67 tests; drift guarded |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 68 tests; drift guarded |
 | B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) |
-| Use of Genblaze | 6/10 | 8.5/10 | now load-bearing (gen+sink+manifest), SDK-verified |
+| Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 
 Ceiling to 95+ is gated on the live app URL + demo video, which need credentials.
 

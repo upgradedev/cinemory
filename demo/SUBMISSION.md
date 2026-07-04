@@ -112,7 +112,10 @@ Models are configurable per pipeline; any Genblaze-supported provider works.
 - **Ports + adapters** — orchestration depends only on `MediaProvider` /
   `StorageBackend` / `Stitcher` protocols; live↔offline is a one-line swap.
 - **Testing pyramid, all offline (no creds):** unit → integration → e2e, plus the
-  SDK-boundary Genblaze contract test. **67 passing, 1 conditional skip.**
+  SDK-boundary Genblaze contract test — which drives a **real** Genblaze
+  `Pipeline` + `ObjectStorageSink` (over an in-memory backend) so the live
+  sink→store→readback→sha256-chain path is genuinely exercised, not just the
+  offline fakes. **68 passing, 1 conditional skip.**
 - **Security in CI:** gitleaks (fail-fast) · CodeQL (python + js/ts) ·
   `pip-audit --strict` · `npm audit` · ruff.
 - **Deployable:** `Dockerfile` (ffmpeg included) → Cloud Run / Container Apps /

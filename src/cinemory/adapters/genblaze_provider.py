@@ -177,7 +177,7 @@ class GenblazeMediaProvider:
         if backend is not None:
             key = backend.key_from_url(asset.url)
             if key is not None:
-                return backend.get(key)  # pragma: no cover - real B2 only
+                return backend.get(key)
         return self._download(asset.url)
 
     @staticmethod
