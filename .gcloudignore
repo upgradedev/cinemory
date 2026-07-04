@@ -1,0 +1,20 @@
+# Keep the Cloud Build upload context lean. Everything the Docker build needs
+# (Dockerfile, pyproject.toml, requirements.txt, src/, web/{package.json,
+# package-lock.json,tsconfig.json,src,index.html}) is NOT ignored.
+.git/
+.github/
+node_modules/
+web/node_modules/
+web/dist/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+tests/
+sample-data/
+demo/
+docs/
+*.md
+.env
+.env.*
+!.env.example
