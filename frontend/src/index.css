@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink-950 text-zinc-200 font-sans antialiased;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(216, 178, 90, 0.1), transparent 60%),
+      radial-gradient(ellipse 60% 50% at 100% 20%, rgba(226, 84, 58, 0.06), transparent 55%),
+      radial-gradient(ellipse 70% 60% at 0% 90%, rgba(120, 90, 200, 0.05), transparent 60%);
+    background-attachment: fixed;
+    min-height: 100dvh;
+  }
+
+  /* Cinematic focus ring — visible, gold, keyboard-first. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-gold-400/80 ring-offset-2 ring-offset-ink-950;
+  }
+
+  ::selection {
+    @apply bg-gold-400/25 text-gold-50;
+  }
+
+  /* Custom scrollbar to match the film-stock aesthetic. */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-ink-600;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-ink-500;
+  }
+}
+
+@layer components {
+  /* Film-grain overlay — a repeating fractal-noise texture over the whole app.
+     Pointer-events-none so it never intercepts clicks. */
+  .film-grain::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    opacity: 0.045;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Letterbox bars — the signature cinematic frame. */
+  .letterbox {
+    position: relative;
+  }
+  .letterbox::before,
+  .letterbox::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 8%;
+    background: #000;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .letterbox::before {
+    top: 0;
+  }
+  .letterbox::after {
+    bottom: 0;
+  }
+
+  .text-gradient-gold {
+    @apply bg-gradient-to-b from-gold-200 via-gold-300 to-gold-500 bg-clip-text text-transparent;
+  }
+
+  .glass {
+    @apply border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl;
+  }
+}

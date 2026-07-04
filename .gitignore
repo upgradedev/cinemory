@@ -21,6 +21,11 @@ web/node_modules/
 web/dist/
 web/package-lock.json
 
+# React frontend (Vite) — build output covered by dist/ above; keep the
+# lockfile committed for reproducible `npm ci` in CI.
+frontend/node_modules/
+frontend/dist/
+
 # Generated demo output
 out/
 sample-data/generated/
