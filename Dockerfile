@@ -27,10 +27,11 @@ WORKDIR /app
 
 COPY pyproject.toml requirements.txt ./
 COPY src ./src
-RUN pip install --no-cache-dir . "uvicorn>=0.29"
-
-# Add the live extra at build time if deploying against real Genblaze + B2:
-#   RUN pip install --no-cache-dir ".[live]"
+# Install the [live] extra (boto3 + genblaze[gmicloud]) so the SAME image can run
+# either mode — offline (fakes, default) or live (real Genblaze + B2) — with the
+# mode chosen at runtime via CINEMORY_MODE. boto3 backs Cinemory's own reel->B2
+# storage; without it, live-mode startup crashes (B2Storage import).
+RUN pip install --no-cache-dir ".[live]" "uvicorn>=0.29"
 
 # Static web client (index.html references ./dist/... so keep them side by side).
 COPY --from=web /web/index.html ./web/index.html
