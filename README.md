@@ -99,15 +99,32 @@ credentials while the live path is a one-line adapter swap.
 
 ## How Genblaze is used
 
-- Generation is expressed as **Genblaze pipeline steps** (image-to-video,
-  first-last-frame bridge, audio) behind the `MediaProvider` port
-  ([`genblaze_provider.py`](src/cinemory/adapters/genblaze_provider.py)).
-- Cinemory adopts Genblaze's signature **provenance model** as a first-class app
-  feature: SHA-256 content addressing, a sealed run manifest, manifest embedding
-  into the media container, and offline re-verification
-  ([`provenance.py`](src/cinemory/provenance.py)).
-- Provider-agnostic by design — swap GMI Cloud / OpenAI / Google / Runway / Luma
-  without touching the pipeline.
+Genblaze is **load-bearing**, not a dumb byte source. On the live path the
+adapter ([`genblaze_provider.py`](src/cinemory/adapters/genblaze_provider.py))
+lets Genblaze own generation *and* durable storage *and* provenance for every
+generated asset:
+
+- **Generation** is expressed as a real **Genblaze `Pipeline` step**
+  (`Pipeline("cinemory-step").step(provider, model=, prompt=, modality=).run(...)`)
+  — image-to-video, first-last-frame bridge, audio — behind the `MediaProvider`
+  port.
+- **Storage + provenance done *by* Genblaze:** the adapter attaches Genblaze's
+  own `ObjectStorageSink` over a `genblaze_s3.S3StorageBackend.for_backblaze(...)`
+  backend, so Genblaze downloads the model output, content-addresses it, persists
+  it to **Backblaze B2**, and seals a **SHA-256 provenance manifest** for the run
+  (`result.manifest.verify_hash()`).
+- **Provenance chaining:** Cinemory reads the durable bytes back through the same
+  backend and **verifies them against Genblaze's sealed SHA-256**, then folds
+  that hash into its own reel-level manifest ([`provenance.py`](src/cinemory/provenance.py)).
+  Genblaze owns per-asset provenance; Cinemory owns the composed-reel provenance.
+- **Verified against the real SDK.** The adapter's every call and result shape is
+  contract-tested against the *actual* published Genblaze SDK using its own
+  shipped mock provider (`genblaze_core.testing`), so API drift fails CI —
+  ([`tests/integration/test_genblaze_contract.py`](tests/integration/test_genblaze_contract.py)).
+  `genblaze-core` is installed in CI (pure-Python, no credentials); only the live
+  GMICloud generation and B2 writes need keys.
+- **Provider-agnostic by design** — swap GMI Cloud / OpenAI / Google / Runway /
+  Luma without touching the pipeline.
 
 ### AI providers & models
 

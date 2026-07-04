@@ -17,9 +17,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Real generative-media orchestration (add credentials to use).
+# Real generative-media orchestration (add credentials to use). The gmicloud
+# extra pulls the GMICloud provider classes the adapter resolves; the genblaze
+# metapackage brings genblaze-core + genblaze-s3 (the B2 ObjectStorageSink).
+# boto3 backs Cinemory's own final-reel B2 storage.
 live = [
-    "genblaze",
+    "genblaze[gmicloud]>=0.4,<0.5",
     "boto3>=1.34",
 ]
 # Optional real audio analysis.
