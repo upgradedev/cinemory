@@ -28,8 +28,11 @@ Ceiling to 95+ is gated on the live app URL + demo video, which need credentials
 - `manifest.verify_hash()` ✓
 
 ## Owner action list (all require the owner's own credentials — cannot be faked)
-1. Fill `.env`: `B2_BUCKET_NAME`, `B2_REGION`, `B2_KEY_ID`, `B2_APP_KEY`, `GMI_API_KEY`
-   (GMI Cloud gives first ~270 credits free).
+1. Provide `GMI_API_KEY` (GMI Cloud gives first ~270 credits free). **B2 needs no
+   `.env` editing** if your canonical Backblaze vars are already exported —
+   `B2_APPLICATION_KEY_ID`, `B2_APPLICATION_KEY`, `B2_BUCKET_NAME`, `B2_S3_ENDPOINT`
+   are resolved out-of-the-box (region is derived from the endpoint; the legacy
+   `B2_KEY_ID`/`B2_APP_KEY`/`B2_ENDPOINT_URL`/`B2_REGION` names still work too).
 2. `pip install -e ".[live]"` then `CINEMORY_MODE=live bash demo/capture-demo.sh` — one live reel to B2.
 3. Deploy the container to **cinemory.ai** (Dockerfile ready) and confirm the judge URL.
 4. Record the ~3-min video (`demo/video-script.md`).
