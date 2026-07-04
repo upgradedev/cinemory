@@ -77,6 +77,14 @@ firebase use upgradegr-cinemory   # confirm/adjust in .firebaserc
 firebase deploy --only hosting
 ```
 
+> **Important:** the Firebase project in `.firebaserc` (`upgradegr-cinemory`)
+> **must be the same GCP project that hosts the Cloud Run `cinemory` service**
+> (region `europe-west1`, a Firebase-supported Cloud Run rewrite region) — the
+> Hosting → Cloud Run rewrite only resolves within one project. Confirm/adjust
+> the project id before deploying. `firebase.json` is strict JSON (no comments);
+> the rewrite **order matters** — the API routes are listed before the `**` SPA
+> fallback because Firebase uses first-match.
+
 Cloud Run (the API + the original `web/` fallback UI) is unchanged and keeps
 working; Firebase now serves the premium client. See repo `README.md` and
 `deploy/CLOUDRUN.md` for the backend.

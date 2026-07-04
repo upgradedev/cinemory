@@ -6,7 +6,6 @@
     "trailingSlash": false,
     "rewrites": [
       {
-        "//": "API rewrites MUST come before the SPA catch-all (first match wins). Firebase forwards the FULL path to Cloud Run with no strip, so we list the real backend routes explicitly — there is no common /api prefix. Single origin => no CORS.",
         "source": "/health",
         "run": { "serviceId": "cinemory", "region": "europe-west1" }
       },
@@ -23,7 +22,6 @@
         "run": { "serviceId": "cinemory", "region": "europe-west1" }
       },
       {
-        "//": "SPA fallback — every non-API path renders the React app.",
         "source": "**",
         "destination": "/index.html"
       }
