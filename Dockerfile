@@ -9,7 +9,8 @@
 FROM node:20-slim AS web
 WORKDIR /web
 COPY web/package.json web/tsconfig.json ./
-COPY web/package-lock.json* ./
+# No lockfile is committed (web/package-lock.json is gitignored), so install
+# from package.json — the web client has a single dev dep (typescript).
 RUN npm install --no-audit --no-fund
 COPY web/src ./src
 COPY web/index.html ./index.html
