@@ -1,0 +1,6 @@
+{
+  "//": "Firebase project that owns the Hosting site. This MUST be the same GCP project that hosts the Cloud Run `cinemory` service (europe-west1) or the API rewrites in firebase.json will not resolve. From deploy/DEPLOYED.md the Cloud Run project is `upgradegr-cinemory`. Confirm/adjust with your Firebase project id, then `firebase use`.",
+  "projects": {
+    "default": "upgradegr-cinemory"
+  }
+}

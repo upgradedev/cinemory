@@ -69,7 +69,28 @@ jobs:
       - name: Dependency audit (npm)
         run: npm audit --audit-level=high
 
-  # ── 4. CodeQL SAST (python + javascript/typescript) ─────────────────────────
+  # ── 4. Frontend: React + Vite (typecheck + build + component tests) ─────────
+  frontend:
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit + component tests (vitest)
+        run: npm run test
+      - name: Build
+        run: npm run build
+
+  # ── 5. CodeQL SAST (python + javascript/typescript) ─────────────────────────
   codeql:
     runs-on: ubuntu-latest
     needs: secret-scan

@@ -38,4 +38,23 @@ Ceiling to 95+ is gated on the live app URL + demo video, which need credentials
 4. Record the ~3-min video (`demo/video-script.md`).
 5. Submit the Devpost form (see `demo/SUBMISSION.md` for every field, incl. model list).
 
+## Premium React frontend (2026-07-04)
+
+A flagship cinematic web client now lives in `frontend/` (Vite · React 18 ·
+TypeScript strict · Tailwind · shadcn-style UI · React Query · Zod · Zustand ·
+framer-motion). It **replaces the bare `web/` SPA as the product UI** — a
+four-step wizard (Photos → Occasion → Generate → Result + Provenance) with a
+dark filmic aesthetic, full loading/empty/error/success states, responsive +
+accessible, and the complete share feature set preserved.
+
+- `web/` is **kept** so the existing Dockerfile / Cloud Run container still serves
+  a working UI + API (zero risk to the live deploy). Firebase Hosting now serves
+  the React client and rewrites the API routes (`/health`, `/occasions`,
+  `/reels/**`) to Cloud Run `cinemory` (europe-west1) — single origin, no CORS.
+- Deploy: `cd frontend && npm run build` → `firebase login` (interactive) →
+  `firebase use upgradegr-cinemory` → `firebase deploy --only hosting`. Config in
+  repo-root `firebase.json` + `.firebaserc`; details in `frontend/README.md`.
+- CI: new `frontend` job (typecheck + vitest + build). 19 frontend tests green;
+  `npm run build` clean.
+
 ## No live-run results are claimed anywhere without credentials.
