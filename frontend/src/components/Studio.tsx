@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Stepper } from "./Stepper";
 import { PhotoUpload } from "./steps/PhotoUpload";
@@ -8,18 +8,41 @@ import { ReelResult } from "./steps/ReelResult";
 import { useReelStore } from "@/store/useReelStore";
 import type { ReelResponse } from "@/lib/api";
 
+const STEP_LABEL: Record<string, string> = {
+  upload: "Step 1 of 4: choose your photos",
+  occasion: "Step 2 of 4: choose an occasion",
+  generate: "Step 3 of 4: generating your reel",
+  result: "Step 4 of 4: your reel is ready",
+};
+
 export function Studio() {
   const step = useReelStore((s) => s.step);
   const goTo = useReelStore((s) => s.goTo);
   const [reel, setReel] = useState<ReelResponse | null>(null);
+  const regionRef = useRef<HTMLDivElement>(null);
+
+  // Move keyboard/screen-reader focus to the new step on each transition so
+  // the wizard is navigable without a mouse, and announce it via aria-live.
+  useEffect(() => {
+    regionRef.current?.focus();
+  }, [step]);
 
   return (
     <section className="container max-w-4xl py-12 md:py-16">
       <Stepper current={step} />
 
+      <p className="sr-only" role="status" aria-live="polite">
+        {STEP_LABEL[step]}
+      </p>
+
       <AnimatePresence mode="wait">
         <motion.div
           key={step}
+          ref={regionRef}
+          tabIndex={-1}
+          role="group"
+          aria-label={STEP_LABEL[step]}
+          className="outline-none"
           initial={{ opacity: 0, x: 24 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -24 }}
