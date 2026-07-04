@@ -129,10 +129,18 @@ class GenblazeMediaProvider:
             return None
         from genblaze_s3 import S3StorageBackend  # type: ignore
 
-        # for_backblaze reads B2_KEY_ID / B2_APP_KEY from the environment; region
-        # comes from B2_REGION (or the endpoint's region), else its default.
+        from ..config import resolve_b2_config
+
+        # Resolve creds + region from either the legacy or the canonical B2 env
+        # names, and pass them explicitly (region derived from the endpoint host
+        # when B2_REGION is unset) so a user's canonical vars reach Genblaze's own
+        # S3 backend with no .env edit.
+        cfg = resolve_b2_config()
         return S3StorageBackend.for_backblaze(
-            self._bucket, region=os.environ.get("B2_REGION")
+            self._bucket,
+            region=cfg.region,
+            key_id=cfg.key_id,
+            app_key=cfg.app_key,
         )
 
     # -- generation -----------------------------------------------------------
