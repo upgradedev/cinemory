@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -72,6 +73,18 @@ def get_reel(name: str) -> dict:
     if not match:
         raise HTTPException(404, f"no reel named {name!r}")
     return json.loads(_storage.get(match["key"]))
+
+
+# Serve the compiled web client from the same origin as the API, so a single
+# Cloud Run container serves both. Mounted LAST and guarded by directory
+# existence: the explicit API routes above take precedence, and local/CI runs
+# (where the client isn't built) are unaffected. Set CINEMORY_WEB_DIR to the
+# folder holding index.html + dist/ (the Docker image sets it to /app/web).
+_WEB_DIR = Path(os.environ.get("CINEMORY_WEB_DIR", "")).expanduser()
+if _WEB_DIR.is_dir() and (_WEB_DIR / "index.html").is_file():
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory=str(_WEB_DIR), html=True), name="web")
 
 
 def main() -> None:  # pragma: no cover - manual entrypoint
