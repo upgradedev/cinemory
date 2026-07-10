@@ -45,6 +45,7 @@ class B2Config:
     key_id: str | None
     app_key: str | None
     region: str | None
+    key_prefix: str | None
 
 
 def _first_env(*names: str) -> str | None:
@@ -90,6 +91,7 @@ def resolve_b2_config() -> B2Config:
         key_id=_first_env("B2_KEY_ID", "B2_APPLICATION_KEY_ID"),
         app_key=_first_env("B2_APP_KEY", "B2_APPLICATION_KEY"),
         region=_first_env("B2_REGION") or _derive_region(endpoint),
+        key_prefix=_first_env("B2_KEY_PREFIX", "B2_PREFIX"),
     )
 
 

@@ -131,12 +131,37 @@ class GenblazeMediaProvider:
 
         from ..config import resolve_b2_config
 
-        # Resolve creds + region from either the legacy or the canonical B2 env
-        # names, and pass them explicitly (region derived from the endpoint host
-        # when B2_REGION is unset) so a user's canonical vars reach Genblaze's own
-        # S3 backend with no .env edit.
         cfg = resolve_b2_config()
-        return S3StorageBackend.for_backblaze(
+        prefix = cfg.key_prefix or ""
+        if prefix and not prefix.endswith("/"):
+            prefix += "/"
+
+        class PrefixedS3StorageBackend(S3StorageBackend):
+            def put(self, key, data, *args, **kwargs):
+                return super().put(f"{prefix}{key}", data, *args, **kwargs)
+
+            def get(self, key, *args, **kwargs):
+                return super().get(f"{prefix}{key}", *args, **kwargs)
+
+            def exists(self, key, *args, **kwargs):
+                return super().exists(f"{prefix}{key}", *args, **kwargs)
+
+            def delete(self, key, *args, **kwargs):
+                return super().delete(f"{prefix}{key}", *args, **kwargs)
+
+            def get_url(self, key, *args, **kwargs):
+                return super().get_url(f"{prefix}{key}", *args, **kwargs)
+
+            def get_durable_url(self, key, *args, **kwargs):
+                return super().get_durable_url(f"{prefix}{key}", *args, **kwargs)
+
+            def key_from_url(self, url, *args, **kwargs):
+                key = super().key_from_url(url, *args, **kwargs)
+                if key and prefix and key.startswith(prefix):
+                    return key[len(prefix):]
+                return key
+
+        return PrefixedS3StorageBackend.for_backblaze(
             self._bucket,
             region=cfg.region,
             key_id=cfg.key_id,

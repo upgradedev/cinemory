@@ -24,6 +24,8 @@ _B2_ENV = (
     "B2_APPLICATION_KEY_ID",
     "B2_APPLICATION_KEY",
     "B2_S3_ENDPOINT",
+    "B2_KEY_PREFIX",
+    "B2_PREFIX",
 )
 
 
@@ -118,7 +120,7 @@ def test_offline_mode_unaffected_by_b2_resolution(monkeypatch):
     # it never raises, so importing/using config offline is safe.
     cfg = config.resolve_b2_config()
     assert cfg == config.B2Config(
-        bucket=None, endpoint_url=None, key_id=None, app_key=None, region=None
+        bucket=None, endpoint_url=None, key_id=None, app_key=None, region=None, key_prefix=None
     )
 
     # The offline build path returns the fakes regardless of B2 config.
@@ -126,3 +128,14 @@ def test_offline_mode_unaffected_by_b2_resolution(monkeypatch):
 
     assert isinstance(config.build_storage(), FakeStorage)
     assert isinstance(config.build_provider(), FakeMediaProvider)
+
+
+def test_prefix_resolution(monkeypatch):
+    monkeypatch.setenv("B2_KEY_PREFIX", "cinemory/")
+    cfg = config.resolve_b2_config()
+    assert cfg.key_prefix == "cinemory/"
+
+    monkeypatch.delenv("B2_KEY_PREFIX")
+    monkeypatch.setenv("B2_PREFIX", "other-prefix")
+    cfg = config.resolve_b2_config()
+    assert cfg.key_prefix == "other-prefix"

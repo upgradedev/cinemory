@@ -40,6 +40,13 @@ class B2Storage:
         self.endpoint_url = endpoint_url or cfg.endpoint_url
         access_key_id = key_id or cfg.key_id
         secret_access_key = app_key or cfg.app_key
+        
+        # Resolve key prefix from config; ensure it ends with a slash if non-empty
+        prefix = cfg.key_prefix or ""
+        if prefix and not prefix.endswith("/"):
+            prefix += "/"
+        self.key_prefix = prefix
+
         if not self.bucket:
             raise RuntimeError("B2 bucket not configured (set B2_BUCKET_NAME)")
         if not self.endpoint_url:
@@ -61,18 +68,20 @@ class B2Storage:
     def put(  # pragma: no cover - real-path only
         self, key: str, data: bytes, *, content_type: str = "application/octet-stream"
     ) -> str:
-        self._client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type)
+        actual_key = f"{self.key_prefix}{key}"
+        self._client.put_object(Bucket=self.bucket, Key=actual_key, Body=data, ContentType=content_type)
         host = self.endpoint_url.replace("https://", "").rstrip("/")
-        return f"https://{self.bucket}.{host}/{key}"
+        return f"https://{self.bucket}.{host}/{actual_key}"
 
     def get(self, key: str) -> bytes:  # pragma: no cover - real-path only
-        return self._client.get_object(Bucket=self.bucket, Key=key)["Body"].read()
+        actual_key = f"{self.key_prefix}{key}"
+        return self._client.get_object(Bucket=self.bucket, Key=actual_key)["Body"].read()
 
     def exists(self, key: str) -> bool:  # pragma: no cover - real-path only
         from botocore.exceptions import ClientError
-
+        actual_key = f"{self.key_prefix}{key}"
         try:
-            self._client.head_object(Bucket=self.bucket, Key=key)
+            self._client.head_object(Bucket=self.bucket, Key=actual_key)
             return True
         except ClientError:
             return False

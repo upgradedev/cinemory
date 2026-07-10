@@ -36,6 +36,17 @@ genblaze_core = pytest.importorskip(
 )
 
 
+@pytest.fixture(autouse=True)
+def _clear_b2_env(monkeypatch):
+    for name in (
+        "B2_KEY_ID", "B2_APP_KEY", "B2_ENDPOINT_URL", "B2_REGION", "B2_BUCKET_NAME",
+        "B2_APPLICATION_KEY_ID", "B2_APPLICATION_KEY", "B2_S3_ENDPOINT",
+        "B2_KEY_PREFIX", "B2_PREFIX"
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+
+
 def _mock_provider(assets):
     from genblaze_core.testing import MockProvider
 

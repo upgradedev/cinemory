@@ -5,16 +5,13 @@
 # web client (tsc -> dist); stage 2 is the Python runtime, and FastAPI serves the
 # compiled client as static files (see cinemory.api: it mounts CINEMORY_WEB_DIR).
 
-# ── Stage 1: build the web client (vanilla TS SPA, compiled with tsc) ────────
+# ── Stage 1: build the web client (Vite React SPA) ────────
 FROM node:20-slim AS web
 WORKDIR /web
-COPY web/package.json web/tsconfig.json ./
-# No lockfile is committed (web/package-lock.json is gitignored), so install
-# from package.json — the web client has a single dev dep (typescript).
-RUN npm install --no-audit --no-fund
-COPY web/src ./src
-COPY web/index.html ./index.html
-RUN npm run build          # tsc -> /web/dist
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend ./
+RUN npm run build          # vite build -> /web/dist
 
 # ── Stage 2: Python runtime (FastAPI + ffmpeg for the live cinematic stitch) ─
 FROM python:3.11-slim
@@ -33,9 +30,8 @@ COPY src ./src
 # storage; without it, live-mode startup crashes (B2Storage import).
 RUN pip install --no-cache-dir ".[live]" "uvicorn>=0.29"
 
-# Static web client (index.html references ./dist/... so keep them side by side).
-COPY --from=web /web/index.html ./web/index.html
-COPY --from=web /web/dist ./web/dist
+# Static web client (Vite React SPA: index.html is inside dist/)
+COPY --from=web /web/dist ./web
 
 ENV CINEMORY_MODE=offline \
     CINEMORY_WEB_DIR=/app/web \
