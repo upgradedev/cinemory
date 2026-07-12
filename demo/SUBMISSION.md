@@ -5,7 +5,10 @@
 > **provenance** on every output.
 
 - **Repo:** https://github.com/upgradedev/cinemory (public, MIT)
-- **Live app:** https://cinemory.ai  *(owner-blocked: deploy + live run — see below)*
+- **Live app:** https://cinemory-595784992266.europe-west1.run.app
+  *(working Cloud Run URL — currently in `live` mode; the core `POST /reels`
+  action returns 500 pending credentials — see "Honest status" below.
+  `cinemory.ai` is **not yet mapped** — pending DNS; use the run.app URL for now.)*
 - **Demo video:** *(owner-blocked: record ~3 min — script in [`video-script.md`](video-script.md))*
 - **Deadline:** 2026-08-03 5:00pm EDT
 
@@ -156,10 +159,24 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - B2 + Genblaze usage is meaningful (both do real storage + provenance).
 - Docs, Dockerfile, `.env.example`, security scans all green.
 
+**Live deploy — deployed but currently broken (needs the owner's creds OR a revert):**
+The Cloud Run service `cinemory` (europe-west1) **is live** at
+https://cinemory-595784992266.europe-west1.run.app — but it was cut over to
+`CINEMORY_MODE=live` **without** B2/GMI credentials attached, so:
+- `GET /health` → `{"status":"ok","mode":"live"}` (serves)
+- `POST /reels` → **HTTP 500** (the core generate action fails — no creds in the
+  live revision).
+Fix is owner-only: either attach `GMI_API_KEY` + B2 vars and redeploy (see
+[`../deploy/CLOUDRUN.md`](../deploy/CLOUDRUN.md)), or revert the revision to
+`CINEMORY_MODE=offline` so `POST /reels` works end-to-end with fakes.
+
 **Owner-blocked (needs the owner's B2 + GMI credentials — cannot be faked):**
 1. **Live run** — set `.env`, `CINEMORY_MODE=live`, run the CLI once to produce a
    real B2-backed reel. *(No live-run results are claimed here without creds.)*
-2. **Deploy** the container to `cinemory.ai` and confirm the judge-accessible URL.
+2. **Fix the live deploy** — attach creds and redeploy, OR revert Cloud Run to
+   `offline` (above). Then optionally map `cinemory.ai` (A + AAAA DNS — see
+   [`../deploy/CLOUDRUN.md`](../deploy/CLOUDRUN.md)); until mapped, the judge URL
+   is the run.app link above.
 3. **Record** the ~3-min demo video ([`video-script.md`](video-script.md)).
 4. **Submit** the Devpost form (repo URL, app URL, models list above, this doc,
    video URL) before 2026-08-03 5:00pm EDT.
