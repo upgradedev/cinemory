@@ -80,15 +80,28 @@ def center_text(d, cx, y, text, font, fill):
     d.text((cx - (b[2] - b[0]) / 2, y), text, font=font, fill=fill)
 
 
+def _fit_font(d, text, path, start, max_w):
+    size = start
+    while size > 20:
+        fnt = f(path, size)
+        b = d.textbbox((0, 0), text, font=fnt)
+        if (b[2] - b[0]) <= max_w:
+            return fnt
+        size -= 2
+    return f(path, 20)
+
+
 def slide_title(title, subtitle, tag=None):
     img = new_frame()
     d = ImageDraw.Draw(img)
     letterbox(d)
     # gold rule
     d.rectangle([W / 2 - 40, 250, W / 2 + 40, 253], fill=GOLD)
-    center_text(d, W / 2, 285, title, f(FONTB, 60), ZINC)
+    title_font = _fit_font(d, title, FONTB, 60, W - 140)
+    center_text(d, W / 2, 285, title, title_font, ZINC)
     if subtitle:
-        center_text(d, W / 2, 375, subtitle, f(FONT, 30), ZINC_DIM)
+        sub_font = _fit_font(d, subtitle, FONT, 30, W - 140)
+        center_text(d, W / 2, 375, subtitle, sub_font, ZINC_DIM)
     if tag:
         center_text(d, W / 2, 620, tag, f(MONO, 22), GOLD)
     return img
