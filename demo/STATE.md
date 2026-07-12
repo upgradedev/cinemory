@@ -4,6 +4,15 @@ _Last updated: 2026-07-04. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 
 ## Where it stands: ~92/100 (code/docs complete; live-run + video are owner-only)
 
+> ⚠️ **Live deploy state (reconcile with `/health`):** the Cloud Run service
+> `cinemory` (europe-west1) **is live** at
+> https://cinemory-595784992266.europe-west1.run.app but was cut over to
+> `CINEMORY_MODE=live` **without credentials** — `GET /health` reports
+> `mode:"live"`, and `POST /reels` currently returns **HTTP 500** (core generate
+> action fails, no B2/GMI creds). Owner-only fix: attach creds + redeploy, **or**
+> revert the revision to `offline`. `cinemory.ai` is **not yet mapped** (HTTP 000);
+> the judge URL is the run.app link. See `deploy/DEPLOYED.md` + `demo/SUBMISSION.md`.
+
 The former 95-blocker — "Genblaze adapter untested vs the real SDK" — is **closed**:
 the adapter is verified against the real published Genblaze SDK and contract-tested
 in CI. See `feat/genblaze-adapter-contract` (PR).
@@ -34,7 +43,10 @@ Ceiling to 95+ is gated on the live app URL + demo video, which need credentials
    are resolved out-of-the-box (region is derived from the endpoint; the legacy
    `B2_KEY_ID`/`B2_APP_KEY`/`B2_ENDPOINT_URL`/`B2_REGION` names still work too).
 2. `pip install -e ".[live]"` then `CINEMORY_MODE=live bash demo/capture-demo.sh` — one live reel to B2.
-3. Deploy the container to **cinemory.ai** (Dockerfile ready) and confirm the judge URL.
+3. Fix the live Cloud Run revision (now `mode:live` but `POST /reels` 500s):
+   attach `GMI_API_KEY` + B2 vars and redeploy, **or** revert to `offline`. Then
+   optionally map **cinemory.ai** (not yet mapped); until then the judge URL is
+   the run.app link.
 4. Record the ~3-min video (`demo/video-script.md`).
 5. Submit the Devpost form (see `demo/SUBMISSION.md` for every field, incl. model list).
 

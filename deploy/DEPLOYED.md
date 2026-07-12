@@ -23,10 +23,23 @@ Built via Cloud Build (no local Docker). Verified serving:
 - `GET /dist/main.js` → 200 `application/javascript`
 - `GET /dist/lib/api.js` → 200
 
-### Live cutover (still gated — not executed)
+## ⚠️ Current live state — cut over to `live`, but BROKEN (no creds)
 
-Gate A: merge the Option B config-fallback PR (today's image reads legacy B2 var
-names). Gate B: obtain `GMI_API_KEY`. Then one command (see `CLOUDRUN.md`):
+The service was later redeployed with `CINEMORY_MODE=live` **without** attaching
+B2/GMI credentials. As a result the live revision is in a half-broken state:
+
+- `GET /health` → `{"status":"ok","service":"cinemory-api","mode":"live"}` (serves)
+- `POST /reels` → **HTTP 500** — the core generate action fails because no
+  Genblaze/B2 credentials are present in the live revision.
+
+This contradicts a working demo. **Owner-only fix (pick one):**
+- **Attach creds + redeploy** — supply `GMI_API_KEY` + the B2 vars via the live
+  command below, or
+- **Revert to offline** — redeploy with `CINEMORY_MODE=offline` (`CINEMORY_STITCH=fake`)
+  so `POST /reels` returns a full offline reel again.
+
+Gate B (`GMI_API_KEY` not yet issued) still applies to the creds path. Live command
+(see `CLOUDRUN.md`):
 
 ```bash
 CINEMORY_MODE=live CINEMORY_STITCH=ffmpeg \
@@ -35,4 +48,8 @@ B2_BUCKET_NAME=... B2_S3_ENDPOINT=... GMI_API_KEY=... \
   bash deploy/deploy-cloudrun.sh
 ```
 
-### cinemory.ai domain mapping — see `CLOUDRUN.md` (apex → A + AAAA records).
+### cinemory.ai domain mapping — NOT yet mapped
+
+`cinemory.ai` currently returns HTTP 000 (domain never mapped). Until DNS is set
+up (apex → A + AAAA records — see `CLOUDRUN.md`), the judge-accessible URL is the
+run.app link above.

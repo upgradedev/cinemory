@@ -4,6 +4,7 @@ Generates exactly 50 distinct E2E test cases to verify the media compilation,
 content-addressed hashing, and cryptographic provenance checks under various specs.
 """
 import json
+
 import pytest
 
 from cinemory.adapters import FakeMediaProvider, FakeStorage
@@ -11,7 +12,6 @@ from cinemory.keys import KeyStrategy, make_key
 from cinemory.models import Bridge
 from cinemory.pipeline import ReelPipeline
 from cinemory.provenance import (
-    extract,
     sha256_bytes,
     verify_asset,
     verify_manifest,

@@ -5,12 +5,14 @@ Measures latency and thread safety across multiple parallel generations.
 """
 import concurrent.futures
 import time
+
 import pytest
 
 from cinemory.adapters import FakeMediaProvider, FakeStorage
 from cinemory.models import Bridge
 from cinemory.pipeline import ReelPipeline
 from cinemory.synthetic import synth_reel_spec
+
 
 def run_single_pipeline(worker_id):
     storage = FakeStorage(bucket=f"cinemory-load-bucket-{worker_id}")

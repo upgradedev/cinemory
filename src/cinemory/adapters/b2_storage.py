@@ -69,7 +69,9 @@ class B2Storage:
         self, key: str, data: bytes, *, content_type: str = "application/octet-stream"
     ) -> str:
         actual_key = f"{self.key_prefix}{key}"
-        self._client.put_object(Bucket=self.bucket, Key=actual_key, Body=data, ContentType=content_type)
+        self._client.put_object(
+            Bucket=self.bucket, Key=actual_key, Body=data, ContentType=content_type
+        )
         host = self.endpoint_url.replace("https://", "").rstrip("/")
         return f"https://{self.bucket}.{host}/{actual_key}"
 

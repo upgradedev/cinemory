@@ -75,7 +75,7 @@ def _mem_backend():
             self.store: dict[str, bytes] = {}
 
         def put(self, key, data, *, content_type=None, metadata=None, extra_args=None):
-            self.store[key] = bytes(data) if isinstance(data, (bytes, bytearray)) else data.read()
+            self.store[key] = bytes(data) if isinstance(data, bytes | bytearray) else data.read()
             return key
 
         def get(self, key):
