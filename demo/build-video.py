@@ -218,9 +218,11 @@ def build_segments():
                  note="17 objects persisted; manifest, asset and embedded provenance all verify."),
         "Under the hood, the same pipeline runs from the command line. Each photo "
         "becomes a short clip through a Genblaze pipeline step, chapters are bridged "
-        "with first-last-frame transitions, and the reel is stitched and written to "
-        "Backblaze B2. Seventeen objects are stored, and the manifest, the asset and "
-        "the embedded provenance all verify — true, true, true.",
+        "with first-last-frame transitions, and the reel is stitched. Every artifact "
+        "is content-addressed and stored — Backblaze B2 in live mode, an in-memory "
+        "store here, so this whole run works offline with no credentials. Seventeen "
+        "objects are stored, and the manifest, the asset and the embedded provenance "
+        "all verify — true, true, true.",
     ))
 
     segs.append((
