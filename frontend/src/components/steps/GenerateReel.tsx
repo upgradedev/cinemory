@@ -4,7 +4,7 @@ import { AlertTriangle, Check, Loader2, RotateCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { StepHeading } from "./PhotoUpload";
-import { useCreateReel, useOccasions } from "@/lib/queries";
+import { useCreateReel, useOccasions, useUploadReel } from "@/lib/queries";
 import { deriveReelShape, useReelStore } from "@/store/useReelStore";
 import type { ReelResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,8 @@ export function GenerateReel({
   const occasionKey = useReelStore((s) => s.occasionKey);
   const goTo = useReelStore((s) => s.goTo);
   const { data: occasions } = useOccasions();
-  const mutation = useCreateReel();
+  const uploadMutation = useUploadReel();
+  const synthMutation = useCreateReel();
 
   const [stage, setStage] = useState(0);
   const startedRef = useRef(false);
@@ -36,22 +37,40 @@ export function GenerateReel({
   const occasion = occasions?.find((o) => o.key === occasionKey);
   const shape = deriveReelShape(photos.length);
 
+  // Real photos → send the actual bytes to /reels/upload-multipart. With no
+  // files selected we fall back to the synthetic count/order path (/reels).
+  const hasPhotos = photos.length > 0;
+  const mutation = hasPhotos ? uploadMutation : synthMutation;
+
   const start = () => {
     setStage(0);
-    mutation.mutate(
-      {
-        name: "cinemory-reel",
-        occasion: occasionKey ?? "anniversary",
-        chapters: shape.chapters,
-        per_chapter: shape.per_chapter,
+    const onSettled = {
+      onSuccess: (reel: ReelResponse) => {
+        setStage(STAGES.length);
+        window.setTimeout(() => onComplete(reel), 650);
       },
-      {
-        onSuccess: (reel) => {
-          setStage(STAGES.length);
-          window.setTimeout(() => onComplete(reel), 650);
+    };
+    if (hasPhotos) {
+      uploadMutation.mutate(
+        {
+          name: "cinemory-reel",
+          occasion: occasionKey ?? "anniversary",
+          chapters: shape.chapters,
+          files: photos.map((p) => p.file),
         },
-      },
-    );
+        onSettled,
+      );
+    } else {
+      synthMutation.mutate(
+        {
+          name: "cinemory-reel",
+          occasion: occasionKey ?? "anniversary",
+          chapters: shape.chapters,
+          per_chapter: shape.per_chapter,
+        },
+        onSettled,
+      );
+    }
   };
 
   // Kick off exactly once on mount.

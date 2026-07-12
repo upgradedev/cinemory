@@ -66,6 +66,56 @@ describe("cinemoryApi.createReel", () => {
   });
 });
 
+describe("cinemoryApi.uploadReel", () => {
+  it("posts real files as multipart/form-data and parses the reel", async () => {
+    const fetchMock = mockFetch(200, {
+      reel_name: "cinemory-reel",
+      occasion: "wedding",
+      reel_url: "b2://bucket/r.mp4",
+      reel_sha256: "abc",
+      manifest_uri: "b2://bucket/m.json",
+      manifest_hash: "def",
+      steps: 5,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const file = new File([new Uint8Array([1, 2, 3])], "memory.png", {
+      type: "image/png",
+    });
+    const r = await cinemoryApi.uploadReel({
+      name: "cinemory-reel",
+      occasion: "wedding",
+      chapters: 3,
+      files: [file],
+    });
+    expect(r.steps).toBe(5);
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/reels/upload-multipart");
+    expect(init.method).toBe("POST");
+    // Must be FormData (browser sets the multipart boundary) — never a JSON body
+    // and never a caller-set Content-Type that would clobber the boundary.
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+    const body = init.body as FormData;
+    expect(body.getAll("files")).toHaveLength(1);
+    expect(body.get("occasion")).toBe("wedding");
+    expect(body.get("chapters")).toBe("3");
+  });
+
+  it("surfaces a 5xx as ApiError, not a silent failure", async () => {
+    vi.stubGlobal("fetch", mockFetch(500, { detail: "boom" }));
+    await expect(
+      cinemoryApi.uploadReel({
+        name: "x",
+        occasion: "wedding",
+        chapters: 3,
+        files: [],
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
 describe("cinemoryApi.manifest", () => {
   it("returns null on 404 (live path)", async () => {
     vi.stubGlobal("fetch", mockFetch(404, { detail: "nope" }));
