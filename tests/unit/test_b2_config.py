@@ -11,6 +11,7 @@ from __future__ import annotations
 import pytest
 
 from cinemory import config
+from cinemory.adapters import FakeMediaProvider, FakeStorage
 
 # Every B2 env name either resolver reads. The dev machine that authored this
 # has the canonical set exported, so each test starts from a clean slate and
@@ -139,3 +140,42 @@ def test_prefix_resolution(monkeypatch):
     monkeypatch.setenv("B2_PREFIX", "other-prefix")
     cfg = config.resolve_b2_config()
     assert cfg.key_prefix == "other-prefix"
+
+
+# ── Degrade-to-offline: live mode without creds must still wire the fakes ──────
+# so the core action (POST /reels) never 500s. See config._b2_ready / build_*.
+def test_live_without_b2_creds_degrades_to_fake_storage(monkeypatch):
+    monkeypatch.setenv("CINEMORY_MODE", "live")
+    # _clear_b2_env already stripped every B2 var — no creds present.
+    assert config.storage_ready() is False
+    assert isinstance(config.build_storage(), FakeStorage)
+
+
+def test_live_without_gmi_key_degrades_to_fake_provider(monkeypatch):
+    monkeypatch.setenv("CINEMORY_MODE", "live")
+    monkeypatch.delenv("GMI_API_KEY", raising=False)
+    assert config.provider_ready() is False
+    assert isinstance(config.build_provider(), FakeMediaProvider)
+
+
+def test_b2_ready_true_when_all_creds_present(monkeypatch):
+    # Do NOT construct B2Storage (needs boto3, not in CI) — assert the predicate.
+    monkeypatch.setenv("CINEMORY_MODE", "live")
+    monkeypatch.setenv("B2_BUCKET_NAME", "cinemory-demo")
+    monkeypatch.setenv("B2_ENDPOINT_URL", "https://s3.eu-central-003.backblazeb2.com")
+    monkeypatch.setenv("B2_KEY_ID", "id")
+    monkeypatch.setenv("B2_APP_KEY", "secret")
+    import importlib.util
+    expected = importlib.util.find_spec("boto3") is not None
+    assert config._b2_ready() is expected
+
+
+def test_genblaze_ready_reflects_gmi_key(monkeypatch):
+    monkeypatch.setenv("CINEMORY_MODE", "live")
+    monkeypatch.setenv("GENBLAZE_PROVIDER", "gmicloud")
+    monkeypatch.delenv("GMI_API_KEY", raising=False)
+    assert config._genblaze_ready() is False
+    monkeypatch.setenv("GMI_API_KEY", "gmi-secret")
+    import importlib.util
+    expected = importlib.util.find_spec("genblaze_core") is not None
+    assert config._genblaze_ready() is expected

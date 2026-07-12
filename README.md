@@ -190,7 +190,17 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges --out 
 # Run the API:
 uvicorn cinemory.api:app --reload
 # POST http://localhost:8000/reels   {"name":"demo","chapters":3,"per_chapter":2}
+#
+# Generate from REAL photos (mobile/web sends actual pixels):
+#   POST /reels/upload            base64 JSON  {"name","occasion","chapters",
+#                                               "photos":[{"filename","content_base64"}]}
+#   POST /reels/upload-multipart  multipart/form-data files=@a.jpg files=@b.jpg …
 ```
+
+> Reel generation always works with **no credentials**: in `live` mode the API
+> uses the real Genblaze/B2 backends only when their credentials are present,
+> and otherwise degrades transparently to the offline path (`GET /health`
+> reports the effective `provider`/`storage`), so `POST /reels` never 500s.
 
 ### Live (real Genblaze + Backblaze B2)
 
