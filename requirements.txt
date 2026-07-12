@@ -3,3 +3,6 @@
 fastapi>=0.110
 pydantic>=2.6
 pillow>=10.2
+# Real photo ingest (POST /reels/upload-multipart). Pinned >=0.0.18 to stay
+# clear of the ReDoS advisory in older releases (keeps pip-audit --strict green).
+python-multipart>=0.0.18

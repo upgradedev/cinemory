@@ -6,12 +6,16 @@ Genblaze + B2 adapters (requires credentials).
 """
 from __future__ import annotations
 
+import importlib.util
+import logging
 import os
 from dataclasses import dataclass
 
 from .adapters import FakeMediaProvider, FakeStorage
 from .ports import MediaProvider, StorageBackend
 from .stitch import FakeStitcher, FfmpegStitcher
+
+_log = logging.getLogger("cinemory.config")
 
 
 def mode() -> str:
@@ -95,19 +99,70 @@ def resolve_b2_config() -> B2Config:
     )
 
 
+# ── Live-capability detection (degrade-to-offline is the safe default) ────────
+# The core action (`POST /reels`) must ALWAYS work, even when the process is
+# started in ``live`` mode but the required credentials/SDKs are absent. Rather
+# than raise (which would 500 the endpoint — or crash at import, since the API
+# builds its storage/provider at module load), each live adapter is gated on a
+# pure readiness predicate. When ``live`` is requested but a backend is not
+# ready, we transparently fall back to the offline fake and log a WARNING, so a
+# credential-free deploy still produces a real deterministic reel + sealed
+# provenance manifest instead of an error.
+
+
+def _b2_ready() -> bool:
+    """True when the real B2 storage adapter can actually be constructed."""
+    if importlib.util.find_spec("boto3") is None:
+        return False
+    cfg = resolve_b2_config()
+    return all((cfg.bucket, cfg.endpoint_url, cfg.key_id, cfg.app_key))
+
+
+def _genblaze_ready() -> bool:
+    """True when the real Genblaze media provider can actually generate."""
+    if importlib.util.find_spec("genblaze_core") is None:
+        return False
+    provider = os.environ.get("GENBLAZE_PROVIDER", "gmicloud")
+    if provider == "gmicloud":
+        return bool(os.environ.get("GMI_API_KEY"))
+    return False
+
+
+def storage_ready() -> bool:
+    """Whether the live storage backend is wired for the current environment."""
+    return mode() == "live" and _b2_ready()
+
+
+def provider_ready() -> bool:
+    """Whether the live media provider is wired for the current environment."""
+    return mode() == "live" and _genblaze_ready()
+
+
 def build_provider() -> MediaProvider:
-    if mode() == "live":
+    if provider_ready():
         from .adapters.genblaze_provider import GenblazeMediaProvider
 
         return GenblazeMediaProvider()
+    if mode() == "live":
+        _log.warning(
+            "CINEMORY_MODE=live but Genblaze provider is not ready "
+            "(missing GMI_API_KEY or genblaze SDK); using the offline media "
+            "provider so reel generation still works."
+        )
     return FakeMediaProvider()
 
 
 def build_storage() -> StorageBackend:
-    if mode() == "live":
+    if storage_ready():
         from .adapters.b2_storage import B2Storage
 
         return B2Storage()
+    if mode() == "live":
+        _log.warning(
+            "CINEMORY_MODE=live but B2 storage is not ready "
+            "(missing B2 credentials or boto3); using the offline object store "
+            "so reel generation still works."
+        )
     return FakeStorage()
 
 

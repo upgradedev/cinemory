@@ -46,9 +46,10 @@ Production Readiness, B2 use, Genblaze use — hit each explicitly.
   the `manifest.json` sitting next to the assets.
 
 ## 2:10–2:40 — Production readiness
-- "Ports-and-adapters: live↔offline is a one-line swap. 67 tests pass offline
-  with zero credentials — including a contract test that runs the adapter against
-  the **real published Genblaze SDK**, so API drift fails CI."
+- "Ports-and-adapters: live↔offline is a one-line swap. The full suite runs green
+  offline with zero credentials — 147 passing plus 2 environment-conditional
+  skips — including a contract test that runs the adapter against the **real
+  published Genblaze SDK**, so API drift fails CI."
 - Flash the green GitHub Actions run (gitleaks · CodeQL · pip-audit · npm audit ·
   ruff) and the Dockerfile.
 

@@ -52,7 +52,7 @@ Given a set of (synthetic) memories organised into *chapters*:
 ```
                      ┌──────────────────────────────┐
   Browser client ───▶│  Cinemory API (FastAPI)       │
-  (web/, TS)         │ /health·/occasions·/reels·/id  │
+  (frontend/, React) │ /health·/occasions·/reels·/id  │
                      └───────────────┬───────────────┘
                                      │
                          ┌───────────▼────────────┐
@@ -75,11 +75,18 @@ Given a set of (synthetic) memories organised into *chapters*:
                          └─────────────────────────┘
 ```
 
+**API endpoints:** `GET /health` · `GET /occasions` · `POST /reels` (synthetic
+demo) · `POST /reels/upload` (real photos, base64 JSON) ·
+`POST /reels/upload-multipart` (real photos, multipart) · `GET /reels/{name}`
+(sealed manifest).
+
 The orchestrator depends **only on ports** (`MediaProvider`, `StorageBackend`,
 `Stitcher`). The real adapters wrap Genblaze and B2; the fakes implement the
 same protocols with no network. The *same* pipeline code — including the real
 hashing and provenance — runs in both modes, so CI is green with zero
-credentials while the live path is a one-line adapter swap.
+credentials while the live path is a one-line adapter swap. In `live` mode the
+real backends are used only when their credentials are present; otherwise the
+API degrades transparently to the offline path, so `POST /reels` never 500s.
 
 ---
 
@@ -151,7 +158,7 @@ core stays offline/PII-safe; the connectors are **opt-in and consent-gated**
   prompt direction, music mood, pacing and aspect ratio. Select via
   `--occasion`, `POST /reels` or `GET /occasions`; recorded in the sealed
   manifest. Add a theme = add one dict entry.
-- **Web Share + export** ([`web/src/lib/share.ts`](web/src/lib/share.ts)) —
+- **Web Share + export** ([`frontend/src/lib/share.ts`](frontend/src/lib/share.ts)) —
   native OS share sheet (`navigator.share({files})`) to Instagram / Facebook /
   LinkedIn / YouTube with **no platform API review**, plus a download button and
   per-platform deep-links.
@@ -190,7 +197,17 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges --out 
 # Run the API:
 uvicorn cinemory.api:app --reload
 # POST http://localhost:8000/reels   {"name":"demo","chapters":3,"per_chapter":2}
+#
+# Generate from REAL photos (mobile/web sends actual pixels):
+#   POST /reels/upload            base64 JSON  {"name","occasion","chapters",
+#                                               "photos":[{"filename","content_base64"}]}
+#   POST /reels/upload-multipart  multipart/form-data files=@a.jpg files=@b.jpg …
 ```
+
+> Reel generation always works with **no credentials**: in `live` mode the API
+> uses the real Genblaze/B2 backends only when their credentials are present,
+> and otherwise degrades transparently to the offline path (`GET /health`
+> reports the effective `provider`/`storage`), so `POST /reels` never 500s.
 
 ### Live (real Genblaze + Backblaze B2)
 
@@ -218,7 +235,7 @@ A full testing pyramid runs offline (fakes for Genblaze + B2, no creds):
 | Layer | Location | Proves |
 |---|---|---|
 | **Unit** | `tests/unit/` | provenance hashing/verify/tamper-detection, key strategy, synthetic photos, beat-cut planning, occasion presets, fakes |
-| **Integration** | `tests/integration/` | pipeline wiring (photos→clips→bridges→reel), FastAPI routes (incl. `/occasions`), opt-in connector flows via a fake HTTP transport, real ffmpeg stitch (skipped if ffmpeg absent) |
+| **Integration** | `tests/integration/` | pipeline wiring (photos→clips→bridges→reel), FastAPI routes (incl. `/occasions`, the `/reels/upload` ingest routes, and the credential-free `live`-mode degrade path), opt-in connector flows via a fake HTTP transport, real ffmpeg stitch (skipped if ffmpeg absent) |
 | **E2E** | `tests/e2e/` | synthetic memories → reel → B2 → reload manifest → **assert on real SHA-256 the provenance layer recomputes** |
 
 ```bash
@@ -262,8 +279,9 @@ src/cinemory/
   stitch.py        FakeStitcher (offline) · FfmpegStitcher (real grade)
   music.py         beat-cut planning (pure) + optional librosa analysis
   synthetic.py     PII-safe synthetic photo generation
+  ingest.py        build a ReelSpec from real uploaded photos (upload routes)
   occasions.py     config-driven occasion presets (themes)
-  config.py        offline/live adapter selection
+  config.py        offline/live adapter selection (credential-aware degrade)
   api.py           FastAPI app
   cli.py           end-to-end CLI
   adapters/
@@ -273,7 +291,10 @@ src/cinemory/
     _http.py                      injectable HTTP transport seam
     google_photos.py              OAuth + Photos Picker flow
     youtube.py · linkedin.py      upload / share
-web/               typed browser client (TS) — Web Share + export
+frontend/          React SPA (Vite · TS) — the product UI; served by Firebase
+                   Hosting AND the Cloud Run container (Dockerfile builds it)
+web/               legacy TS browser client — Web Share reference impl; still
+                   type-checked/built in CI, not served by the container
 tests/             unit · integration · e2e
 ROADMAP.md         features · show-stoppers · connector go-live steps
 ```

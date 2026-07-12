@@ -16,15 +16,18 @@ keys ever committed.
 
 ## ✅ Implemented (this milestone)
 
-### 1. Web Share share-sheet + export — `web/`
+### 1. Web Share share-sheet + export — `frontend/` (+ legacy `web/` reference)
 - Native share sheet via the **Web Share API** (`navigator.share({ files: [reel.mp4] })`)
   — reaches Instagram, Facebook, LinkedIn, YouTube and every installed target
   with **zero platform API review**.
 - **Download-to-`.mp4`** export button (share-sheet fallback / desktop).
 - **Per-platform deep-links** (Facebook + LinkedIn share-by-URL; Instagram +
   YouTube app/Studio deep-links) as a universal fallback.
-- Pure, dependency-injectable helpers ([`web/src/lib/share.ts`](web/src/lib/share.ts));
-  typecheck-clean; no new runtime npm deps.
+- Pure, dependency-injectable helpers — shipped in the product UI at
+  [`frontend/src/lib/share.ts`](frontend/src/lib/share.ts) (the original
+  reference implementation also lives in the legacy `web/` SPA at
+  [`web/src/lib/share.ts`](web/src/lib/share.ts)); typecheck-clean; no new
+  runtime npm deps.
 
 ### 2. Occasion templates / themes — config-driven
 - Six selectable presets — **anniversary, graduation, birthday, wedding,
