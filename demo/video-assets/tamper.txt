@@ -1,0 +1,6 @@
+test_manifest_builds_and_verifies PASSED
+test_manifest_tamper_is_detected PASSED
+test_missing_hash_fails_verification PASSED
+test_verify_asset_matches_recorded_hash PASSED
+test_embed_extract_roundtrip PASSED
+test_extract_returns_none_when_absent PASSED
