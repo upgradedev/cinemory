@@ -28,11 +28,20 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 149 tests; credential-free live-degrade + real-photo ingest; drift guarded |
-| B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 154 tests; credential-free live-degrade + real-photo ingest; drift guarded |
+| B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) + a real queryable `index.jsonl` run index on both fake and B2 adapters |
 | Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 
-Ceiling to 95+ is gated on the live app URL + demo video, which need credentials.
+> **B2 run-index note:** `B2Storage` now keeps a durable `index.jsonl` catalogue
+> (per-put write + query-time reload), so `GET /reels/{name}` / the ProvenancePanel
+> work in live mode. It is **code-complete and unit-tested** (multi-instance,
+> prefixed); it is **not yet exercised against real B2** — the live box currently
+> runs the offline-degrade path because the B2 key in the deploy env is not
+> entitled for `PutObject`. A write-entitled key closes that last gap.
+
+A demo video is now committed (`demo/cinemory-demo.mp4`, ~3 min, offline-honest).
+Ceiling to 95+ is gated on a write-entitled B2 key + a live-B2 run + hosting the
+video.
 
 ## Verified against the real SDK (genblaze-core 0.3.4 / -s3 0.3.4 / -gmicloud 0.3.2)
 - `Pipeline().step(provider, model=, prompt=, modality=, **params).run(sink=, timeout=, raise_on_failure=True)` ✓
