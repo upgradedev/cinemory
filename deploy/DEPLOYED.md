@@ -23,23 +23,27 @@ Built via Cloud Build (no local Docker). Verified serving:
 - `GET /dist/main.js` → 200 `application/javascript`
 - `GET /dist/lib/api.js` → 200
 
-## ⚠️ Current live state — cut over to `live`, but BROKEN (no creds)
+## ⚠️ Current live state — `live` mode; deployed revision predates the degrade fix
 
 The service was later redeployed with `CINEMORY_MODE=live` **without** attaching
-B2/GMI credentials. As a result the live revision is in a half-broken state:
+B2/GMI credentials. The *currently-deployed* revision runs the pre-fix image:
 
 - `GET /health` → `{"status":"ok","service":"cinemory-api","mode":"live"}` (serves)
-- `POST /reels` → **HTTP 500** — the core generate action fails because no
-  Genblaze/B2 credentials are present in the live revision.
+- `POST /reels` → **HTTP 500** on that old revision — no Genblaze/B2 credentials.
 
-This contradicts a working demo. **Owner-only fix (pick one):**
-- **Attach creds + redeploy** — supply `GMI_API_KEY` + the B2 vars via the live
-  command below, or
-- **Revert to offline** — redeploy with `CINEMORY_MODE=offline` (`CINEMORY_STITCH=fake`)
-  so `POST /reels` returns a full offline reel again.
+**The code now guarantees this can't recur.** `build_provider()` / `build_storage()`
+use the real Genblaze/B2 backends only when their credentials are present, and
+otherwise degrade transparently to the offline fakes (with a WARNING). So in
+`live` mode with no creds, `POST /reels` returns 200 with a real deterministic
+reel + sealed manifest, and `GET /health` reports the effective
+`provider`/`storage`.
 
-Gate B (`GMI_API_KEY` not yet issued) still applies to the creds path. Live command
-(see `CLOUDRUN.md`):
+**Owner-only step — redeploy the latest image.** That alone clears the 500 (no
+creds or mode change needed). Attach `GMI_API_KEY` + the B2 vars only to get
+*real* live generation instead of the offline-degraded path.
+
+Gate B (`GMI_API_KEY` not yet issued) still applies to the real-generation path.
+Live command (see `CLOUDRUN.md`):
 
 ```bash
 CINEMORY_MODE=live CINEMORY_STITCH=ffmpeg \

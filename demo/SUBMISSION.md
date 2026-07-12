@@ -6,8 +6,10 @@
 
 - **Repo:** https://github.com/upgradedev/cinemory (public, MIT)
 - **Live app:** https://cinemory-595784992266.europe-west1.run.app
-  *(working Cloud Run URL — currently in `live` mode; the core `POST /reels`
-  action returns 500 pending credentials — see "Honest status" below.
+  *(working Cloud Run URL — currently in `live` mode. The deployed revision runs
+  a pre-fix image whose `POST /reels` 500s without creds; the code now
+  auto-degrades to the offline path in `live` mode, so a redeploy makes
+  `POST /reels` return 200 with no creds — see "Honest status" below.
   `cinemory.ai` is **not yet mapped** — pending DNS; use the run.app URL for now.)*
 - **Demo video:** *(owner-blocked: record ~3 min — script in [`video-script.md`](video-script.md))*
 - **Deadline:** 2026-08-03 5:00pm EDT
@@ -118,11 +120,16 @@ Models are configurable per pipeline; any Genblaze-supported provider works.
   SDK-boundary Genblaze contract test — which drives a **real** Genblaze
   `Pipeline` + `ObjectStorageSink` (over an in-memory backend) so the live
   sink→store→readback→sha256-chain path is genuinely exercised, not just the
-  offline fakes. **68 passing, 1 conditional skip.**
+  offline fakes. **149 passing, 1 conditional ffmpeg skip** (when ffmpeg is absent).
 - **Security in CI:** gitleaks (fail-fast) · CodeQL (python + js/ts) ·
   `pip-audit --strict` · `npm audit` · ruff.
 - **Deployable:** `Dockerfile` (ffmpeg included) → Cloud Run / Container Apps /
-  Fly; FastAPI API (`/health`, `/occasions`, `/reels`, `/reels/{id}`).
+  Fly; FastAPI API (`/health`, `/occasions`, `/reels`, `/reels/upload` +
+  `/reels/upload-multipart` for real photo bytes, `/reels/{name}`).
+- **Never-500 core action:** in `live` mode the API uses the real Genblaze/B2
+  backends only when their credentials are present, and otherwise degrades
+  transparently to the offline path — so `POST /reels` always returns a real
+  reel + sealed manifest (`GET /health` reports the effective backends).
 - **PII-safe by construction** — only synthetic inputs; `.gitignore` blocks
   photos/`private/`/`.env`; secret scan on every push.
 
@@ -153,30 +160,35 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 ## Honest status — what is done vs owner-blocked
 
 **Done (this submission):**
-- Full offline pipeline + provenance runs for real; 67 tests green.
+- Full offline pipeline + provenance runs for real; 149 tests green.
 - Genblaze adapter **verified against the real published SDK** and contract-tested
   in CI (closes the prior "untested vs real SDK" gap).
 - B2 + Genblaze usage is meaningful (both do real storage + provenance).
 - Docs, Dockerfile, `.env.example`, security scans all green.
 
-**Live deploy — deployed but currently broken (needs the owner's creds OR a revert):**
+**Live deploy — deployed revision runs the pre-fix image (owner redeploy clears it):**
 The Cloud Run service `cinemory` (europe-west1) **is live** at
-https://cinemory-595784992266.europe-west1.run.app — but it was cut over to
-`CINEMORY_MODE=live` **without** B2/GMI credentials attached, so:
+https://cinemory-595784992266.europe-west1.run.app — it was cut over to
+`CINEMORY_MODE=live` **without** B2/GMI credentials, and the *currently-deployed*
+revision predates the degrade-to-offline fix, so:
 - `GET /health` → `{"status":"ok","mode":"live"}` (serves)
-- `POST /reels` → **HTTP 500** (the core generate action fails — no creds in the
-  live revision).
-Fix is owner-only: either attach `GMI_API_KEY` + B2 vars and redeploy (see
-[`../deploy/CLOUDRUN.md`](../deploy/CLOUDRUN.md)), or revert the revision to
-`CINEMORY_MODE=offline` so `POST /reels` works end-to-end with fakes.
+- `POST /reels` → **HTTP 500** on that old revision (no creds present).
+The **code now prevents this**: in `live` mode without creds the API degrades to
+the offline path, so `POST /reels` returns 200 with a real reel + sealed
+manifest. Owner-only step: **redeploy the latest image** (see
+[`../deploy/CLOUDRUN.md`](../deploy/CLOUDRUN.md)) — that alone clears the 500, no
+creds or mode change required; attach `GMI_API_KEY` + B2 vars only for *real*
+live generation.
 
-**Owner-blocked (needs the owner's B2 + GMI credentials — cannot be faked):**
-1. **Live run** — set `.env`, `CINEMORY_MODE=live`, run the CLI once to produce a
-   real B2-backed reel. *(No live-run results are claimed here without creds.)*
-2. **Fix the live deploy** — attach creds and redeploy, OR revert Cloud Run to
-   `offline` (above). Then optionally map `cinemory.ai` (A + AAAA DNS — see
+**Owner action (redeploy needs no creds; a real live run does):**
+1. **Refresh the live deploy** — redeploy the latest image so the deployed
+   revision picks up the degrade-to-offline fix (`POST /reels` → 200 without
+   creds). Then optionally map `cinemory.ai` (A + AAAA DNS — see
    [`../deploy/CLOUDRUN.md`](../deploy/CLOUDRUN.md)); until mapped, the judge URL
    is the run.app link above.
+2. **Live run (needs the owner's B2 + GMI credentials — cannot be faked)** — set
+   `.env`, `CINEMORY_MODE=live`, run the CLI once to produce a real B2-backed
+   reel. *(No live-run results are claimed here without creds.)*
 3. **Record** the ~3-min demo video ([`video-script.md`](video-script.md)).
 4. **Submit** the Devpost form (repo URL, app URL, models list above, this doc,
    video URL) before 2026-08-03 5:00pm EDT.
