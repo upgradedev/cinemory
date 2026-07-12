@@ -23,6 +23,10 @@ Built via Cloud Build (no local Docker). Verified serving:
 - `GET /dist/main.js` → 200 `application/javascript`
 - `GET /dist/lib/api.js` → 200
 
+> Historical record for that revision, which served the legacy `web/` (tsc) SPA.
+> The image later switched to building the `frontend/` React (Vite) client, whose
+> bundle is served under `/assets/*` — see `deploy/CLOUDRUN.md`.
+
 ## ⚠️ Current live state — `live` mode; deployed revision predates the degrade fix
 
 The service was later redeployed with `CINEMORY_MODE=live` **without** attaching

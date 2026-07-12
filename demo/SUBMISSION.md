@@ -120,7 +120,9 @@ Models are configurable per pipeline; any Genblaze-supported provider works.
   SDK-boundary Genblaze contract test — which drives a **real** Genblaze
   `Pipeline` + `ObjectStorageSink` (over an in-memory backend) so the live
   sink→store→readback→sha256-chain path is genuinely exercised, not just the
-  offline fakes. **149 passing, 1 conditional ffmpeg skip** (when ffmpeg is absent).
+  offline fakes. **149 tests — 147 pass in CI with 2 environment-conditional
+  skips** (ffmpeg and the GMICloud SDK, neither installed in CI; all 149 pass
+  locally when both are present).
 - **Security in CI:** gitleaks (fail-fast) · CodeQL (python + js/ts) ·
   `pip-audit --strict` · `npm audit` · ruff.
 - **Deployable:** `Dockerfile` (ffmpeg included) → Cloud Run / Container Apps /
@@ -160,7 +162,8 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 ## Honest status — what is done vs owner-blocked
 
 **Done (this submission):**
-- Full offline pipeline + provenance runs for real; 149 tests green.
+- Full offline pipeline + provenance runs for real; 149 tests (147 pass in CI +
+  2 environment-conditional skips — ffmpeg / GMICloud SDK).
 - Genblaze adapter **verified against the real published SDK** and contract-tested
   in CI (closes the prior "untested vs real SDK" gap).
 - B2 + Genblaze usage is meaningful (both do real storage + provenance).

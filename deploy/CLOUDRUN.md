@@ -1,8 +1,9 @@
 # Cinemory on Google Cloud Run
 
 One container, one port. FastAPI serves both the JSON API **and** the compiled
-web client (a vanilla-TypeScript SPA built with `tsc`, mounted as static files).
-Cloud Run scales it to **zero** when idle.
+web client (the `frontend/` React SPA, built with Vite and mounted as static
+files — the Dockerfile builds it into the image). Cloud Run scales it to **zero**
+when idle.
 
 | Setting | Value |
 |---|---|
@@ -45,8 +46,8 @@ curl -s "$URL/health"          # {"status":"ok","mode":"offline",...}
 curl -s "$URL/occasions"       # occasion presets
 curl -s -X POST "$URL/reels" -H 'content-type: application/json' \
      -d '{"name":"demo-reel","chapters":3,"per_chapter":2,"occasion":"anniversary"}'
-curl -s -o /dev/null -w '%{http_code}\n' "$URL/"            # 200 (web client)
-curl -s -o /dev/null -w '%{http_code}\n' "$URL/dist/main.js" # 200 (SPA bundle)
+curl -s -o /dev/null -w '%{http_code}\n' "$URL/"            # 200 (React SPA index)
+curl -s "$URL/" | grep -qo '/assets/[^"]*\.js' && echo "SPA bundle referenced (Vite /assets/*)"
 ```
 
 ## Deploy — LIVE cutover (gated — see below)
@@ -67,24 +68,23 @@ GMI_API_KEY='<gmi cloud key>' \
 
 `ffmpeg` is already installed in the image, so `CINEMORY_STITCH=ffmpeg` works.
 
-> The script **rebuilds the image from local source**. After Gate A merges, run
-> `git checkout main && git pull` **before** the cutover, or the rebuilt image
-> still lacks the Option B code and the canonical B2 names silently mis-resolve.
+> The script **rebuilds the image from local source**. Run
+> `git checkout main && git pull` **before** the cutover so the rebuilt image
+> carries the latest code.
 
-### ⚠️ Two gates before the live command works
+### ⚠️ One gate before the live command works
 
-1. **Gate A — Option B config-fallback PR must be merged.** This live command
-   uses the **canonical** B2 var names
-   (`B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` /
-   `B2_S3_ENDPOINT`). The image built from the **current `main`** still reads the
-   **legacy** names (`B2_KEY_ID` / `B2_APP_KEY` / `B2_BUCKET_NAME` /
-   `B2_ENDPOINT_URL` / `B2_REGION`). Until the Option B PR merges, either merge it
-   first (recommended) **or** pass the legacy names instead. Running the canonical
-   command against today's image would silently fall back / mis-read creds.
-2. **Gate B — `GMI_API_KEY` not yet issued.** GMI Cloud gives ~270 free credits;
-   create the key, then supply it above.
+- ~~**Gate A — canonical B2 name fallbacks.**~~ **Closed** — merged to `main` (PR
+  #4). Current `main` resolves both the **canonical** B2 var names
+  (`B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` /
+  `B2_S3_ENDPOINT`) **and** the legacy names (`B2_KEY_ID` / `B2_APP_KEY` /
+  `B2_ENDPOINT_URL` / `B2_REGION`), so either set works out of the box.
+- **Gate B — `GMI_API_KEY` not yet issued.** GMI Cloud gives ~270 free credits;
+  create the key, then supply it above. *(Even without it, a redeploy of current
+  `main` in `live` mode degrades to the offline path, so `POST /reels` still
+  returns 200 — creds are needed only for real Genblaze/B2 generation.)*
 
-Once both gates clear, the single command above is the entire cutover.
+Once Gate B clears, the single command above is the entire cutover.
 
 ## Domain mapping — cinemory.ai
 
