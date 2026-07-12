@@ -43,6 +43,18 @@ export const ReelRequestSchema = z.object({
 });
 export type ReelRequest = z.infer<typeof ReelRequestSchema>;
 
+// Real-photo upload: the user's selected image files are streamed to
+// `POST /reels/upload-multipart` (multipart/form-data — raw bytes, no base64
+// inflation). The response is the same sealed ReelResponse as the synthetic
+// path, so the reel + provenance render code is shared.
+export interface UploadReelRequest {
+  name: string;
+  occasion: string;
+  chapters: number;
+  bridges?: boolean;
+  files: File[];
+}
+
 export const ReelResponseSchema = z.object({
   reel_name: z.string(),
   occasion: z.string().optional(),
@@ -151,6 +163,21 @@ export const cinemoryApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+    });
+  },
+
+  /** Generate a reel from real photo bytes via multipart/form-data. We do NOT
+   *  set Content-Type — the browser adds the multipart boundary itself. */
+  uploadReel({ name, occasion, chapters, bridges = false, files }: UploadReelRequest): Promise<ReelResponse> {
+    const form = new FormData();
+    form.append("name", name);
+    form.append("occasion", occasion);
+    form.append("chapters", String(chapters));
+    form.append("bridges", String(bridges));
+    for (const file of files) form.append("files", file, file.name);
+    return request("/reels/upload-multipart", ReelResponseSchema, {
+      method: "POST",
+      body: form,
     });
   },
 

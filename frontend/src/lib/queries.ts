@@ -11,6 +11,7 @@ import {
   type Occasion,
   type ReelRequest,
   type ReelResponse,
+  type UploadReelRequest,
 } from "./api";
 
 export const queryKeys = {
@@ -51,6 +52,19 @@ export function useCreateReel() {
   const qc = useQueryClient();
   return useMutation<ReelResponse, Error, ReelRequest>({
     mutationFn: (body) => cinemoryApi.createReel(body),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: queryKeys.manifest(data.reel_name) });
+    },
+  });
+}
+
+/** Real-photo reel mutation: streams the selected image files to
+ *  POST /reels/upload-multipart. Like useCreateReel, it primes the manifest
+ *  cache so the provenance panel renders the sealed per-step manifest. */
+export function useUploadReel() {
+  const qc = useQueryClient();
+  return useMutation<ReelResponse, Error, UploadReelRequest>({
+    mutationFn: (body) => cinemoryApi.uploadReel(body),
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: queryKeys.manifest(data.reel_name) });
     },

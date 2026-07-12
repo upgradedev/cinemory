@@ -68,7 +68,7 @@ export function PhotoUpload() {
           Browse files
         </Button>
         <p className="mt-4 text-xs text-zinc-600">
-          JPG, PNG, HEIC, WebP · your photos never leave your device in this demo
+          JPG, PNG, HEIC, WebP · uploaded securely to seal verifiable provenance
         </p>
         <input
           ref={inputRef}
