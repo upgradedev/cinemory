@@ -1,23 +1,24 @@
 # Cinemory — submission state
 
-_Last updated: 2026-07-04. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+_Last updated: 2026-07-12. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
 
 ## Where it stands: ~92/100 (code/docs complete; live-run + video are owner-only)
 
-> ⚠️ **Live deploy state (reconcile with `/health`):** the Cloud Run service
-> `cinemory` (europe-west1) **is live** at
-> https://cinemory-595784992266.europe-west1.run.app. It was cut over to
-> `CINEMORY_MODE=live` **without credentials**; the currently-deployed revision
-> runs the *pre-fix* image, where `POST /reels` returns **HTTP 500** (no B2/GMI
-> creds). **The code now guarantees this can't happen:** `live` mode uses the
-> real Genblaze/B2 backends only when their credentials are present and otherwise
-> degrades transparently to the offline path, so `POST /reels` returns 200 with a
-> real deterministic reel + sealed manifest even with no creds (`GET /health`
-> then reports the effective `provider`/`storage`). Owner-only step: **redeploy
-> the latest image** — that alone clears the 500; attach `GMI_API_KEY` + B2 vars
-> only to get *real* live generation. `cinemory.ai` is **not yet mapped** (HTTP
-> 000); the judge URL is the run.app link. See `deploy/DEPLOYED.md` +
-> `demo/SUBMISSION.md`.
+> ✅ **Live deploy state (2026-07-12, reconcile with `/health`):** the Cloud Run
+> service `cinemory` (europe-west1) is live at
+> https://cinemory-595784992266.europe-west1.run.app and **the `POST /reels` 500
+> is fixed** — the latest image is deployed and `GET /health` now reports the
+> effective backends (`{"mode":"offline","provider":"fake-genblaze","storage":"FakeStorage"}`),
+> `POST /reels` returns **200** with a real deterministic reel + sealed manifest,
+> and `/` serves the **React product UI** (no longer the legacy `web/` client).
+> The redeploy path is `bash deploy/deploy-cloudrun.sh` (see
+> `deploy/CLOUDRUN.md`). To get *real* live generation, redeploy with
+> `CINEMORY_MODE=live` + valid `GMI_API_KEY` + B2 vars whose key is **entitled to
+> PutObject** on the bucket (a key without write entitlement makes the real path
+> return `AccessDenied`; the credential-free path always degrades to a 200).
+> The Firebase Hosting site https://upgradegr-cinemory.web.app also serves the
+> React product UI. `cinemory.ai` is **not yet mapped**; the judge URL is the
+> run.app / web.app link. See `deploy/DEPLOYED.md` + `demo/SUBMISSION.md`.
 
 The former 95-blocker — "Genblaze adapter untested vs the real SDK" — is **closed**:
 the adapter is verified against the real published Genblaze SDK and contract-tested
@@ -76,7 +77,7 @@ accessible, and the complete share feature set preserved.
 - Deploy: `cd frontend && npm run build` → `firebase login` (interactive) →
   `firebase use upgradegr-cinemory` → `firebase deploy --only hosting`. Config in
   repo-root `firebase.json` + `.firebaserc`; details in `frontend/README.md`.
-- CI: new `frontend` job (typecheck + vitest + build). 19 frontend tests green;
+- CI: new `frontend` job (typecheck + vitest + build). 21 frontend tests green;
   `npm run build` clean.
 
 ## No live-run results are claimed anywhere without credentials.

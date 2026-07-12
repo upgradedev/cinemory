@@ -1,9 +1,10 @@
 # Cinemory — single deployable container (Cloud Run / Container Apps / Fly / etc.)
 #
 # One container serves BOTH the FastAPI backend AND the web client, on one port
-# (Cloud Run = single container / single port). Stage 1 compiles the vanilla-TS
-# web client (tsc -> dist); stage 2 is the Python runtime, and FastAPI serves the
-# compiled client as static files (see cinemory.api: it mounts CINEMORY_WEB_DIR).
+# (Cloud Run = single container / single port). Stage 1 builds the React/Vite SPA
+# in frontend/ (tsc + vite build -> dist); stage 2 is the Python runtime, and
+# FastAPI serves the compiled client as static files (see cinemory.api: it mounts
+# CINEMORY_WEB_DIR). The legacy web/ client is NOT built or served by this image.
 
 # ── Stage 1: build the web client (Vite React SPA) ────────
 FROM node:20-slim AS web

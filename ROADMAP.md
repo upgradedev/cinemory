@@ -1,9 +1,7 @@
 # Cinemory Roadmap
 
-> **Which folder is live?** This repo — `memoryreel-genblaze`
-> (github.com/upgradedev/cinemory) — is the **live** Cinemory codebase. The
-> local folder `C:\dev\solutions\cinemory` is an **older, deprecated scaffold**;
-> do not build or demo from it.
+> **Canonical repo:** [github.com/upgradedev/cinemory](https://github.com/upgradedev/cinemory)
+> is the live Cinemory codebase (local working copy: `repos/cinemory`).
 
 Cinemory turns a set of photos into a scored, provenance-sealed cinematic video
 reel. The hackathon-judged core is deliberately **offline and PII-safe**: the

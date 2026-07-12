@@ -154,8 +154,14 @@ async def upload_reel_multipart(
 @app.get("/reels/{name}")
 def get_reel(name: str) -> dict:
     # Content-addressed keys embed the hash; scan the index for this reel/manifest.
-    if not hasattr(_storage, "index"):  # pragma: no cover - live path
+    if not hasattr(_storage, "index"):  # pragma: no cover - defensive
         raise HTTPException(404, "manifest lookup requires an indexed store")
+    # Re-read the durable index so a fresh (scale-to-zero, multi-instance) worker
+    # that never saw the write still resolves the reel. FakeStorage has no remote
+    # index to reload; B2Storage re-reads index.jsonl from the bucket.
+    reload_index = getattr(_storage, "reload_index", None)
+    if callable(reload_index):
+        reload_index()
     match = next((r for r in _storage.index
                   if r["key"].startswith(f"{name}/manifests/")), None)
     if not match:

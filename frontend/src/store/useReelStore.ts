@@ -80,11 +80,13 @@ export const useReelStore = create<ReelState>((set, get) => ({
 }));
 
 /**
- * Map the local photo set onto the backend's synthetic reel spec.
+ * Derive the reel's chapter structure from the selected photo count.
  *
- * `POST /reels` takes no image bytes — it composes a reel from
- * `chapters × per_chapter` scenes. We honour the user's selection by shaping
- * the reel structure from the photo count: photos are grouped into 2–5
+ * When photos are selected, their real bytes are streamed to
+ * `POST /reels/upload-multipart` and only `chapters` shapes the edit (the server
+ * groups the uploaded photos across chapters). With no photos selected we fall
+ * back to the synthetic `POST /reels` path, which composes a reel from
+ * `chapters × per_chapter` scenes. Either way photos are grouped into 2–5
  * chapters, so a larger memory set yields a richer, longer reel.
  */
 export function deriveReelShape(photoCount: number): {
