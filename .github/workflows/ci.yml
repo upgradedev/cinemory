@@ -101,11 +101,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-      - name: SCA/CVE gate — npm audit (frontend)
+      - name: SCA/CVE gate — npm audit (frontend, shipped deps)
         working-directory: frontend
+        # Gate the shipped dependency tree. --omit=dev excludes the Vite/Vitest
+        # build+test toolchain (dev-server-only advisories that never reach the
+        # deployed static bundle); the runtime deps must be clean at high+.
         run: |
           npm ci
-          npm audit --audit-level=high
+          npm audit --omit=dev --audit-level=high
       - name: SCA/CVE gate — npm audit (web client)
         working-directory: web
         run: |
