@@ -38,6 +38,9 @@ demo/.video-build/
 # Firebase Hosting deploy cache
 .firebase/
 
+# Readiness gate output (regenerated each run; archived as a CI artifact)
+readiness.json
+
 # OS / editor
 .DS_Store
 .idea/

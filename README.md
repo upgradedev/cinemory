@@ -242,6 +242,27 @@ pytest                 # whole pyramid
 pytest tests/unit      # or a single layer
 ```
 
+### Readiness gate
+
+`scripts/readiness.py` is a machine-checkable submission gate: it scores the repo
+against the four challenge criteria (**Real-World Utility · Production Readiness ·
+B2 Storage & Orchestration · Use of Genblaze**) with **real-evidence** checks —
+each one *drives the actual code path* (the API via `TestClient`, the pipeline,
+the real B2 adapter against an in-memory S3 stub, the real Genblaze SDK), never a
+file-existence stub. Each check is `pass` / `fail` / `user-gated` (a lift that
+needs a human-held credential — a write-entitled B2 key, a `GMI_API_KEY`, a live
+redeploy). It prints a per-criterion report, emits `readiness.json`, and **exits
+non-zero when the automatable completeness drops below 95%** — so the `readiness`
+CI job fails on any regression. User-gated items are excluded from the automatable
+% and listed as the remaining live-credential lifts.
+
+```bash
+python scripts/readiness.py            # human report + readiness.json (exit 1 if < 95%)
+```
+
+The gate is itself covered end-to-end in `tests/e2e/test_readiness_gate.py`
+(run out-of-process, as CI runs it).
+
 ### Security checks (all in CI, all offline)
 
 - **gitleaks v8.18.4** — secret scan, fail-fast before build (`--redact`).

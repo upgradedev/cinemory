@@ -53,6 +53,41 @@ print("  embedded reel :", len(data), "bytes on disk")
 print("  OK — manifest re-loaded and hashes present.")
 PY
 
+if [ "$MODE" = "live" ]; then
+  echo
+  echo "[5/5] Live-B2 smoke: confirm the run's objects actually landed in the bucket ..."
+  # Self-verifying evidence for criterion 3 (B2 Storage & Orchestration): reads the
+  # durable index.jsonl catalogue back from B2 and heads the reel + manifest objects
+  # the run just wrote. Best-effort — informational, never aborts the demo.
+  python - "$NAME" <<'PY' || echo "  WARN: live-B2 smoke could not verify (see error above)"
+import sys
+import boto3
+from cinemory.config import resolve_b2_config
+
+reel = sys.argv[1]
+cfg = resolve_b2_config()
+prefix = (cfg.key_prefix + "/") if (cfg.key_prefix and not cfg.key_prefix.endswith("/")) else (cfg.key_prefix or "")
+s3 = boto3.client("s3", endpoint_url=cfg.endpoint_url,
+                  aws_access_key_id=cfg.key_id, aws_secret_access_key=cfg.app_key)
+
+index_key = f"{prefix}index.jsonl"
+rows = s3.get_object(Bucket=cfg.bucket, Key=index_key)["Body"].read().decode().splitlines()
+rows = [r for r in rows if r.strip()]
+print(f"  index.jsonl      : {len(rows)} catalogued object(s) in b2://{cfg.bucket}/{index_key}")
+
+import json as _json
+keys = [_json.loads(r)["key"] for r in rows]
+reel_keys = [k for k in keys if k.startswith(f"{reel}/reels/") and k.endswith("reel.mp4")]
+man_keys = [k for k in keys if k.startswith(f"{reel}/manifests/")]
+assert reel_keys, f"no reel object for {reel!r} in the B2 index"
+assert man_keys, f"no manifest object for {reel!r} in the B2 index"
+for k in (reel_keys[0], man_keys[0]):
+    head = s3.head_object(Bucket=cfg.bucket, Key=f"{prefix}{k}")
+    print(f"  in-bucket object : {k}  ({head['ContentLength']} bytes)")
+print("  OK — reel + manifest + index.jsonl are live in Backblaze B2.")
+PY
+fi
+
 echo
 echo "Artifacts in $OUT/ :"
 ls -la "$OUT"
