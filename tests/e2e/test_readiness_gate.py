@@ -11,7 +11,7 @@ itself be tested. This drives the gate *as CI drives it* — a **subprocess**
     reload can never leak degraded wiring into the rest of the test session.
 
 The gate writes ``readiness.json`` to a tmp path here (never the repo tree), and
-we assert the schema, the four criteria, per-criterion truth, and the user-gated
+we assert the schema, the five criteria, per-criterion truth, and the user-gated
 list so a regression in the report shape is caught.
 """
 from __future__ import annotations
@@ -31,6 +31,7 @@ _EXPECTED_CRITERIA = {
     "production": "Production Readiness",
     "b2": "B2 Storage & Orchestration",
     "genblaze": "Use of Genblaze",
+    "security": "Application Security",
 }
 
 
@@ -54,7 +55,7 @@ def test_gate_passes_offline_at_or_above_threshold(gate_run):
     assert returncode == 0, f"gate exited {returncode} at {report['automatable_pct']}%"
 
 
-def test_report_schema_and_all_four_criteria(gate_run):
+def test_report_schema_and_all_five_criteria(gate_run):
     _, report = gate_run
     assert report["schema"] == "cinemory/readiness/v1"
     assert report["target_pct"] == 90
@@ -103,3 +104,17 @@ def test_utility_check_covers_the_multipart_pipeline_provenance_path(gate_run):
     utility = next(c for c in report["criteria"] if c["id"] == "utility")
     ids = {c["id"] for c in utility["checks"]}
     assert "utility.upload_multipart_e2e" in ids
+
+
+def test_security_criterion_covers_the_pen_test_controls(gate_run):
+    _, report = gate_run
+    security = next(c for c in report["criteria"] if c["id"] == "security")
+    ids = {c["id"] for c in security["checks"]}
+    assert {
+        "security.traversal_safe_keys",
+        "security.dangerous_upload_rejected",
+        "security.abuse_bounds_enforced",
+        "security.no_credential_leakage",
+    } <= ids
+    # Every security check is real evidence (automatable), not a file-existence stub.
+    assert all(c["automatable"] for c in security["checks"])

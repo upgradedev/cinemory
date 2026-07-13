@@ -162,8 +162,13 @@ def get_reel(name: str) -> dict:
     reload_index = getattr(_storage, "reload_index", None)
     if callable(reload_index):
         reload_index()
-    match = next((r for r in _storage.index
-                  if r["key"].startswith(f"{name}/manifests/")), None)
+    # Match the same sanitisation applied when the key was written (keys.make_key),
+    # so lookups stay consistent for every reel name — and a traversal-shaped name
+    # can never probe outside its own sanitised prefix.
+    from .keys import safe_component
+
+    prefix = f"{safe_component(name)}/manifests/"
+    match = next((r for r in _storage.index if r["key"].startswith(prefix)), None)
     if not match:
         raise HTTPException(404, f"no reel named {name!r}")
     return json.loads(_storage.get(match["key"]))

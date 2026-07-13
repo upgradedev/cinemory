@@ -481,10 +481,110 @@ def check_genblaze_sink_readback() -> tuple[bool, str]:
     return True, "asset read back through ObjectStorageSink backend (no download)"
 
 
+def check_security_traversal_safe_keys() -> tuple[bool, str]:
+    """A hostile reel name + filename flow through the real pipeline; every stored
+    key is sanitised (no ``..`` segment, NUL, newline, or path-separator escape)
+    and still content-addressed by SHA-256."""
+    from cinemory.adapters import FakeMediaProvider, FakeStorage
+    from cinemory.ingest import build_spec_from_photos
+    from cinemory.pipeline import ReelPipeline
+
+    spec = build_spec_from_photos(
+        "../../evil", [("../../../etc/passwd", _PNG_1x1), ("a/b/../c.png", _PNG_1x1)],
+        occasion="anniversary", chapters=2)
+    storage = FakeStorage(bucket="readiness-sec")
+    ReelPipeline(FakeMediaProvider(), storage).run(spec)
+    if not storage.index:
+        return False, "no assets stored"
+    for row in storage.index:
+        key = row["key"]
+        segs = key.split("/")
+        if ".." in segs or any(s.startswith(".") for s in segs):
+            return False, f"traversal segment in key: {key}"
+        if "\x00" in key or "\n" in key or "\\" in key or key.startswith("/"):
+            return False, f"unsafe character in key: {key!r}"
+        if not any(len(s) == 64 for s in segs):
+            return False, f"key lost its SHA-256 anchor: {key}"
+    return True, f"{len(storage.index)} keys sanitised + content-addressed under hostile input"
+
+
+def check_security_dangerous_upload_rejected() -> tuple[bool, str]:
+    """A payload disguised as a photo but whose magic bytes are an executable or
+    active markup is rejected at the upload boundary with a 400 (not stored)."""
+    import base64
+
+    client, restore = _fresh_client()
+    try:
+        for label, raw in (("PE-exe", b"MZ\x90\x00 evil"),
+                           ("script", b"<script>alert(document.cookie)</script>")):
+            photos = [{"filename": "pic.png", "content_base64": base64.b64encode(raw).decode()}]
+            r = client.post("/reels/upload", json={"name": f"sec-{label}", "photos": photos})
+            if r.status_code != 400:
+                return False, f"disguised {label} returned {r.status_code}, expected 400"
+        # A genuine PNG still succeeds (no false positive).
+        ok = client.post("/reels/upload", json={"name": "sec-ok", "photos": [
+            {"filename": "p.png", "content_base64": base64.b64encode(_PNG_1x1).decode()}]})
+        if ok.status_code != 200:
+            return False, f"genuine PNG upload returned {ok.status_code}"
+        return True, "disguised executable + active markup → 400; genuine PNG → 200"
+    finally:
+        restore()
+
+
+def check_security_abuse_bounds_enforced() -> tuple[bool, str]:
+    """Resource-abuse guardrails hold: over-MAX_PHOTOS and unbounded chapters are
+    4xx, never a 5xx/OOM."""
+    import base64
+
+    from cinemory.ingest import MAX_PHOTOS
+
+    client, restore = _fresh_client()
+    try:
+        b64 = base64.b64encode(_PNG_1x1).decode()
+        too_many = client.post("/reels/upload", json={
+            "name": "sec-max",
+            "photos": [{"filename": f"p{i}.png", "content_base64": b64}
+                       for i in range(MAX_PHOTOS + 1)]})
+        if too_many.status_code != 400:
+            return False, f"over-MAX_PHOTOS returned {too_many.status_code}, expected 400"
+        huge = client.post("/reels/upload", json={
+            "name": "sec-ch", "chapters": 10_000_000,
+            "photos": [{"filename": "p.png", "content_base64": b64}]})
+        if not (400 <= huge.status_code < 500):
+            return False, f"unbounded chapters returned {huge.status_code}, expected 4xx"
+        return True, "over-MAX_PHOTOS + unbounded chapters → 4xx (bounded, no OOM/5xx)"
+    finally:
+        restore()
+
+
+def check_security_no_credential_leakage() -> tuple[bool, str]:
+    """No credential-shaped value leaks into /health or the sealed manifest."""
+    from cinemory.adapters import FakeMediaProvider, FakeStorage
+    from cinemory.pipeline import ReelPipeline
+    from cinemory.provenance import build_manifest
+    from cinemory.synthetic import synth_reel_spec
+
+    client, restore = _fresh_client()
+    try:
+        health_blob = json.dumps(client.get("/health").json()).lower()
+    finally:
+        restore()
+    if "b2_" in health_blob or "secret" in health_blob or "gmi" in health_blob:
+        return False, f"/health surfaced credential-shaped material: {health_blob}"
+    storage = FakeStorage(bucket="readiness-sec")
+    result = ReelPipeline(FakeMediaProvider(), storage).run(
+        synth_reel_spec("sec", chapters=2, per_chapter=1))
+    manifest_blob = json.dumps(build_manifest(result)).lower()
+    for banned in ("secret", "password", "b2_app_key", "aws_secret", "api_key"):
+        if banned in manifest_blob:
+            return False, f"manifest leaked {banned!r}"
+    return True, "/health + sealed manifest carry no credential material"
+
+
 # ── criteria wiring ──────────────────────────────────────────────────────────
 def build_criteria() -> list[Criterion]:
     return [
-        Criterion("utility", "Real-World Utility", 25, [
+        Criterion("utility", "Real-World Utility", 20, [
             Check("utility.upload_multipart_e2e",
                   "Real-photo upload E2E (frontend→/reels/upload-multipart→pipeline→provenance)",
                   3, run=check_utility_upload_multipart_e2e),
@@ -498,7 +598,7 @@ def build_criteria() -> list[Criterion]:
                   "Six occasion themes served (consumer + B2B wedge)",
                   1, run=check_utility_occasion_themes),
         ]),
-        Criterion("production", "Production Readiness", 25, [
+        Criterion("production", "Production Readiness", 20, [
             Check("production.never_500_offline_degrade",
                   "Live mode with no creds never 500s; /health surfaces degraded backends",
                   3, run=check_prod_never_500_offline_degrade),
@@ -518,7 +618,7 @@ def build_criteria() -> list[Criterion]:
                   "mode=live, provider=genblaze, storage=B2Storage "
                   "(needs the write-entitled key)."),
         ]),
-        Criterion("b2", "B2 Storage & Orchestration", 25, [
+        Criterion("b2", "B2 Storage & Orchestration", 20, [
             Check("b2.content_addressed_keys",
                   "Every asset stored under a content-addressed SHA-256 key",
                   2, run=check_b2_content_addressed_keys),
@@ -536,7 +636,7 @@ def build_criteria() -> list[Criterion]:
                   "manifest, and index.jsonl objects landed in the bucket (needs the "
                   "write-entitled key)."),
         ]),
-        Criterion("genblaze", "Use of Genblaze", 25, [
+        Criterion("genblaze", "Use of Genblaze", 20, [
             Check("genblaze.real_sdk_contract",
                   "Adapter drives a real genblaze_core.Pipeline; SDK manifest verifies",
                   3, run=check_genblaze_real_sdk_contract),
@@ -552,6 +652,20 @@ def build_criteria() -> list[Criterion]:
                   gate_detail="Issue a GMI_API_KEY (GMI Cloud gives ~270 free credits) and run one "
                   "`CINEMORY_MODE=live` generation; confirm a real generated reel, not the "
                   "offline deterministic fallback (needs the live GMI key)."),
+        ]),
+        Criterion("security", "Application Security", 20, [
+            Check("security.traversal_safe_keys",
+                  "Hostile reel name/filename cannot inject into content-addressed keys",
+                  2, run=check_security_traversal_safe_keys),
+            Check("security.dangerous_upload_rejected",
+                  "Disguised executable/active-markup upload rejected at the boundary (400)",
+                  2, run=check_security_dangerous_upload_rejected),
+            Check("security.abuse_bounds_enforced",
+                  "Resource-abuse guardrails (MAX_PHOTOS, chapters) return 4xx, never 5xx",
+                  1, run=check_security_abuse_bounds_enforced),
+            Check("security.no_credential_leakage",
+                  "No credential material leaks into /health or the sealed manifest",
+                  1, run=check_security_no_credential_leakage),
         ]),
     ]
 

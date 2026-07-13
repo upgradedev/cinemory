@@ -236,6 +236,7 @@ A full testing pyramid runs offline (fakes for Genblaze + B2, no creds):
 | **Unit** | `tests/unit/` | provenance hashing/verify/tamper-detection, key strategy, synthetic photos, beat-cut planning, occasion presets, fakes |
 | **Integration** | `tests/integration/` | pipeline wiring (photos→clips→bridges→reel), FastAPI routes (incl. `/occasions`, the `/reels/upload` ingest routes, and the credential-free `live`-mode degrade path), opt-in connector flows via a fake HTTP transport, real ffmpeg stitch (skipped if ffmpeg absent) |
 | **E2E** | `tests/e2e/` | synthetic memories → reel → B2 → reload manifest → **assert on real SHA-256 the provenance layer recomputes** |
+| **Pen-test** | `tests/security/` | app-security suite driving the real app: authZ/abuse (bounds → 4xx, never 5xx), injection/path-traversal into B2 keys, provenance forgery/tamper-evidence, sensitive-data exposure (incl. the offline-degrade path), SSRF/upload magic-byte validation |
 
 ```bash
 pytest                 # whole pyramid
@@ -245,8 +246,9 @@ pytest tests/unit      # or a single layer
 ### Readiness gate
 
 `scripts/readiness.py` is a machine-checkable submission gate: it scores the repo
-against the four challenge criteria (**Real-World Utility · Production Readiness ·
-B2 Storage & Orchestration · Use of Genblaze**) with **real-evidence** checks —
+against the five challenge criteria (**Real-World Utility · Production Readiness ·
+B2 Storage & Orchestration · Use of Genblaze · Application Security**) with
+**real-evidence** checks —
 each one *drives the actual code path* (the API via `TestClient`, the pipeline,
 the real B2 adapter against an in-memory S3 stub, the real Genblaze SDK), never a
 file-existence stub. Each check is `pass` / `fail` / `user-gated` (a lift that
@@ -265,10 +267,20 @@ The gate is itself covered end-to-end in `tests/e2e/test_readiness_gate.py`
 
 ### Security checks (all in CI, all offline)
 
+- **Pen-test suite** — `tests/security/`, a `pen-test` CI job of real
+  application-security assertions against the live FastAPI app / pipeline /
+  adapters: authorization & abuse limits, injection / path-traversal into
+  content-addressed B2 keys, provenance forgery / tamper-evidence, sensitive-data
+  exposure (including the credential-free offline-degrade path), and SSRF / upload
+  magic-byte validation. Mirrored as the gate's **Application Security** criterion.
 - **gitleaks v8.18.4** — secret scan, fail-fast before build (`--redact`).
 - **CodeQL** — SAST for `python` + `javascript-typescript`.
-- **Dependency audit** — `pip-audit --strict` (Python) + `npm audit` (web).
+- **SCA/CVE gate** — `pip-audit --strict` (Python) + `npm audit` (frontend + web).
 - **ruff** — lint.
+
+```bash
+pytest tests/security  # the pen-test layer, offline, no creds
+```
 
 See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
