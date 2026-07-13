@@ -20,9 +20,43 @@ from .occasions import get_occasion
 MAX_PHOTOS = 60
 MAX_CHAPTERS = 12
 
+#: Magic-byte prefixes for content that must never be accepted as a "photo".
+#: These are executables and active/scripted markup — an upload disguised as an
+#: image. Assets are already stored with a fixed ``image/*`` content-type, so B2
+#: serves them inertly; rejecting the bytes at ingest is defence in depth that
+#: keeps such payloads out of the content-addressed store entirely. The list is
+#: deliberately tight (a blocklist of dangerous types, not an image allowlist) so
+#: legitimate/opaque photo bytes are never falsely rejected.
+_DANGEROUS_MAGIC: tuple[bytes, ...] = (
+    b"MZ",          # DOS/Windows PE executable
+    b"\x7fELF",     # ELF executable
+    b"\xfe\xed\xfa\xce",  # Mach-O 32-bit
+    b"\xfe\xed\xfa\xcf",  # Mach-O 64-bit
+    b"\xcf\xfa\xed\xfe",  # Mach-O 64-bit (LE)
+    b"#!",          # script shebang
+    b"<?php",       # PHP source
+)
+#: Case-insensitive markup markers checked against a leading, whitespace-stripped
+#: window (active/scriptable HTML masquerading as an image).
+_DANGEROUS_MARKUP: tuple[bytes, ...] = (b"<script", b"<!doctype html", b"<html")
+
 
 class IngestError(ValueError):
     """Raised for an invalid ingest request (maps to HTTP 400)."""
+
+
+def reject_dangerous_bytes(data: bytes) -> None:
+    """Raise :class:`IngestError` if ``data`` is a disguised executable/script.
+
+    Photos are opaque binary, so we only reject content whose leading bytes
+    positively identify an executable or active markup payload — never merely
+    "not a known image", so ambiguous/opaque bytes still pass.
+    """
+    if data.startswith(_DANGEROUS_MAGIC):
+        raise IngestError("uploaded content is an executable, not a photo")
+    head = data[:64].lstrip().lower()
+    if head.startswith(_DANGEROUS_MARKUP):
+        raise IngestError("uploaded content is active markup, not a photo")
 
 
 def build_spec_from_photos(
@@ -51,6 +85,8 @@ def build_spec_from_photos(
         raise IngestError(f"too many photos (max {MAX_PHOTOS})")
     if any(not data for _, data in photos):
         raise IngestError("one or more photos contained no bytes")
+    for _, data in photos:
+        reject_dangerous_bytes(data)
     if chapters < 1 or chapters > MAX_CHAPTERS:
         raise IngestError(f"chapters must be between 1 and {MAX_CHAPTERS}")
 
