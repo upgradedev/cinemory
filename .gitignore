@@ -31,6 +31,12 @@ out/
 sample-data/generated/
 *.mp4
 !sample-data/**/*.md
+# Keep the committed demo video + its build work dir stays ignored
+!demo/cinemory-demo.mp4
+demo/.video-build/
+
+# Firebase Hosting deploy cache
+.firebase/
 
 # OS / editor
 .DS_Store

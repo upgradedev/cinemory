@@ -1,0 +1,10 @@
+reel:            b2://cinemory-demo/cinemory-demo/reels/a0/a078544340fc18023a787b5546f244c83142c6996dd0c4b07f79647515bbefc0/reel.mp4
+reel sha256:     a078544340fc18023a787b5546f244c83142c6996dd0c4b07f79647515bbefc0
+manifest:        b2://cinemory-demo/cinemory-demo/manifests/39/3992c4d8d80fdc7e0ceebbc27a2af86bf70b6f70395a0076be52009e4d5e8936/manifest.json
+manifest hash:   d804df6480609375a2d4c654691a8668973a1a35423d23a8434ccf12a616dfa3
+steps:           8
+stored objects:  17
+verify manifest: True
+verify asset:    True
+verify embedded: True
+written to:      C:\Users\tf\AppData\Local\Temp\cindemo2

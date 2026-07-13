@@ -7,10 +7,9 @@
 
 Built for the [Backblaze Generative Media Hackathon](https://backblaze-generative-media.devpost.com/).
 
-> **This is the live repo** (`memoryreel-genblaze`). The local folder
-> `C:\dev\solutions\cinemory` is an older, deprecated scaffold — do not build or
-> demo from it. Feature roadmap, opt-in connectors, show-stoppers and go-live
-> steps: **[`ROADMAP.md`](ROADMAP.md)**.
+> **Canonical repo:** [github.com/upgradedev/cinemory](https://github.com/upgradedev/cinemory)
+> (local working copy: `repos/cinemory`). Feature roadmap, opt-in connectors,
+> show-stoppers and go-live steps: **[`ROADMAP.md`](ROADMAP.md)**.
 
 ---
 

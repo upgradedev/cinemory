@@ -13,16 +13,20 @@ A four-step cinematic wizard (landing → studio):
 
 1. **Hero** — dark filmic identity (grain, letterbox, gold-on-black), one CTA.
 2. **Photos** — drag-drop + file picker, reorderable thumbnail storyboard, remove,
-   tasteful empty state. Photos stay on-device; their count/order shapes the reel.
+   tasteful empty state. The selected photos' **actual bytes** are the input to
+   the reel; the count shapes how many chapters it spans.
 3. **Occasion** — presets from `GET /occasions` as evocative, keyboard-navigable
    cards (music style, pacing, aspect ratio) with per-occasion gradients.
-4. **Generate** — `POST /reels` with a rich, honest pipeline progress
-   (photos → clips → bridges → music-cuts → stitch → B2 → provenance), full
-   error/retry handling.
-5. **Result** — video player (graceful cinematic poster when the offline demo
-   returns a `b2://` URL), a **Provenance** panel (SHA-256 manifest seal,
-   "Stored on Backblaze B2" badge, per-step Genblaze hashes from
-   `GET /reels/{name}`), and Share/Download + platform deep-links.
+4. **Generate** — the real photo bytes are streamed to
+   `POST /reels/upload-multipart` (multipart/form-data) so the pipeline animates,
+   stitches, stores and seals *your* pixels; if no photos were selected it falls
+   back to the synthetic `POST /reels` path. Either way the UI shows a rich,
+   honest pipeline progress (photos → clips → bridges → music-cuts → stitch → B2
+   → provenance) with full error/retry handling.
+5. **Result** — video player (graceful cinematic poster when the offline/degrade
+   path returns a `b2://` URL), a **Provenance** panel (SHA-256 manifest seal,
+   storage badge, per-step Genblaze hashes from `GET /reels/{name}`), and
+   Share/Download + platform deep-links.
 
 Every state — loading, empty, error(retry), success — is designed. Fully
 responsive (mobile → desktop), accessible (labels, focus rings, radiogroup
@@ -57,8 +61,8 @@ npm run build        # tsc + vite build -> dist/
 
 - Typed client in `src/lib/api.ts` — every response is validated at runtime with
   **Zod**; `POST /reels` is synchronous (no polling), `GET /reels/{name}` returns
-  the sealed manifest (offline/indexed store) and is treated as `null` on the
-  live-path 404.
+  the sealed manifest (both the offline fake and the live B2 adapter keep a
+  queryable run index), and any lookup miss is treated as `null`.
 - Data fetching via **React Query** hooks (`src/lib/queries.ts`).
 - Base URL = `import.meta.env.VITE_API_BASE ?? ""`. Empty in production →
   relative paths → Firebase rewrites to Cloud Run (see repo-root `firebase.json`).
@@ -85,6 +89,9 @@ firebase deploy --only hosting
 > the rewrite **order matters** — the API routes are listed before the `**` SPA
 > fallback because Firebase uses first-match.
 
-Cloud Run (the API + the original `web/` fallback UI) is unchanged and keeps
-working; Firebase now serves the premium client. See repo `README.md` and
-`deploy/CLOUDRUN.md` for the backend.
+The Cloud Run container serves the API **and this same React client**: the
+Dockerfile builds `frontend/` (Vite) into the image's static dir, so one
+container ships both. Firebase Hosting serves the identical client and rewrites
+the API routes to Cloud Run. The legacy `web/` client is kept as a reference
+(still type-checked/built in CI) but is **not** served by the container. See
+repo `README.md` and `deploy/CLOUDRUN.md` for the backend.
