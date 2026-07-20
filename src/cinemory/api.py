@@ -13,12 +13,17 @@ The API is storage/provider agnostic (see ``config``): offline by default so it
 boots and serves with no credentials. In ``live`` mode it uses the real
 Genblaze/B2 backends only when their credentials are present, otherwise it
 transparently degrades to the offline path — so reel generation never 500s.
+The same contract holds per request: when the live provider fails mid-request,
+the reel is regenerated with the offline provider (storage unchanged) and the
+response says so honestly (``provider_degraded`` + the actual ``provider``,
+which the sealed manifest also records per step).
 """
 from __future__ import annotations
 
 import base64
 import binascii
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Annotated
@@ -27,11 +32,15 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
 from . import config
+from .adapters import FakeMediaProvider
 from .ingest import IngestError, build_spec_from_photos
-from .models import ReelResult
+from .models import ReelResult, ReelSpec
 from .occasions import list_occasions
 from .pipeline import ReelPipeline
+from .stitch import FakeStitcher
 from .synthetic import synth_reel_spec
+
+_log = logging.getLogger("cinemory.api")
 
 app = FastAPI(title="MemoryReel API", version="0.1.0")
 
@@ -72,6 +81,47 @@ def _reel_response(result: ReelResult) -> dict:
     }
 
 
+def _run_reel(spec: ReelSpec) -> dict:
+    """Run the pipeline; degrade THIS request honestly if the live provider fails.
+
+    The core action must never 500 because a remote generation backend
+    misbehaved: on a live-provider failure the same spec is regenerated with
+    the offline provider against the *same* storage (real B2 in live mode).
+    Nothing lies about it — the response carries ``provider_degraded: true``
+    plus the provider that actually generated, and the sealed manifest records
+    that provider on every step. A failure of the offline provider itself is a
+    genuine bug and propagates (500) rather than being masked.
+    """
+    try:
+        body = _reel_response(_pipeline.run(spec))
+        body["provider"] = _pipeline.provider.name
+        body["provider_degraded"] = False
+        return body
+    except HTTPException:
+        raise
+    except Exception as exc:
+        if isinstance(_pipeline.provider, FakeMediaProvider):
+            raise
+        _log.exception(
+            "live media provider %r failed for reel %r; regenerating this "
+            "request with the offline provider (storage unchanged)",
+            _pipeline.provider.name,
+            spec.name,
+        )
+        # The offline provider's deterministic clips are not decodable video,
+        # so the regeneration pairs it with the offline stitcher (a real
+        # ffmpeg stitcher would fail on them) — the exact offline generation
+        # path, persisted to whatever storage the deployment actually uses.
+        fallback = ReelPipeline(FakeMediaProvider(), _storage, stitcher=FakeStitcher())
+        body = _reel_response(fallback.run(spec))
+        body["provider"] = fallback.provider.name
+        body["provider_degraded"] = True
+        # Class name only — exception text may embed URLs/identifiers that do
+        # not belong in an API response; the full traceback is in the log.
+        body["degrade_reason"] = type(exc).__name__
+        return body
+
+
 def _generate_from_photos(
     name: str, photos: list[tuple[str, bytes]], *, occasion: str, chapters: int, bridges: bool
 ) -> dict:
@@ -82,8 +132,7 @@ def _generate_from_photos(
         )
     except IngestError as exc:
         raise HTTPException(400, str(exc)) from exc
-    result = _pipeline.run(spec)
-    return _reel_response(result)
+    return _run_reel(spec)
 
 
 @app.get("/health")
@@ -108,8 +157,7 @@ def occasions() -> dict:
 def create_reel(req: ReelRequest) -> dict:
     spec = synth_reel_spec(req.name, chapters=req.chapters, per_chapter=req.per_chapter,
                            occasion=req.occasion)
-    result = _pipeline.run(spec)
-    return _reel_response(result)
+    return _run_reel(spec)
 
 
 @app.post("/reels/upload")
