@@ -10,6 +10,7 @@ dist/
 .venv/
 venv/
 .mypy_cache/
+.coverage
 
 # Env / secrets — NEVER commit real credentials
 .env

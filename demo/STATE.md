@@ -1,6 +1,40 @@
 # Cinemory — submission state
 
-_Last updated: 2026-07-12. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+_Last updated: 2026-07-21. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+
+## 2026-07-21 update — SDK re-verified · live box re-verified · B2 key probed
+
+- **Genblaze SDK resolve (all released 2026-07-17):** genblaze **0.4.3**,
+  genblaze-core **0.3.6**, genblaze-s3 **0.3.5**, gmicloud **0.3.3**. The SDK
+  contract test passes against core 0.3.6 (verified locally today). The
+  existing pins (`genblaze-core>=0.3.4,<0.4` in requirements-dev;
+  `genblaze[gmicloud]>=0.4,<0.5` in the `[live]` extra) already cover these —
+  no pin change needed or made.
+- **Measured tests (fresh venv, genblaze-core 0.3.6):** backend **204
+  collected → 203 passed, 1 skipped** (~51 s); frontend **21 vitest tests**
+  (4 files).
+- **Readiness gate:** automatable **100.0% (17/17) PASS**; full **85.6%** — 3
+  user-gated live items remain (`production.live_redeploy`,
+  `b2.live_objects_written`, `genblaze.live_reel_generated`).
+- **Live box (Cloud Run), verified today:** `GET /health` → 200 in honest
+  offline-degrade mode
+  (`{"mode":"offline","provider":"fake-genblaze","storage":"FakeStorage"}`);
+  `GET /occasions` → 200 (6 themes); `POST /reels` → **200** with a sealed
+  reel + provenance manifest; `/` serves the React UI. Firebase mirror
+  https://upgradegr-cinemory.web.app identical.
+- **B2 key probe:** the configured application key authenticates but has
+  **capabilities=[] (zero)** — PutObject AND ListObjectsV2 return
+  `AccessDenied: not entitled`. Endpoint (`s3.eu-central-003.backblazeb2.com`)
+  and bucket (`cinemory`) are correct. **A new write-entitled key is pending
+  from the owner**; the live run and the live-mode redeploy are gated on it.
+- **Remaining checklist (in order):**
+  1. Upload `demo/cinemory-demo.mp4` (2:58) to YouTube; paste the URL into
+     `SUBMISSION.md` + the Devpost form (repo mp4 alone does not satisfy
+     Devpost's hosted-video rule).
+  2. New write-entitled B2 key → one real live run.
+  3. Live-mode redeploy of Cloud Run with the credentials.
+  4. Devpost form before **2026-08-03 5:00pm EDT**; keep the app freely
+     testable through **2026-08-11 5:00pm EDT**.
 
 ## Where it stands: ~92/100 (code/docs complete; live-run + video are owner-only)
 
@@ -28,7 +62,7 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 154 tests; credential-free live-degrade + real-photo ingest; drift guarded |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 204 backend tests (203 passed + 1 skipped, measured 2026-07-21) + 21 frontend; credential-free live-degrade + real-photo ingest; drift guarded |
 | B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) + a real queryable `index.jsonl` run index on both fake and B2 adapters |
 | Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 
@@ -43,7 +77,10 @@ A demo video is now committed (`demo/cinemory-demo.mp4`, ~3 min, offline-honest)
 Ceiling to 95+ is gated on a write-entitled B2 key + a live-B2 run + hosting the
 video.
 
-## Verified against the real SDK (genblaze-core 0.3.4 / -s3 0.3.4 / -gmicloud 0.3.2)
+## Verified against the real SDK
+_(originally against genblaze-core 0.3.4 / -s3 0.3.4 / -gmicloud 0.3.2;
+re-verified 2026-07-21 against core 0.3.6 / -s3 0.3.5 / -gmicloud 0.3.3 —
+same contract, no adapter change needed)_
 - `Pipeline().step(provider, model=, prompt=, modality=, **params).run(sink=, timeout=, raise_on_failure=True)` ✓
 - `PipelineResult(run, manifest)`; `result.run.steps[-1].assets[0]` ✓
 - `Asset` is **URL-addressed** (`url`/`sha256`/`size_bytes`/`media_type`) — no `.read()/.bytes` (old adapter bug, fixed) ✓
