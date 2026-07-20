@@ -208,7 +208,7 @@ def test_sdk_signatures_match_adapter_assumptions():
     from genblaze_core import ObjectStorageSink, Pipeline, PipelineResult
 
     step_params = inspect.signature(Pipeline.step).parameters
-    for p in ("provider", "model", "prompt", "modality"):
+    for p in ("provider", "model", "prompt", "modality", "external_inputs"):
         assert p in step_params, f"Pipeline.step lost parameter {p!r}"
 
     run_params = inspect.signature(Pipeline.run).parameters
@@ -240,3 +240,210 @@ def test_gmicloud_provider_classes_importable_when_installed():
     )
     for cls in ("GMICloudVideoProvider", "GMICloudImageProvider", "GMICloudAudioProvider"):
         assert hasattr(gmi, cls), f"genblaze_gmicloud missing {cls}"
+
+
+# ---------------------------------------------------------------------------
+# 6. Photo inputs actually reach the SDK. This is the live-path bug the tests
+#    above never caught: ``generate(inputs=[...])`` built the step WITHOUT its
+#    inputs, so GMI rejected every I2V submit with
+#    ``400: invalid payload parameters: image (Required parameter is missing)``.
+#    The step the provider receives MUST carry one input Asset per byte-string
+#    — hosted through the same storage backend, content-addressed, sha256-sealed.
+# ---------------------------------------------------------------------------
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+_JPEG_MAGIC = b"\xff\xd8\xff"
+
+
+def _forbid_download(_u: str) -> bytes:
+    raise AssertionError("must read back through the backend, not download")
+
+
+def _adapter_with_stored_clip(clip: bytes):
+    """MockProvider + MemBackend wiring where the output clip is already durable
+    (the real B2 steady state), so ``generate`` exercises hosting + readback
+    with zero network."""
+    backend = _mem_backend()
+    backend.put("assets/clip.mp4", clip)
+    url = backend.get_durable_url("assets/clip.mp4")
+    provider = _mock_provider(
+        [_gb_asset(url, "video/mp4", hashlib.sha256(clip).hexdigest(), size_bytes=len(clip))]
+    )
+    adapter = GenblazeMediaProvider(
+        provider_obj=provider, backend=backend, downloader=_forbid_download
+    )
+    return adapter, provider, backend
+
+
+def test_generate_attaches_photo_input_as_external_asset():
+    photo = _PNG_MAGIC + b"real-photo-bytes" * 32
+    photo_sha = hashlib.sha256(photo).hexdigest()
+    clip = b"CLIP" + b"\x03\x04" * 400
+    adapter, provider, backend = _adapter_with_stored_clip(clip)
+
+    out = adapter.generate(
+        model="Kling-Image2Video-V2.1-Master",
+        prompt="a quiet memory",
+        modality=Modality.VIDEO,
+        inputs=[photo],
+    )
+
+    assert out == clip
+    # The Step the SDK handed the provider carries the photo as an input Asset.
+    step = provider.received_steps[-1]
+    assert len(step.inputs) == 1, "photo input was dropped before reaching the provider"
+    asset = step.inputs[0]
+    assert asset.sha256 == photo_sha
+    assert asset.media_type == "image/png"
+    assert asset.size_bytes == len(photo)
+    # The bytes are hosted through the SAME backend the sink uses, at a
+    # content-addressed key the asset URL resolves back to.
+    key = backend.key_from_url(asset.url)
+    assert key == f"chain-inputs/{photo_sha}.png"
+    assert backend.get(key) == photo
+
+
+def test_generate_attaches_both_flf2v_frames_in_order():
+    first = _JPEG_MAGIC + b"first-frame" * 24
+    last = _PNG_MAGIC + b"last-frame" * 24
+    clip = b"BRIDGE" + b"\x05\x06" * 300
+    adapter, provider, _backend = _adapter_with_stored_clip(clip)
+
+    out = adapter.generate(
+        model="seedance-2-0-260128",
+        prompt="smooth match-cut transition",
+        modality=Modality.VIDEO,
+        inputs=[first, last],
+        params={"kind": "flf2v", "from": "c0", "to": "c1"},
+    )
+
+    assert out == clip
+    step = provider.received_steps[-1]
+    # Both frames, in order — positional order is what routes first vs last.
+    assert [a.sha256 for a in step.inputs] == [
+        hashlib.sha256(first).hexdigest(),
+        hashlib.sha256(last).hexdigest(),
+    ]
+    assert [a.media_type for a in step.inputs] == ["image/jpeg", "image/png"]
+
+
+def test_pipeline_step_receives_external_inputs_kwarg(monkeypatch):
+    """Pin the exact regression: the step must be built WITH ``external_inputs=``
+    (a step built without it compiles and runs — and silently drops the photos)."""
+    from genblaze_core import Pipeline
+
+    seen: dict = {}
+    real_step = Pipeline.step
+
+    def spying_step(self, provider, **kwargs):
+        seen.update(kwargs)
+        return real_step(self, provider, **kwargs)
+
+    monkeypatch.setattr(Pipeline, "step", spying_step)
+
+    photo = _PNG_MAGIC + b"spy-photo" * 16
+    clip = b"SPYCLIP" + b"\x07" * 200
+    adapter, _provider, _backend = _adapter_with_stored_clip(clip)
+    adapter.generate(model="m", prompt="p", modality=Modality.VIDEO, inputs=[photo])
+
+    external = seen.get("external_inputs")
+    assert external, "Pipeline.step was not given external_inputs="
+    assert len(external) == 1
+    assert external[0].sha256 == hashlib.sha256(photo).hexdigest()
+
+
+def test_generate_without_inputs_passes_no_external_assets():
+    """Text-only steps stay input-free (no phantom assets, no hosted inputs)."""
+    clip = b"T2V" + b"\x08" * 200
+    adapter, provider, backend = _adapter_with_stored_clip(clip)
+
+    adapter.generate(model="Kling-Text2Video-V2.1-Master", prompt="p",
+                     modality=Modality.VIDEO)
+
+    assert provider.received_steps[-1].inputs == []
+    # The sink may write its own run manifest, but nothing was hosted as input.
+    assert not [k for k in backend.store if k.startswith("chain-inputs/")]
+
+
+def test_inputs_without_backend_are_rejected_loudly():
+    """No storage backend means the provider could never fetch the photo —
+    fail fast with an actionable message instead of an opaque upstream 400."""
+    adapter = GenblazeMediaProvider(
+        provider_obj=_mock_provider(
+            [_gb_asset("https://mock.test/clip.mp4", "video/mp4", "0" * 64)]
+        ),
+        downloader=lambda _u: b"never-reached",
+    )
+    with pytest.raises(ValueError, match="storage backend"):
+        adapter.generate(model="m", prompt="p", modality=Modality.VIDEO,
+                         inputs=[_PNG_MAGIC + b"photo"])
+
+
+# ---------------------------------------------------------------------------
+# 7. FLF2V slot routing. gmicloud 0.3.3 ships no seedance family: the slug
+#    resolves to the permissive fallback whose ``route_images(slots=("image",))``
+#    (a) emits the wrong native slot name for seedance and (b) drops every image
+#    after the first. The registered user spec must route both frames into GMI's
+#    documented ``first_frame``/``last_frame`` slots — driven here through the
+#    real ``ModelRegistry.prepare_payload`` pipeline (genblaze-core only).
+# ---------------------------------------------------------------------------
+def test_seedance_flf2v_spec_routes_both_frames_to_native_slots():
+    from genblaze_core import Modality as GbModality
+    from genblaze_core.models.step import Step
+    from genblaze_core.providers.model_registry import ModelRegistry
+
+    from cinemory.adapters.genblaze_provider import SEEDANCE_FLF2V_MODEL, seedance_flf2v_spec
+
+    registry = ModelRegistry()
+    registry.register(seedance_flf2v_spec())
+
+    step = Step(
+        provider="gmicloud",
+        model=SEEDANCE_FLF2V_MODEL,
+        modality=GbModality.VIDEO,
+        prompt="smooth match-cut transition",
+        params={"kind": "flf2v", "from": "c0", "to": "c1"},
+        inputs=[
+            _gb_asset("https://cdn.test/first.png", "image/png", "a" * 64, size_bytes=10),
+            _gb_asset("https://cdn.test/last.png", "image/png", "b" * 64, size_bytes=10),
+        ],
+    )
+    payload = registry.prepare_payload(step)
+
+    assert payload["first_frame"] == "https://cdn.test/first.png"
+    assert payload["last_frame"] == "https://cdn.test/last.png"
+    assert payload["prompt"] == "smooth match-cut transition"
+    # Cinemory-internal bookkeeping params are dropped by the allowlist (the
+    # SDK's standard drop-with-warning), never sent to GMI.
+    for junk in ("kind", "from", "to"):
+        assert junk not in payload
+
+
+def test_flf2v_registry_overrides_gmicloud_fallback_when_installed():
+    """With the live extra installed, the per-instance registry must resolve the
+    seedance slug to the FLF2V spec (not the single-slot fallback) while the
+    Kling I2V family keeps its native single ``image`` slot."""
+    pytest.importorskip(
+        "genblaze_gmicloud",
+        reason="optional live extra 'genblaze[gmicloud]' not installed",
+    )
+    from genblaze_gmicloud import GMICloudVideoProvider
+
+    from cinemory.adapters.genblaze_provider import (
+        SEEDANCE_FLF2V_MODEL,
+        _flf2v_video_registry,
+    )
+
+    registry = _flf2v_video_registry(GMICloudVideoProvider)
+    frames = [
+        _gb_asset("https://cdn.test/a.png", "image/png", "a" * 64, size_bytes=1),
+        _gb_asset("https://cdn.test/b.png", "image/png", "b" * 64, size_bytes=1),
+    ]
+
+    seedance = registry.get(SEEDANCE_FLF2V_MODEL)
+    assert seedance.input_mapping(frames) == {
+        "first_frame": "https://cdn.test/a.png",
+        "last_frame": "https://cdn.test/b.png",
+    }
+
+    kling = registry.get("Kling-Image2Video-V2.1-Master")
+    assert kling.input_mapping(frames[:1]) == {"image": "https://cdn.test/a.png"}
