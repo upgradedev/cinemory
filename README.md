@@ -11,6 +11,16 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 > (local working copy: `repos/cinemory`). Feature roadmap, opt-in connectors,
 > show-stoppers and go-live steps: **[`ROADMAP.md`](ROADMAP.md)**.
 
+## Live demo
+
+- **Cloud Run:** https://cinemory-595784992266.europe-west1.run.app — the API
+  (`/health`, `/occasions`, `POST /reels`) plus the React UI, running
+  credential-free in honest offline-degrade mode (`/health` reports the
+  effective backends).
+- **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
+- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:58).
+  YouTube link: *TODO(owner): paste the URL after upload.*
+
 ---
 
 ## Origin story
@@ -129,8 +139,12 @@ generated asset:
   ([`tests/integration/test_genblaze_contract.py`](tests/integration/test_genblaze_contract.py)).
   `genblaze-core` is installed in CI (pure-Python, no credentials); only the live
   GMICloud generation and B2 writes need keys.
-- **Provider-agnostic by design** — swap GMI Cloud / OpenAI / Google / Runway /
-  Luma without touching the pipeline.
+- **Provider port; GMI Cloud live today** — generation sits behind the
+  `MediaProvider` port. Live generation currently supports the **GMI Cloud**
+  provider via Genblaze ([`config.py`](src/cinemory/config.py) gates live
+  readiness on it); other Genblaze providers (OpenAI, Google, Runway, Luma)
+  are scaffolded in config and on the roadmap — the port design lets them
+  slot in without touching the pipeline.
 
 ### AI providers & models
 
@@ -140,7 +154,8 @@ generated asset:
 | Chapter bridge (FLF2V) | `seedance-2-0-260128` | GMI Cloud |
 | Still generation (optional) | `seedream-5.0-lite` | GMI Cloud |
 
-Models are configurable per pipeline; any Genblaze-supported provider works.
+Models are configurable per pipeline. Live generation currently runs through
+GMI Cloud; further Genblaze providers are on the roadmap.
 
 ---
 

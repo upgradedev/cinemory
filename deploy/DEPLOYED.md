@@ -27,27 +27,36 @@ Built via Cloud Build (no local Docker). Verified serving:
 > The image later switched to building the `frontend/` React (Vite) client, whose
 > bundle is served under `/assets/*` — see `deploy/CLOUDRUN.md`.
 
-## ⚠️ Current live state — `live` mode; deployed revision predates the degrade fix
+## ✅ Current live state — verified 2026-07-21 (honest offline-degrade mode)
 
-The service was later redeployed with `CINEMORY_MODE=live` **without** attaching
-B2/GMI credentials. The *currently-deployed* revision runs the pre-fix image:
+The deployed revision runs the degrade-to-offline image and is healthy.
+Verified against the live service on 2026-07-21:
 
-- `GET /health` → `{"status":"ok","service":"cinemory-api","mode":"live"}` (serves)
-- `POST /reels` → **HTTP 500** on that old revision — no Genblaze/B2 credentials.
+- `GET /health` → 200
+  `{"status":"ok","service":"cinemory-api","mode":"offline","provider":"fake-genblaze","storage":"FakeStorage"}`
+- `GET /occasions` → 200 (6 occasion themes)
+- `POST /reels` → **200** — sealed reel + provenance manifest, zero credentials
+- `GET /` → the React product UI
 
-**The code now guarantees this can't recur.** `build_provider()` / `build_storage()`
-use the real Genblaze/B2 backends only when their credentials are present, and
-otherwise degrade transparently to the offline fakes (with a WARNING). So in
-`live` mode with no creds, `POST /reels` returns 200 with a real deterministic
-reel + sealed manifest, and `GET /health` reports the effective
-`provider`/`storage`.
+The Firebase Hosting mirror https://upgradegr-cinemory.web.app serves the
+identical app (rewrites per `firebase.json`, project `upgradegr-cinemory`).
 
-**Owner-only step — redeploy the latest image.** That alone clears the 500 (no
-creds or mode change needed). Attach `GMI_API_KEY` + the B2 vars only to get
-*real* live generation instead of the offline-degraded path.
+`build_provider()` / `build_storage()` use the real Genblaze/B2 backends only
+when their credentials are present, and otherwise degrade transparently to the
+offline fakes (with a WARNING) — so the core action never 500s and `GET /health`
+always reports the effective `provider`/`storage`.
 
-Gate B (`GMI_API_KEY` not yet issued) still applies to the real-generation path.
-Live command (see `CLOUDRUN.md`):
+### 2026-07-21 — live-mode redeploy pending a write-entitled B2 key
+
+The configured B2 application key authenticates but carries **zero
+capabilities**: PutObject and ListObjectsV2 both return
+`AccessDenied: not entitled` (probed 2026-07-21). The endpoint
+(`s3.eu-central-003.backblazeb2.com`) and the bucket (`cinemory`) are correct —
+the key itself lacks entitlements. A new write-entitled key is pending from the
+owner; the real live run and the `CINEMORY_MODE=live` redeploy are gated on it
+(the real-generation path also needs `GMI_API_KEY`).
+
+Live command once the key exists (see `CLOUDRUN.md`):
 
 ```bash
 CINEMORY_MODE=live CINEMORY_STITCH=ffmpeg \
