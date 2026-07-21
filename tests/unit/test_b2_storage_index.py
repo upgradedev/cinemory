@@ -51,6 +51,12 @@ class _FakeS3:
             raise KeyError(Key)
         return {"Body": _Body(self.store[(Bucket, Key)])}
 
+    def generate_presigned_url(self, operation, *, Params, ExpiresIn):  # noqa: N803
+        # Mirrors boto3's local (no-network) signing: URL embeds the request.
+        self.presigned = getattr(self, "presigned", 0) + 1
+        return (f"https://{Params['Bucket']}.example/{Params['Key']}"
+                f"?op={operation}&X-Amz-Expires={ExpiresIn}&sig={self.presigned}")
+
 
 @pytest.fixture(autouse=True)
 def _b2_env(monkeypatch):
@@ -118,6 +124,24 @@ def test_reload_index_sees_writes_after_construction():
     # Query-time refresh (what api.get_reel calls) makes the write visible.
     reader.reload_index()
     assert any(r["key"] == _MANIFEST_KEY for r in reader.index)
+
+
+def test_get_url_presigns_the_prefixed_key_fresh_each_call():
+    """``get_url`` (the playback route's live path) signs the ACTUAL (prefixed)
+    object key, honours the expiry, and mints a fresh URL per call — presigned
+    URLs are never persisted, so provenance keeps the canonical URL."""
+    s3 = _FakeS3()
+    store = B2Storage(client=s3)
+    key = "graduation/reels/aa/bb/reel.mp4"
+    store.put(key, b"video-bytes", content_type="video/mp4")
+
+    url = store.get_url(key)
+    assert url.startswith(f"https://cinemory-live.example/cin/{key}?op=get_object")
+    assert "X-Amz-Expires=3600" in url and "sig=1" in url
+    # A later playback gets a FRESH signature (expiry-proof by construction).
+    assert "sig=2" in store.get_url(key)
+    # Custom expiry is passed through.
+    assert "X-Amz-Expires=60" in store.get_url(key, expires_in=60)
 
 
 def test_index_jsonl_is_sorted_ndjson():

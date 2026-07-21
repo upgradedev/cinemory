@@ -144,6 +144,22 @@ class B2Storage:
         actual_key = f"{self.key_prefix}{key}"
         return self._client.get_object(Bucket=self.bucket, Key=actual_key)["Body"].read()
 
+    def get_url(self, key: str, *, expires_in: int = 3600) -> str:
+        """Mint a FRESH time-limited presigned GET URL for ``key``.
+
+        The bucket is private, so the durable URL returned by :meth:`put` (and
+        recorded in provenance) is not directly fetchable by a browser. The API
+        playback route calls this per request; the presigned URL is **never
+        persisted** — manifests keep the canonical storage URL and hashes.
+        Signing is local (no network round-trip).
+        """
+        actual_key = f"{self.key_prefix}{key}"
+        return self._client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": self.bucket, "Key": actual_key},
+            ExpiresIn=expires_in,
+        )
+
     def exists(self, key: str) -> bool:  # pragma: no cover - real-path only (botocore)
         from botocore.exceptions import ClientError
 
