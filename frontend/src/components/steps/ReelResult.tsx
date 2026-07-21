@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Clapperboard, PartyPopper, PlayCircle, RotateCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import { KenBurnsSlideshow } from "../KenBurnsSlideshow";
 import { ProvenancePanel } from "../ProvenancePanel";
 import { ShareBar } from "../ShareBar";
 import { useOccasions } from "@/lib/queries";
@@ -44,18 +45,50 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-5">
-        {/* Player */}
-        <div className="lg:col-span-3">
-          <div className="letterbox aspect-video overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-900 shadow-film">
+        {/* Player. min-w-0 lets the grid column actually shrink on resize —
+            without it the letterbox keeps a stale min-content width and the
+            page overflows horizontally on narrow viewports. The aspect box is
+            width-driven and the media fills it absolutely, so its height can
+            never go stale either. */}
+        <div className="min-w-0 lg:col-span-3">
+          <div className="letterbox relative aspect-video w-full overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-900 shadow-film">
             {playbackUrl ? (
-              <video controls playsInline className="h-full w-full" src={playbackUrl}>
+              <video
+                controls
+                playsInline
+                className="absolute inset-0 h-full w-full"
+                src={playbackUrl}
+              >
                 Your browser does not support the video tag.
               </video>
             ) : (
-              <ReelPoster
-                gradient={theme.gradient}
-                thumbUrls={photos.slice(0, 4).map((p) => p.url)}
-              />
+              <>
+                {photos.length > 0 ? (
+                  <KenBurnsSlideshow
+                    photos={photos.map((p) => ({ url: p.url, name: p.name }))}
+                  />
+                ) : (
+                  <ReelPoster gradient={theme.gradient} />
+                )}
+                {degraded && (
+                  <div className="absolute left-3 top-[12%] z-20">
+                    <Badge
+                      variant="neutral"
+                      className="border-amber-400/30 bg-ink-950/70 text-amber-200 backdrop-blur-sm"
+                      title={DEGRADE_NOTE}
+                    >
+                      <Clapperboard className="h-3.5 w-3.5" />
+                      Rendered on the built-in offline generator
+                    </Badge>
+                  </div>
+                )}
+                {photos.length > 0 && (
+                  <p className="absolute inset-x-0 bottom-[11%] z-20 px-6 text-center text-xs text-white/70">
+                    Preview slideshow of your photos — the reel file plays here
+                    when it comes from live AI generation.
+                  </p>
+                )}
+              </>
             )}
           </div>
 
@@ -64,16 +97,6 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
             {occasion && <Badge variant="neutral">{occasion.aspect_ratio}</Badge>}
             {occasion && (
               <Badge variant="muted">{occasion.music_style}</Badge>
-            )}
-            {degraded && (
-              <Badge
-                variant="neutral"
-                className="border-amber-400/30 bg-amber-400/10 text-amber-200"
-                title={DEGRADE_NOTE}
-              >
-                <Clapperboard className="h-3.5 w-3.5" />
-                Rendered on the built-in offline generator
-              </Badge>
             )}
           </div>
           {degraded && (
@@ -86,7 +109,7 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
         </div>
 
         {/* Provenance */}
-        <div className="lg:col-span-2">
+        <div className="min-w-0 lg:col-span-2">
           <ProvenancePanel reel={reel} />
         </div>
       </div>
@@ -101,27 +124,13 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
   );
 }
 
-/** Cinematic poster shown when the reel isn't browser-playable — the offline
- *  generator's deterministic bytes are real sealed artifacts, not decodable
- *  video. Builds a mosaic from the user's own photos. */
-function ReelPoster({
-  gradient,
-  thumbUrls,
-}: {
-  gradient: string;
-  thumbUrls: string[];
-}) {
+/** Cinematic poster for the empty edge case: no playable video AND no local
+ *  photos to slideshow (e.g. a synthetic run after a page refresh cleared the
+ *  storyboard). Everything else gets the Ken Burns slideshow. */
+function ReelPoster({ gradient }: { gradient: string }) {
   return (
-    <div className="relative grid h-full place-items-center">
-      {thumbUrls.length > 0 ? (
-        <div className="absolute inset-0 grid grid-cols-2 gap-px opacity-40">
-          {thumbUrls.map((u, i) => (
-            <img key={i} src={u} alt="" className="h-full w-full object-cover" />
-          ))}
-        </div>
-      ) : (
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} to-ink-900`} />
-      )}
+    <div className="absolute inset-0 grid place-items-center">
+      <div className={`absolute inset-0 bg-gradient-to-br ${gradient} to-ink-900`} />
       <div className="absolute inset-0 bg-ink-950/50" />
       <div className="relative flex flex-col items-center text-center">
         <PlayCircle className="h-14 w-14 text-white/80" />

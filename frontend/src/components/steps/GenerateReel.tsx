@@ -6,6 +6,7 @@ import { Progress } from "../ui/progress";
 import { StepHeading } from "./PhotoUpload";
 import { useCreateReel, useOccasions, useUploadReel } from "@/lib/queries";
 import { deriveReelShape, useReelStore } from "@/store/useReelStore";
+import { generationProgressPct } from "@/lib/progress";
 import type { ReelResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -92,9 +93,26 @@ export function GenerateReel({
     return () => window.clearInterval(id);
   }, [mutation.isPending]);
 
-  const pct = mutation.isSuccess
-    ? 100
-    : Math.round((Math.min(stage, STAGES.length - 1) / STAGES.length) * 100);
+  // Once the staged front-load is exhausted (~86%), keep the bar crawling
+  // asymptotically against real elapsed time instead of freezing — 100 still
+  // only lands with the actual response (see lib/progress.ts).
+  const [tailMs, setTailMs] = useState(0);
+  useEffect(() => {
+    if (!mutation.isPending || stage < STAGES.length - 1) {
+      setTailMs(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const id = window.setInterval(() => setTailMs(Date.now() - startedAt), 300);
+    return () => window.clearInterval(id);
+  }, [mutation.isPending, stage]);
+
+  const pct = generationProgressPct({
+    stage,
+    totalStages: STAGES.length,
+    tailElapsedMs: tailMs,
+    done: mutation.isSuccess,
+  });
 
   if (mutation.isError) {
     return (

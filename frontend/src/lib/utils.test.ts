@@ -77,7 +77,13 @@ describe("platformDeepLinks", () => {
     const l = platformDeepLinks("https://cinemory.ai/r/abc");
     expect(l.facebook).toContain(encodeURIComponent("https://cinemory.ai/r/abc"));
     expect(l.linkedin).toContain("share-offsite");
-    expect(l.instagram).toBe("https://www.instagram.com/");
+  });
+
+  it("offers ONLY platforms with a real share-by-url endpoint", () => {
+    // Instagram/YouTube have none — their old entries were dead homepage
+    // links, now replaced by the Copy-link affordance in the ShareBar.
+    const l = platformDeepLinks("https://cinemory.ai/r/abc");
+    expect(Object.keys(l).sort()).toEqual(["facebook", "linkedin"]);
   });
 });
 

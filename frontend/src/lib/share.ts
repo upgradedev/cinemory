@@ -9,11 +9,12 @@ export interface ShareMeta {
   pageUrl: string;
 }
 
+// Only platforms with a REAL share-by-url endpoint get a deep link. Instagram
+// and YouTube have none (their old entries just opened their homepages — a
+// dead end), so they are served by the native share sheet + Copy link instead.
 export interface PlatformLinks {
   facebook: string;
   linkedin: string;
-  instagram: string;
-  youtube: string;
 }
 
 export function platformDeepLinks(pageUrl: string): PlatformLinks {
@@ -21,9 +22,33 @@ export function platformDeepLinks(pageUrl: string): PlatformLinks {
   return {
     facebook: `https://www.facebook.com/sharer/sharer.php?u=${u}`,
     linkedin: `https://www.linkedin.com/sharing/share-offsite/?url=${u}`,
-    instagram: "https://www.instagram.com/",
-    youtube: "https://studio.youtube.com/",
   };
+}
+
+/** Copy text to the clipboard: async Clipboard API first, a hidden-textarea
+ *  `execCommand("copy")` fallback for older/embedded browsers. Throws when
+ *  neither path is available so callers can surface honest feedback. */
+export async function copyText(
+  text: string,
+  nav: Navigator = navigator,
+  doc: Document = document,
+): Promise<void> {
+  if (nav.clipboard?.writeText) {
+    await nav.clipboard.writeText(text);
+    return;
+  }
+  const ta = doc.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  doc.body.appendChild(ta);
+  ta.select();
+  try {
+    if (!doc.execCommand("copy")) throw new Error("execCommand copy failed");
+  } finally {
+    doc.body.removeChild(ta);
+  }
 }
 
 export function reelFilename(reelName: string): string {
