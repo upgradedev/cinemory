@@ -170,8 +170,8 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   pen-test, plus the SDK-boundary Genblaze contract test — which drives a
   **real** Genblaze `Pipeline` + `ObjectStorageSink` (over an in-memory
   backend) so the live sink→store→readback→sha256-chain path is genuinely
-  exercised, not just the offline fakes. **Backend: 234 passed locally**
-  (with the live extras); **in CI 231 passed + 3 env-gated skips** (2 gmicloud
+  exercised, not just the offline fakes. **Backend: 235 passed locally**
+  (with the live extras); **in CI 232 passed + 3 env-gated skips** (2 gmicloud
   + 1 boto3; measured 2026-07-22). **Frontend: 31 vitest tests** (5 files,
   measured 2026-07-21).
 - **Readiness gate:** `python scripts/readiness.py` scores the repo against the
