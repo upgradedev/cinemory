@@ -613,11 +613,15 @@ def build_criteria() -> list[Criterion]:
                   "Cloud Run redeployed with entitled creds; /health = mode=live "
                   "provider=genblaze storage=B2Storage",
                   2, user_gated=True,
-                  gate_detail="VERIFIED DONE 2026-07-21: the live "
+                  gate_detail="VERIFIED DONE 2026-07-21 — re-verify after the P0-fix "
+                  "redeploy: the live "
                   "https://cinemory-595784992266.europe-west1.run.app/health reports "
-                  "mode=live, provider=genblaze, storage=B2Storage. Keep it true through "
-                  "the 2026-08-03 deadline — any redeploy must keep CINEMORY_MODE=live, "
-                  "the write-entitled B2 key vars and GMI_API_KEY in the service env."),
+                  "mode=live, provider=genblaze, storage=B2Storage. Redeploy once with "
+                  "the 2026-07-22 P0 fixes (Kling-compatible 1024x576 synth default, "
+                  "presign region/SigV4, --timeout 600) and re-check /health plus one "
+                  "presigned playback. Keep it true through the 2026-08-03 deadline — "
+                  "any redeploy must keep CINEMORY_MODE=live, the write-entitled B2 "
+                  "key vars and GMI_API_KEY in the service env."),
         ]),
         Criterion("b2", "B2 Storage & Orchestration", 20, [
             Check("b2.content_addressed_keys",
@@ -632,10 +636,12 @@ def build_criteria() -> list[Criterion]:
             Check("b2.live_objects_written",
                   "Real B2 objects (reel + manifest + index.jsonl) written to the live bucket",
                   2, user_gated=True,
-                  gate_detail="VERIFIED DONE 2026-07-21: the deployed B2 application key is "
-                  "write-entitled (Put+List verified) and the bucket holds 31+ objects, "
-                  "including writes from the live box. Keep it true through 2026-08-03 — "
-                  "do not rotate the key without updating the Cloud Run env."),
+                  gate_detail="VERIFIED DONE 2026-07-22: the write-entitled B2 application "
+                  "key carried a full funded live run — the bucket holds 133 objects and "
+                  "index.jsonl carries 174 rows (photos, clips, manifests, reels, "
+                  "chain-inputs), with the Genblaze sink chain verified end-to-end. Keep "
+                  "it true through 2026-08-03 — do not rotate the key without updating "
+                  "the Cloud Run env."),
         ]),
         Criterion("genblaze", "Use of Genblaze", 20, [
             Check("genblaze.real_sdk_contract",
@@ -650,11 +656,12 @@ def build_criteria() -> list[Criterion]:
             Check("genblaze.live_reel_generated",
                   "A real generated reel produced live (not the deterministic fallback)",
                   2, user_gated=True,
-                  gate_detail="The GMI_API_KEY is already issued AND deployed (2026-07-21); the "
-                  "remaining lift is to TOP UP the GMI account balance, then run one "
-                  "completed live generation (`CINEMORY_MODE=live bash demo/capture-demo.sh`) "
-                  "and confirm the response says provider=genblaze, provider_degraded=false "
-                  "— a real generated reel, not the offline deterministic fallback."),
+                  gate_detail="VERIFIED DONE 2026-07-22: with the GMI account funded "
+                  "(spend ~$2.6), 8 real Kling I2V renders completed (~242s avg) plus one "
+                  "live seedance FLF2V bridge; the composed reel is real h264 720p, 30.6s, "
+                  "byte-exact sha256 db6a3281…; the live box also ran a real upload-path "
+                  "generation (265s render). The GMI_API_KEY stays deployed — keep the "
+                  "balance positive through judging so live generation keeps working."),
         ]),
         Criterion("security", "Application Security", 20, [
             Check("security.traversal_safe_keys",
