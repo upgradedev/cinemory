@@ -1,4 +1,4 @@
-"""Domain models for a MemoryReel job.
+"""Domain models for a Cinemory reel job.
 
 A *reel* is built from ordered *chapters* (a scene, backed by one or more
 photos) connected by optional *bridges* (first-last-frame transitions). Each

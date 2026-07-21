@@ -1,4 +1,4 @@
-"""Concrete adapters for the MemoryReel ports.
+"""Concrete adapters for the Cinemory ports.
 
 Fakes (offline, no creds) — ``FakeMediaProvider``, ``FakeStorage``.
 Real (require creds)      — ``GenblazeMediaProvider``, ``B2Storage``.

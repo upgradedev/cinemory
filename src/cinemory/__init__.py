@@ -1,4 +1,4 @@
-"""MemoryReel — synthetic photos -> AI-generated video reel, orchestrated with
+"""Cinemory — synthetic photos -> AI-generated video reel, orchestrated with
 Genblaze, stored on Backblaze B2, with verifiable SHA-256 provenance.
 
 PII-safe by design: the reference pipeline operates on *synthetic* demo photos
