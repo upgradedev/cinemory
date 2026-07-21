@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { PartyPopper, PlayCircle, RotateCcw } from "lucide-react";
+import { Clapperboard, PartyPopper, PlayCircle, RotateCcw } from "lucide-react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { ProvenancePanel } from "../ProvenancePanel";
@@ -7,8 +7,11 @@ import { ShareBar } from "../ShareBar";
 import { useOccasions } from "@/lib/queries";
 import { useReelStore } from "@/store/useReelStore";
 import { occasionTheme } from "@/lib/occasion-theme";
-import { isPlayableUrl } from "@/lib/utils";
+import { reelPlaybackUrl } from "@/lib/utils";
 import type { ReelResponse } from "@/lib/api";
+
+const DEGRADE_NOTE =
+  "Live AI generation was unavailable for this run; storage and provenance are real.";
 
 export function ReelResult({ reel }: { reel: ReelResponse }) {
   const photos = useReelStore((s) => s.photos);
@@ -17,7 +20,8 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
 
   const occasion = occasions?.find((o) => o.key === reel.occasion);
   const theme = occasionTheme(reel.occasion ?? "");
-  const playable = isPlayableUrl(reel.reel_url);
+  const playbackUrl = reelPlaybackUrl(reel);
+  const degraded = reel.provider_degraded === true;
 
   return (
     <div className="animate-fade-up">
@@ -43,13 +47,8 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
         {/* Player */}
         <div className="lg:col-span-3">
           <div className="letterbox aspect-video overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-900 shadow-film">
-            {playable ? (
-              <video
-                controls
-                playsInline
-                className="h-full w-full"
-                src={reel.reel_url ?? undefined}
-              >
+            {playbackUrl ? (
+              <video controls playsInline className="h-full w-full" src={playbackUrl}>
                 Your browser does not support the video tag.
               </video>
             ) : (
@@ -66,7 +65,20 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
             {occasion && (
               <Badge variant="muted">{occasion.music_style}</Badge>
             )}
+            {degraded && (
+              <Badge
+                variant="neutral"
+                className="border-amber-400/30 bg-amber-400/10 text-amber-200"
+                title={DEGRADE_NOTE}
+              >
+                <Clapperboard className="h-3.5 w-3.5" />
+                Rendered on the built-in offline generator
+              </Badge>
+            )}
           </div>
+          {degraded && (
+            <p className="mt-2 text-xs text-zinc-500">{DEGRADE_NOTE}</p>
+          )}
 
           <div className="mt-6">
             <ShareBar reel={reel} />
@@ -89,8 +101,9 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
   );
 }
 
-/** Cinematic poster shown when the reel URL isn't browser-playable (offline
- *  demo returns a b2:// URL). Builds a mosaic from the user's own photos. */
+/** Cinematic poster shown when the reel isn't browser-playable — the offline
+ *  generator's deterministic bytes are real sealed artifacts, not decodable
+ *  video. Builds a mosaic from the user's own photos. */
 function ReelPoster({
   gradient,
   thumbUrls,
@@ -113,8 +126,8 @@ function ReelPoster({
       <div className="relative flex flex-col items-center text-center">
         <PlayCircle className="h-14 w-14 text-white/80" />
         <p className="mt-3 max-w-xs px-6 text-sm text-white/70">
-          Preview plays on the live Backblaze B2 path. Provenance is fully sealed
-          and verifiable now →
+          The preview plays when the reel comes from live AI generation.
+          Provenance is fully sealed and verifiable now →
         </p>
       </div>
     </div>

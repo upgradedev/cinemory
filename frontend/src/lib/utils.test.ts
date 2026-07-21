@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, isPlayableUrl, shortHash } from "./utils";
+import { formatBytes, isPlayableUrl, reelPlaybackUrl, shortHash } from "./utils";
 import { reelFilename, platformDeepLinks } from "./share";
 import { deriveReelShape } from "@/store/useReelStore";
 
@@ -32,6 +32,36 @@ describe("isPlayableUrl", () => {
     expect(isPlayableUrl("https://x/y.mp4")).toBe(true);
     expect(isPlayableUrl("b2://bucket/key")).toBe(false);
     expect(isPlayableUrl(null)).toBe(false);
+  });
+});
+
+describe("reelPlaybackUrl", () => {
+  const base = {
+    reel_url: "https://cinemory.s3.example/reel/ab/cd/reel.mp4" as string | null,
+    playback_url: "/reels/demo/video",
+    provider: "genblaze",
+    provider_degraded: false,
+  };
+
+  it("prefers the stable api-relative playback route on a live generation", () => {
+    expect(reelPlaybackUrl(base)).toBe("/reels/demo/video");
+  });
+
+  it("returns null when the run degraded to the offline generator", () => {
+    // The degraded reel's bytes are sealed artifacts but not decodable video —
+    // never hand them to <video> or the download/share fetch.
+    expect(reelPlaybackUrl({ ...base, provider_degraded: true })).toBeNull();
+  });
+
+  it("returns null for the offline provider (offline demo mode)", () => {
+    expect(reelPlaybackUrl({ ...base, provider: "fake-genblaze" })).toBeNull();
+  });
+
+  it("falls back to a fetchable storage URL for legacy backends", () => {
+    // Old backend: no playback_url, no provider fields — keep prior behavior.
+    expect(reelPlaybackUrl({ reel_url: "https://x/y.mp4" })).toBe("https://x/y.mp4");
+    expect(reelPlaybackUrl({ reel_url: "b2://bucket/key" })).toBeNull();
+    expect(reelPlaybackUrl({ reel_url: null })).toBeNull();
   });
 });
 

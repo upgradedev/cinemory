@@ -58,11 +58,22 @@ export interface UploadReelRequest {
 export const ReelResponseSchema = z.object({
   reel_name: z.string(),
   occasion: z.string().optional(),
+  // Canonical storage URL (provenance display) — the bucket is private, so this
+  // is NOT directly fetchable. Playback/download go through `playback_url`.
   reel_url: z.string().nullable(),
+  // Stable api-relative playback route (`/reels/{name}/video`): the backend
+  // 302s to a fresh presigned URL in live mode, or streams bytes offline.
+  // Optional so responses from older backends still parse.
+  playback_url: z.string().nullable().optional(),
   reel_sha256: z.string(),
   manifest_uri: z.string().nullable(),
   manifest_hash: z.string(),
   steps: z.number().int(),
+  // Honest generation provenance: which provider actually generated, and
+  // whether this run degraded to the built-in offline generator mid-request.
+  provider: z.string().optional(),
+  provider_degraded: z.boolean().optional(),
+  degrade_reason: z.string().optional(),
 });
 export type ReelResponse = z.infer<typeof ReelResponseSchema>;
 

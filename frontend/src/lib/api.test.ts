@@ -64,6 +64,59 @@ describe("cinemoryApi.createReel", () => {
     expect(r.steps).toBe(6);
     expect(r.reel_url).toBe("b2://bucket/demo.mp4");
   });
+
+  it("keeps playback_url and the honest provider/degrade fields", async () => {
+    // These fields drive the player URL and the degrade badge — the schema must
+    // carry them through, not strip them (the old schema silently dropped them).
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(200, {
+        reel_name: "demo",
+        occasion: "wedding",
+        reel_url: "https://bucket.s3.example/demo/reels/ab/cd/reel.mp4",
+        playback_url: "/reels/demo/video",
+        reel_sha256: "abc",
+        manifest_uri: "b2://bucket/m.json",
+        manifest_hash: "def",
+        steps: 6,
+        provider: "fake-genblaze",
+        provider_degraded: true,
+        degrade_reason: "RuntimeError",
+      }),
+    );
+    const r = await cinemoryApi.createReel({
+      name: "demo",
+      occasion: "wedding",
+      chapters: 3,
+      per_chapter: 2,
+    });
+    expect(r.playback_url).toBe("/reels/demo/video");
+    expect(r.provider).toBe("fake-genblaze");
+    expect(r.provider_degraded).toBe(true);
+    expect(r.degrade_reason).toBe("RuntimeError");
+  });
+
+  it("still parses responses from older backends without the new fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(200, {
+        reel_name: "old",
+        reel_url: null,
+        reel_sha256: "abc",
+        manifest_uri: null,
+        manifest_hash: "def",
+        steps: 2,
+      }),
+    );
+    const r = await cinemoryApi.createReel({
+      name: "old",
+      occasion: "wedding",
+      chapters: 1,
+      per_chapter: 2,
+    });
+    expect(r.playback_url).toBeUndefined();
+    expect(r.provider_degraded).toBeUndefined();
+  });
 });
 
 describe("cinemoryApi.uploadReel", () => {
