@@ -14,9 +14,11 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 ## Live demo
 
 - **Cloud Run:** https://cinemory-595784992266.europe-west1.run.app — the API
-  (`/health`, `/occasions`, `POST /reels`) plus the React UI, running
-  credential-free in honest offline-degrade mode (`/health` reports the
-  effective backends).
+  (`/health`, `/occasions`, `POST /reels`) plus the React UI, running in
+  **live mode** (`/health` reports the effective backends: `mode:"live"`,
+  `provider:"genblaze"`, `storage:"B2Storage"`). Generation currently
+  degrades honestly per request (`provider_degraded: true`) until the GMI
+  account is topped up — see `deploy/DEPLOYED.md`.
 - **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:58).
   YouTube link: *TODO(owner): paste the URL after upload.*
@@ -222,6 +224,10 @@ uvicorn cinemory.api:app --reload
 > uses the real Genblaze/B2 backends only when their credentials are present,
 > and otherwise degrades transparently to the offline path (`GET /health`
 > reports the effective `provider`/`storage`), so `POST /reels` never 500s.
+> If the live provider fails mid-request, the reel is re-run on the offline
+> provider against the same real storage and the response is labelled
+> `provider_degraded: true` + `degrade_reason` — the manifest records the
+> provider that actually generated the assets.
 
 ### Live (real Genblaze + Backblaze B2)
 
