@@ -122,7 +122,14 @@ class B2Storage:
         return self.index
 
     def _read_remote_index_rows(self) -> list[dict]:
-        """Current durable ``index.jsonl`` rows (empty on missing/unreadable)."""
+        """Current durable ``index.jsonl`` rows — best-effort by design.
+
+        A missing index (first run), a read error, a corrupt line, or a
+        non-row line yields FEWER rows rather than raising: readers degrade to
+        "not found", and because :meth:`_persist_index` calls this on every
+        put, the next merge-on-write rewrites a clean index (self-healing) —
+        a corrupt remote line must never be able to fail ``put``.
+        """
         try:
             raw = self._client.get_object(Bucket=self.bucket, Key=self._index_key)[
                 "Body"
@@ -130,10 +137,16 @@ class B2Storage:
         except Exception:
             return []
         rows: list[dict] = []
-        for line in raw.decode("utf-8").splitlines():
+        for line in raw.decode("utf-8", errors="replace").splitlines():
             line = line.strip()
-            if line:
-                rows.append(json.loads(line))
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:  # corrupt line — drop; next persist writes clean
+                continue
+            if isinstance(row, dict) and "key" in row:
+                rows.append(row)
         return rows
 
     def _persist_index(self) -> None:

@@ -201,3 +201,23 @@ def test_reput_same_key_is_idempotent_in_index():
 
     assert [r["key"] for r in store.index] == ["r/reels/aa/bb/reel.mp4"]
     assert len(store.index_jsonl().splitlines()) == 1
+
+
+def test_corrupt_remote_index_line_never_fails_put_and_self_heals():
+    """Merge-on-write reads the remote index on EVERY put, so a corrupt or
+    non-row line must be dropped (best-effort), never raise into ``put`` —
+    and the healthy rows around it must survive the union. The subsequent
+    persist rewrites a clean index (self-healing)."""
+    s3 = _FakeS3()
+    good = json.dumps({"key": "r/photos/aa/a1/ok.png", "size": 2, "content_type": "image/png"})
+    s3.store[("cinemory-live", "cin/index.jsonl")] = (
+        f"{good}\nnot-json!!\n[1, 2, 3]\n".encode()
+    )
+
+    store = B2Storage(client=s3)  # constructor reload tolerates the bad lines
+    store.put("r/reels/bb/b1/reel.mp4", b"b1", content_type="video/mp4")
+
+    assert _durable_index_keys(s3) == {"r/photos/aa/a1/ok.png", "r/reels/bb/b1/reel.mp4"}
+    # The durable index is clean NDJSON again (every line parses as a row).
+    raw = s3.store[("cinemory-live", "cin/index.jsonl")].decode("utf-8")
+    assert all(isinstance(json.loads(line), dict) for line in raw.splitlines() if line)
