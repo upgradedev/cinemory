@@ -104,15 +104,21 @@ def test_presigned_url_carries_sigv4_algorithm_and_region_scope(monkeypatch):
     """REAL boto3 signing (skipped where boto3 is absent, e.g. offline CI):
     the minted URL must advertise ``X-Amz-Algorithm=AWS4-HMAC-SHA256`` and
     scope the credential to the region, on the region endpoint host — the
-    exact URL shape B2 answered 200 where the region-less one 401'd."""
+    exact URL shape B2 answered 200 where the region-less one 401'd.
+    Host and query are PARSED (never substring-matched on the raw URL)."""
     pytest.importorskip("boto3")
-    from urllib.parse import unquote
+    from urllib.parse import parse_qs, urlsplit
 
     # Signing is local; forbid the only construction-time network call.
     monkeypatch.setattr(B2Storage, "reload_index", lambda self: [])
     store = B2Storage()
     url = store.get_url("graduation/reels/aa/bb/reel.mp4", expires_in=600)
-    assert "X-Amz-Algorithm=AWS4-HMAC-SHA256" in url
-    assert "s3.eu-central-003.backblazeb2.com" in url
-    assert "/eu-central-003/" in unquote(url)  # credential scope carries the region
-    assert "X-Amz-Expires=600" in url
+
+    parts = urlsplit(url)
+    endpoint_host = "s3.eu-central-003.backblazeb2.com"
+    # Signed against the region endpoint (virtual-hosted or path addressing).
+    assert parts.hostname == endpoint_host or parts.hostname.endswith(f".{endpoint_host}")
+    query = parse_qs(parts.query)
+    assert query["X-Amz-Algorithm"] == ["AWS4-HMAC-SHA256"]
+    assert "/eu-central-003/" in query["X-Amz-Credential"][0]  # region in scope
+    assert query["X-Amz-Expires"] == ["600"]
