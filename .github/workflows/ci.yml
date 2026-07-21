@@ -50,9 +50,10 @@ jobs:
         run: pip-audit -r requirements.txt --strict
 
   # ── 2b. Readiness gate: machine-checkable submission completeness ───────────
-  #  Encodes the four Backblaze-challenge criteria as REAL evidence checks (drives
-  #  the API/pipeline/B2 adapter/Genblaze SDK, not file-existence). Fails when the
-  #  automatable completeness drops below 95%; archives readiness.json.
+  #  Encodes the four Backblaze-challenge criteria plus Cinemory's own fifth
+  #  (Application Security) as REAL evidence checks (drives the API/pipeline/B2
+  #  adapter/Genblaze SDK, not file-existence). Fails when the automatable
+  #  completeness drops below 95%; archives readiness.json.
   readiness:
     runs-on: ubuntu-latest
     needs: secret-scan

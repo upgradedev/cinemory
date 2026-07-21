@@ -1,4 +1,4 @@
-"""MemoryReel CLI — generate a reel from synthetic photos end to end.
+"""Cinemory CLI — generate a reel from synthetic photos end to end.
 
     python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --out ./out
 

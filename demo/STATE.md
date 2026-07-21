@@ -66,9 +66,10 @@ _Last updated: 2026-07-21. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
   existing pins (`genblaze-core>=0.3.4,<0.4` in requirements-dev;
   `genblaze[gmicloud]>=0.4,<0.5` in the `[live]` extra) already cover these —
   no pin change needed or made.
-- **Measured tests (fresh venv, genblaze-core 0.3.6):** backend **204
-  collected → 203 passed, 1 skipped** (~51 s); frontend **21 vitest tests**
-  (4 files).
+- **Measured tests (fresh venv, genblaze-core 0.3.6, re-measured 2026-07-21
+  after the playback/honesty PR):** backend **226 collected → 224 passed,
+  2 gmicloud-gated skips** (226 pass with the gmicloud extra); frontend
+  **31 vitest tests** (5 files).
 - **Readiness gate:** automatable **100.0% (17/17) PASS**; full **85.6%** — 3
   user-gated live items remain (`production.live_redeploy`,
   `b2.live_objects_written`, `genblaze.live_reel_generated`).
@@ -118,7 +119,7 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 204 backend tests (203 passed + 1 skipped, measured 2026-07-21) + 21 frontend; credential-free live-degrade + real-photo ingest; drift guarded |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 226 backend tests (224 passed + 2 gmicloud-gated skips, measured 2026-07-21) + 31 frontend; credential-free live-degrade + real-photo ingest; playable reels via the stable `/reels/{name}/video` route; drift guarded |
 | B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) + a real queryable `index.jsonl` run index on both fake and B2 adapters |
 | Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 

@@ -79,12 +79,15 @@ GMI_API_KEY='<gmi cloud key>' \
   (`B2_APPLICATION_KEY_ID` / `B2_APPLICATION_KEY` / `B2_BUCKET_NAME` /
   `B2_S3_ENDPOINT`) **and** the legacy names (`B2_KEY_ID` / `B2_APP_KEY` /
   `B2_ENDPOINT_URL` / `B2_REGION`), so either set works out of the box.
-- **Gate B — `GMI_API_KEY` not yet issued.** GMI Cloud gives ~270 free credits;
-  create the key, then supply it above. *(Even without it, a redeploy of current
-  `main` in `live` mode degrades to the offline path, so `POST /reels` still
-  returns 200 — creds are needed only for real Genblaze/B2 generation.)*
+- ~~**Gate B — `GMI_API_KEY` not yet issued.**~~ **Closed 2026-07-21** — the key
+  is issued **and deployed** to the Cloud Run service env (`/health` reports
+  `mode=live, provider=genblaze, storage=B2Storage`). The remaining lift is to
+  **top up the GMI account balance**: until then a live generation fails
+  upstream and each request degrades honestly (`provider_degraded: true`) while
+  storage stays real B2.
 
-Once Gate B clears, the single command above is the entire cutover.
+Both gates are closed — the single command above is the entire cutover
+(re-run it any time to roll a new image).
 
 ## Domain mapping — cinemory.ai
 

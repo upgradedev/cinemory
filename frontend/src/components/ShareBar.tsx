@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Download, Facebook, Instagram, Linkedin, Share2, Youtube } from "lucide-react";
 import { Button } from "./ui/button";
 import type { ReelResponse } from "@/lib/api";
-import { isPlayableUrl } from "@/lib/utils";
+import { reelPlaybackUrl } from "@/lib/utils";
 import {
   downloadReel,
   fetchReelFile,
@@ -22,17 +22,22 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
   const [status, setStatus] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
-  const fetchable = isPlayableUrl(reel.reel_url);
+  // Download/share fetch the stable api-relative playback route (fresh
+  // presigned URL live, streamed bytes offline) — never the raw storage URL,
+  // which is private and would 401. Null when the run isn't decodable video.
+  const playbackUrl = reelPlaybackUrl(reel);
+  const fetchable = playbackUrl !== null;
   const filename = reelFilename(reel.reel_name);
-  const pageUrl =
-    reel.reel_url ?? (typeof location !== "undefined" ? location.href : "");
+  // Deep links share the app page, not a storage URL (which is either private
+  // or a non-HTTP b2:// URI — neither is a link anyone can open).
+  const pageUrl = typeof location !== "undefined" ? location.href : "";
   const links = platformDeepLinks(pageUrl);
 
   const onShare = async () => {
-    if (!reel.reel_url) return;
+    if (!playbackUrl) return;
     setBusy(true);
     try {
-      const file = await fetchReelFile(reel.reel_url, filename);
+      const file = await fetchReelFile(playbackUrl, filename);
       const outcome = await shareReel(file, {
         title: `Cinemory — ${reel.reel_name}`,
         text: "A cinematic memory reel, sealed with verifiable provenance.",
@@ -51,10 +56,10 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
   };
 
   const onDownload = async () => {
-    if (!reel.reel_url) return;
+    if (!playbackUrl) return;
     setBusy(true);
     try {
-      const file = await fetchReelFile(reel.reel_url, filename);
+      const file = await fetchReelFile(playbackUrl, filename);
       downloadReel(file, filename);
     } catch (e) {
       setStatus(`Download failed: ${String(e)}`);
@@ -93,9 +98,10 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
 
       {!fetchable && (
         <p className="mt-4 text-xs text-zinc-500">
-          Offline demo: the reel is stored at{" "}
+          This run was rendered by the built-in offline generator, so there is no
+          playable video to share yet — the reel is still stored and sealed at{" "}
           <span className="font-mono text-zinc-400">{reel.reel_url ?? "(none)"}</span>.
-          Share &amp; Download activate on the live Backblaze B2 path (public HTTPS URL).
+          Share &amp; Download activate on live AI-generated reels.
         </p>
       )}
       {status && (
