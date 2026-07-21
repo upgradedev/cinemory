@@ -1,5 +1,8 @@
 # Judge State — Cinemory — 2026-07-13
 
+> **SUPERSEDED 2026-07-21** — this is a historical snapshot; the current live state is
+> [`demo/STATE.md`](../demo/STATE.md).
+
 > Single source of truth for any agent/AI opening this repo: where this build stands against the
 > Backblaze Generative Media Challenge rubric, what was harmonized in the 2026-07-12/13 session, and
 > the ranked path to **exceed the target bar (> 90 / 100)**. Derived from the workspace judgment
