@@ -2,6 +2,62 @@
 
 _Last updated: 2026-07-21. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
 
+## 2026-07-21 (late) — live chain + fix
+
+> Supersedes the earlier same-day entry below: the B2-key blocker is
+> **resolved** (owner-issued key verified Put + List), the live-mode redeploy
+> is **done**, and the only remaining blocker for real live generation is a
+> GMI credits top-up.
+
+- **Bug found by the first real live run:** with a working B2 key and live
+  env, the first live `POST /reels` exposed that photo inputs never reached
+  the Genblaze pipeline — GMI rejected the run with
+  `400 image (Required parameter is missing)`.
+- **Fix: PR #15 merged (`7b6223f`)** — photos are hosted content-addressed
+  under `chain-inputs/<sha256>` and attached via presigned
+  `external_inputs=[Asset...]`; seedance FLF2V routed via a ModelSpec registry
+  override (`first_frame`/`last_frame`); honest per-request degrade in
+  `_run_reel()` (live-provider failure → offline provider + same real
+  storage, response `provider_degraded: true` + `degrade_reason:
+  <ExceptionClass>`, manifest records the actual provider; offline-path
+  failure still 500s). **+12 tests**; backend now **216 passed locally**
+  (gmicloud extra) / **214 passed + 2 gmicloud-gated skips in CI**; frontend
+  21 vitest unchanged.
+- **A/B/C proof against live GMI** (same account, same minute): old payload →
+  `400 image (Required parameter is missing)`; fixed I2V payload →
+  `402 Insufficient credits`; fixed FLF2V → `402`. GMI validates the payload
+  before billing, so the 400 is gone on both model paths; **$0.00 consumed**
+  (GMI bills only completed requests). A sealed genblaze failure manifest
+  (`genblaze/manifests/63838aad-…`) records the input asset (image/png, sha
+  `b85779…`, presigned B2 URL) — the photo provably reached the SDK and the
+  wire.
+- **Deploy history (today):** rev **00007** (live env, exposed the 500) →
+  rev **00008** (mitigation: live-no-GMI, 200s) → rev **00009-cjv** (fixed
+  code `7b6223f`, full live env — **current**).
+- **Current health + smoke (verified 2026-07-21):** `GET /health` on both
+  https://cinemory-595784992266.europe-west1.run.app/health and
+  https://upgradegr-cinemory.web.app/health →
+  `{"status":"ok","service":"cinemory-api","mode":"live","provider":"genblaze","storage":"B2Storage"}`.
+  `POST /reels` → **200** with `provider_degraded: true`, `degrade_reason:
+  "PipelineError"`, sealed manifest_hash `b830fcd1…619d28ae`, provider
+  honestly recorded `fake-genblaze` (degrade active only because the GMI
+  balance is zero).
+- **B2 evidence:** real writes from the live box — full object set
+  (photo/clip/manifest/reel/reel.provenance) under `mitigation-smoke-1/` +
+  growing `index.jsonl`; bucket total **31 objects** incl. 9 under
+  `live-degrade-proof/` + `chain-inputs/`. Key history: the earlier key had
+  zero capabilities (AccessDenied); the owner-issued key verified Put + List
+  today.
+- **Devpost:** draft filled 2026-07-21 — submission **1108702**
+  (https://devpost.com/software/cinemory), DRAFT, **3/5 steps**; missing only
+  the Video demo link (YouTube upload pending) + owner T&C/Submit. Gallery +
+  thumbnail assets rendered (7 PNG 1200×800, held outside the repo).
+- **Remaining (owner):** 1) GMI credits top-up → one real live reel
+  (`CINEMORY_MODE=live bash demo/capture-demo.sh` — expected to pass
+  unchanged; **no redeploy needed**); 2) YouTube upload → paste URL into
+  Devpost + `SUBMISSION.md`; 3) T&C + Submit on Devpost; 4) keep the app up
+  through 2026-08-11 5:00pm EDT.
+
 ## 2026-07-21 update — SDK re-verified · live box re-verified · B2 key probed
 
 - **Genblaze SDK resolve (all released 2026-07-17):** genblaze **0.4.3**,

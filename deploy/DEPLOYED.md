@@ -27,43 +27,56 @@ Built via Cloud Build (no local Docker). Verified serving:
 > The image later switched to building the `frontend/` React (Vite) client, whose
 > bundle is served under `/assets/*` — see `deploy/CLOUDRUN.md`.
 
-## ✅ Current live state — verified 2026-07-21 (honest offline-degrade mode)
+## ✅ Current live state — verified 2026-07-21 (LIVE mode, rev `cinemory-00009-cjv`)
 
-The deployed revision runs the degrade-to-offline image and is healthy.
-Verified against the live service on 2026-07-21:
+Cloud Run revision **`cinemory-00009-cjv`** runs **`7b6223f`** (PR #15 —
+live-inputs fix + honest per-request degrade) with the **full live env**
+(`CINEMORY_MODE=live` + owner-issued B2 key + `GMI_API_KEY`). Verified against
+the live service on 2026-07-21:
 
-- `GET /health` → 200
-  `{"status":"ok","service":"cinemory-api","mode":"offline","provider":"fake-genblaze","storage":"FakeStorage"}`
-- `GET /occasions` → 200 (6 occasion themes)
-- `POST /reels` → **200** — sealed reel + provenance manifest, zero credentials
+- `GET /health` → 200 on **both**
+  https://cinemory-595784992266.europe-west1.run.app/health and
+  https://upgradegr-cinemory.web.app/health:
+  `{"status":"ok","service":"cinemory-api","mode":"live","provider":"genblaze","storage":"B2Storage"}`
+- `POST /reels` → **200** with `provider_degraded: true`,
+  `degrade_reason: "PipelineError"`, sealed manifest_hash
+  `b830fcd1…619d28ae`, provider honestly recorded `fake-genblaze`
 - `GET /` → the React product UI
 
 The Firebase Hosting mirror https://upgradegr-cinemory.web.app serves the
 identical app (rewrites per `firebase.json`, project `upgradegr-cinemory`).
 
+**Degrade semantics (two layers, both honest):** at startup,
 `build_provider()` / `build_storage()` use the real Genblaze/B2 backends only
-when their credentials are present, and otherwise degrade transparently to the
-offline fakes (with a WARNING) — so the core action never 500s and `GET /health`
-always reports the effective `provider`/`storage`.
+when their credentials are present, otherwise falling back to the offline
+fakes (with a WARNING) — `GET /health` always reports the effective
+`provider`/`storage`. Per request, `_run_reel()` re-runs a failed live
+generation on the offline provider against the **same real storage** and
+labels the response `provider_degraded: true` + `degrade_reason`; the manifest
+records the provider that actually generated the assets (an offline-path
+failure still 500s). On the current revision the per-request degrade fires
+**only** because the GMI account balance is zero — real B2 writes from the
+live box are proven (full object set under `mitigation-smoke-1/` + growing
+`index.jsonl`; bucket total 31 objects incl. `live-degrade-proof/` and
+`chain-inputs/`).
 
-### 2026-07-21 — live-mode redeploy pending a write-entitled B2 key
+### 2026-07-21 deploy history
 
-The configured B2 application key authenticates but carries **zero
-capabilities**: PutObject and ListObjectsV2 both return
-`AccessDenied: not entitled` (probed 2026-07-21). The endpoint
-(`s3.eu-central-003.backblazeb2.com`) and the bucket (`cinemory`) are correct —
-the key itself lacks entitlements. A new write-entitled key is pending from the
-owner; the real live run and the `CINEMORY_MODE=live` redeploy are gated on it
-(the real-generation path also needs `GMI_API_KEY`).
+| Revision | Code | Env | Outcome |
+|---|---|---|---|
+| `cinemory-00007` | pre-fix | full live | exposed the live 500 (photo inputs never reached Genblaze → GMI `400 image`) |
+| `cinemory-00008` | pre-fix | live, no GMI | mitigation — 200s via degrade |
+| `cinemory-00009-cjv` | **`7b6223f`** (fix) | **full live** | **current** — health above; degrade only from zero GMI balance |
 
-Live command once the key exists (see `CLOUDRUN.md`):
+B2 key history: the earlier key had zero capabilities (`AccessDenied` on
+PutObject/ListObjectsV2); the owner-issued key was verified Put + List on
+2026-07-21 and is live in the deploy env.
 
-```bash
-CINEMORY_MODE=live CINEMORY_STITCH=ffmpeg \
-B2_APPLICATION_KEY_ID=... B2_APPLICATION_KEY=... \
-B2_BUCKET_NAME=... B2_S3_ENDPOINT=... GMI_API_KEY=... \
-  bash deploy/deploy-cloudrun.sh
-```
+**No redeploy needed for real generation:** the deployed revision already runs
+the fixed code with the full live env. The only remaining blocker is the GMI
+account credits top-up (owner-held). Once topped up,
+`CINEMORY_MODE=live bash demo/capture-demo.sh` is expected to pass unchanged
+and the live box starts producing real generations as-is.
 
 ### cinemory.ai domain mapping — NOT yet mapped
 
