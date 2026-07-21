@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Cinemory submission READINESS GATE.
 
-A machine-checkable gate that scores this repo against the four Backblaze
-Generative Media Challenge criteria — **Real-World Utility**, **Production
-Readiness**, **B2 Storage & Orchestration**, **Use of Genblaze** — and reports a
-weighted completeness percentage the CI job enforces.
+A machine-checkable gate that scores this repo against five criteria — the four
+Backblaze Generative Media Challenge criteria (**Real-World Utility**,
+**Production Readiness**, **B2 Storage & Orchestration**, **Use of Genblaze**)
+plus Cinemory's own fifth, **Application Security** — and reports a weighted
+completeness percentage the CI job enforces.
 
 Design principle: **real evidence, not file-existence.** Every automatable check
 *drives the actual code path* (runs the pipeline, hits the API via ``TestClient``,
@@ -612,11 +613,11 @@ def build_criteria() -> list[Criterion]:
                   "Cloud Run redeployed with entitled creds; /health = mode=live "
                   "provider=genblaze storage=B2Storage",
                   2, user_gated=True,
-                  gate_detail="Run `bash deploy/deploy-cloudrun.sh` with GMI_API_KEY + the "
-                  "write-entitled B2 vars, then confirm "
+                  gate_detail="VERIFIED DONE 2026-07-21: the live "
                   "https://cinemory-595784992266.europe-west1.run.app/health reports "
-                  "mode=live, provider=genblaze, storage=B2Storage "
-                  "(needs the write-entitled key)."),
+                  "mode=live, provider=genblaze, storage=B2Storage. Keep it true through "
+                  "the 2026-08-03 deadline — any redeploy must keep CINEMORY_MODE=live, "
+                  "the write-entitled B2 key vars and GMI_API_KEY in the service env."),
         ]),
         Criterion("b2", "B2 Storage & Orchestration", 20, [
             Check("b2.content_addressed_keys",
@@ -631,10 +632,10 @@ def build_criteria() -> list[Criterion]:
             Check("b2.live_objects_written",
                   "Real B2 objects (reel + manifest + index.jsonl) written to the live bucket",
                   2, user_gated=True,
-                  gate_detail="Provision a B2 application key entitled for PutObject, then run "
-                  "`CINEMORY_MODE=live bash demo/capture-demo.sh` and confirm the reel, "
-                  "manifest, and index.jsonl objects landed in the bucket (needs the "
-                  "write-entitled key)."),
+                  gate_detail="VERIFIED DONE 2026-07-21: the deployed B2 application key is "
+                  "write-entitled (Put+List verified) and the bucket holds 31+ objects, "
+                  "including writes from the live box. Keep it true through 2026-08-03 — "
+                  "do not rotate the key without updating the Cloud Run env."),
         ]),
         Criterion("genblaze", "Use of Genblaze", 20, [
             Check("genblaze.real_sdk_contract",
@@ -649,9 +650,11 @@ def build_criteria() -> list[Criterion]:
             Check("genblaze.live_reel_generated",
                   "A real generated reel produced live (not the deterministic fallback)",
                   2, user_gated=True,
-                  gate_detail="Issue a GMI_API_KEY (GMI Cloud gives ~270 free credits) and run one "
-                  "`CINEMORY_MODE=live` generation; confirm a real generated reel, not the "
-                  "offline deterministic fallback (needs the live GMI key)."),
+                  gate_detail="The GMI_API_KEY is already issued AND deployed (2026-07-21); the "
+                  "remaining lift is to TOP UP the GMI account balance, then run one "
+                  "completed live generation (`CINEMORY_MODE=live bash demo/capture-demo.sh`) "
+                  "and confirm the response says provider=genblaze, provider_degraded=false "
+                  "— a real generated reel, not the offline deterministic fallback."),
         ]),
         Criterion("security", "Application Security", 20, [
             Check("security.traversal_safe_keys",
