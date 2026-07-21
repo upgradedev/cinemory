@@ -41,13 +41,19 @@ class B2Storage:
     ) -> None:
         # Lazy import avoids any import-time coupling with config (which imports
         # the adapters package). Resolution accepts legacy + canonical env names.
-        from ..config import resolve_b2_config
+        from ..config import _derive_region, resolve_b2_config
 
         cfg = resolve_b2_config()
         self.bucket = bucket or cfg.bucket
         self.endpoint_url = endpoint_url or cfg.endpoint_url
         access_key_id = key_id or cfg.key_id
         secret_access_key = app_key or cfg.app_key
+        # Region matters: B2 REJECTS region-less presigned GET URLs with 401
+        # (plain put/get tolerate a missing region, which is why this only broke
+        # playback). B2_REGION wins; otherwise derive from the endpoint host —
+        # re-derived from the *effective* endpoint so an explicit ``endpoint_url``
+        # argument still yields the right signing region.
+        self.region = cfg.region or _derive_region(self.endpoint_url)
 
         # Resolve key prefix from config; ensure it ends with a slash if non-empty
         prefix = cfg.key_prefix or ""
@@ -67,7 +73,7 @@ class B2Storage:
         # builds a boto3 client, which is the only branch that needs boto3 + creds.
         if client is not None:
             self._client = client
-        else:  # pragma: no cover - real-path only (needs boto3 + live creds)
+        else:  # boto3 path (construction is stub-tested; live I/O needs creds)
             if not access_key_id or not secret_access_key:
                 raise RuntimeError(
                     "B2 credentials not configured (set B2_KEY_ID/B2_APP_KEY or "
@@ -75,16 +81,26 @@ class B2Storage:
                 )
             try:
                 import boto3
+                from botocore.config import Config as _BotoConfig
             except ImportError as exc:
                 raise RuntimeError(
                     "boto3 is required for B2Storage: pip install boto3"
                 ) from exc
-            self._client = boto3.client(
-                "s3",
-                endpoint_url=self.endpoint_url,
-                aws_access_key_id=access_key_id,
-                aws_secret_access_key=secret_access_key,
-            )
+            # SigV4 + an explicit region are REQUIRED for presigned URLs to
+            # work against B2: a client built without them signs GET URLs that
+            # B2 answers with 401 Unauthorized (proven live 2026-07-22 — the
+            # box-minted presign 401'd while a region-scoped presign of the
+            # same object returned 200). Direct put/get tolerate the omission,
+            # so only playback broke.
+            client_kwargs: dict = {
+                "endpoint_url": self.endpoint_url,
+                "aws_access_key_id": access_key_id,
+                "aws_secret_access_key": secret_access_key,
+                "config": _BotoConfig(signature_version="s3v4"),
+            }
+            if self.region:
+                client_kwargs["region_name"] = self.region
+            self._client = boto3.client("s3", **client_kwargs)
 
         # Seed the in-memory index from whatever is already durable in the bucket
         # so a fresh instance inherits the full catalogue.
@@ -102,22 +118,56 @@ class B2Storage:
         empty catalogue rather than raising, so lookups degrade to "not found"
         instead of 500-ing.
         """
+        self.index = self._read_remote_index_rows()
+        return self.index
+
+    def _read_remote_index_rows(self) -> list[dict]:
+        """Current durable ``index.jsonl`` rows — best-effort by design.
+
+        A missing index (first run), a read error, a corrupt line, or a
+        non-row line yields FEWER rows rather than raising: readers degrade to
+        "not found", and because :meth:`_persist_index` calls this on every
+        put, the next merge-on-write rewrites a clean index (self-healing) —
+        a corrupt remote line must never be able to fail ``put``.
+        """
         try:
             raw = self._client.get_object(Bucket=self.bucket, Key=self._index_key)[
                 "Body"
             ].read()
-        except Exception:  # missing/unreadable index (first run) → empty catalogue
-            self.index = []
-            return self.index
+        except Exception:
+            return []
         rows: list[dict] = []
-        for line in raw.decode("utf-8").splitlines():
+        for line in raw.decode("utf-8", errors="replace").splitlines():
             line = line.strip()
-            if line:
-                rows.append(json.loads(line))
-        self.index = rows
-        return self.index
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except ValueError:  # corrupt line — drop; next persist writes clean
+                continue
+            if isinstance(row, dict) and "key" in row:
+                rows.append(row)
+        return rows
 
     def _persist_index(self) -> None:
+        """Merge-on-write: union our rows with the current remote index.
+
+        Concurrent writers (e.g. a local run and the live Cloud Run box) used
+        to last-writer-wins clobber each other's ``index.jsonl`` rows, making
+        the other writer's reels 404 until the rows were merged back by hand
+        (bit us live 2026-07-22). Instead of writing our snapshot blindly, we
+        re-read the remote index and union rows **by key** — idempotent, and
+        newest-wins per key (our in-memory row, which includes the put that
+        triggered this call, overlays the remote row for the same key; keys are
+        content-addressed, so same-key rows are identical in practice). A small
+        read-modify-write race window remains between the re-read and the put;
+        that is accepted — losing it costs one index row until the next
+        merge-on-write or manual reconcile, and building distributed locking
+        over B2 is out of scope by design.
+        """
+        merged: dict[str, dict] = {row["key"]: row for row in self._read_remote_index_rows()}
+        merged.update((row["key"], row) for row in self.index)
+        self.index = list(merged.values())
         self._client.put_object(
             Bucket=self.bucket,
             Key=self._index_key,

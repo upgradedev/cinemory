@@ -6,15 +6,14 @@
 
 - **Repo:** https://github.com/upgradedev/cinemory (public, MIT)
 - **Live app:** https://cinemory-595784992266.europe-west1.run.app
-  *(verified 2026-07-21: revision `cinemory-00009-cjv` runs `7b6223f` with the
-  full live env — `GET /health` → 200 with
-  `mode:"live"`, `provider:"genblaze"`, `storage:"B2Storage"`;
-  `GET /occasions` → 200 with 6 themes; `POST /reels` → **200** with a sealed
-  reel + provenance manifest (currently `provider_degraded: true` — honest
-  per-request degrade, active only until the GMI account is topped up; real B2
-  writes from the live box are proven). `/` serves the React product UI. The
-  Firebase mirror https://upgradegr-cinemory.web.app serves the identical app.
-  `cinemory.ai` is **not yet mapped** — pending DNS; use the run.app URL.)*
+  *(verified 2026-07-22: live env with a funded GMI account — `GET /health` →
+  200 with `mode:"live"`, `provider:"genblaze"`, `storage:"B2Storage"`;
+  `GET /occasions` → 200 with 6 themes; **real live generation is proven** —
+  8 completed Kling renders (~242s avg), a real h264 720p 30.6s reel on B2,
+  and a real upload-path generation on the live box itself. `/` serves the
+  React product UI. The Firebase mirror https://upgradegr-cinemory.web.app
+  serves the identical app. `cinemory.ai` is **not yet mapped** — pending DNS;
+  use the run.app URL.)*
 - **Demo video:** recorded + committed —
   [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:58, inside Devpost's 3-min
   cap). `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
@@ -171,15 +170,17 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   pen-test, plus the SDK-boundary Genblaze contract test — which drives a
   **real** Genblaze `Pipeline` + `ObjectStorageSink` (over an in-memory
   backend) so the live sink→store→readback→sha256-chain path is genuinely
-  exercised, not just the offline fakes. **Backend: 216 passed locally**
-  (with the gmicloud extra); **in CI 214 passed + 2 gmicloud-gated skips**
-  (measured 2026-07-21). **Frontend: 21 vitest tests** (4 files).
+  exercised, not just the offline fakes. **Backend: 235 passed locally**
+  (with the live extras); **in CI 232 passed + 3 env-gated skips** (2 gmicloud
+  + 1 boto3; measured 2026-07-22). **Frontend: 31 vitest tests** (5 files,
+  measured 2026-07-21).
 - **Readiness gate:** `python scripts/readiness.py` scores the repo against the
-  judging criteria with real-evidence checks. As of 2026-07-21: automatable
+  judging criteria with real-evidence checks. As of 2026-07-22: automatable
   completeness **100.0% (17/17) PASS**; full completeness **85.6%** with 3
-  user-gated live items. Of those three, the **live redeploy** and **live B2
-  objects** are now factually done (verified 2026-07-21 — see "Honest status"
-  below); only the **live Genblaze reel** remains, pending GMI credits.
+  user-gated live items — **all three are now factually done** (live redeploy
+  + live B2 objects verified 2026-07-21/22, the live Genblaze reel proven
+  2026-07-22 on the funded account; see "Honest status" below). They stay
+  listed only as keep-true-through-judging obligations.
 - **Security in CI:** gitleaks (fail-fast) · CodeQL (python + js/ts) ·
   `pip-audit --strict` · `npm audit` · ruff · pen-test suite (`tests/security/`).
 - **Deployable:** `Dockerfile` (ffmpeg included) → Cloud Run / Container Apps /
@@ -224,7 +225,29 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 
 ## Honest status — what is done vs owner-blocked
 
-**Done (verified 2026-07-21):**
+**Done (verified 2026-07-22) — real live generation is PROVEN:**
+- **The full live chain ran for real** (funded GMI account, spend ≈$2.6):
+  **8 completed Kling I2V renders** (~242s avg) + **one live seedance FLF2V
+  bridge** (bridge path proven once; further bridges hit a GMI-side outage).
+  The composed reel is **real h264 720p, 30.6s, byte-exact sha256
+  `db6a3281…`** — re-verified from the durable B2 bytes. B2 after the run:
+  **133 objects**, `index.jsonl` **174 rows**, Genblaze sink chain verified
+  end-to-end.
+- **The live box generated for real on the upload path too** — a
+  `POST /reels/upload-multipart` on Cloud Run ran a 265s Kling render (the
+  request 504'd at the old 300s Cloud Run default while the reel completed
+  server-side; fixed by `--timeout 600` in this repo).
+- **Same-day P0 find-fix (honest engineering):** the first funded run exposed
+  four real bugs, all fixed the same day in `fix/live-run-p0s` — the 512×288
+  synthetic default was under Kling's 300px minimum side (live submits failed
+  `Image pixel is invalid`; default now **1024×576**, proven live); presigned
+  playback URLs 401'd (client built without region + SigV4; now pinned);
+  Cloud Run's 300s timeout cut off ~330–350s generations (now 600s); and
+  concurrent writers clobbered `index.jsonl` rows (now merge-on-write, union
+  by key). The run cost ≈$2.6 and turned every "should work" into "seen
+  working" — or into a fix.
+
+**Done earlier (verified 2026-07-21):**
 - **The live-inputs fix landed** — PR #15 merged (`7b6223f`): user photos are
   hosted content-addressed under `chain-inputs/<sha256>` and attached to the
   Genblaze run via presigned `external_inputs=[Asset...]`; the seedance FLF2V
@@ -251,7 +274,8 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
   `POST /reels` → **200** with `provider_degraded: true`,
   `degrade_reason: "PipelineError"`, sealed manifest_hash
   `b830fcd1…619d28ae`, provider honestly recorded `fake-genblaze` — the
-  degrade is active **only** because the GMI account balance is zero.
+  degrade was active **only** because the GMI account balance was then zero
+  (closed 2026-07-22: account funded, real generation proven above).
 - **Real B2 writes from the live box are proven** — a full object set
   (photo / clip / manifest / reel / reel.provenance) under
   `mitigation-smoke-1/` plus a growing `index.jsonl`; the bucket totals 31
@@ -275,22 +299,19 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
   + thumbnail assets rendered (held outside the repo).
 - Docs, Dockerfile, `.env.example`, security scans all green.
 
-**The ONLY remaining blocker for real live generation — GMI credits (owner):**
-The GMI account balance is zero; topping it up is a user-held financial
-action. Once topped up, `CINEMORY_MODE=live bash demo/capture-demo.sh` is
-expected to pass unchanged, and the live box starts producing real
-generations with **no redeploy needed** — the deployed revision already runs
-the fixed code with the full live env.
+**The GMI-credits blocker is CLOSED (2026-07-22)** — the account was funded
+and real live generation is proven (see above). Nothing code-side remains.
 
-**Owner checklist (in order):**
-1. **Top up GMI credits**, then run one real live reel
-   (`CINEMORY_MODE=live bash demo/capture-demo.sh`). No code or deploy change
-   is needed — the live box picks it up as-is.
-2. **Upload the demo video to YouTube** (public or unlisted) and paste the URL
+**Owner checklist — ONLY these three remain (in order):**
+1. **Upload the demo video to YouTube** (public or unlisted) and paste the URL
    into the Devpost "Video demo link" field and this doc. Devpost requires a
    publicly hosted YouTube/Vimeo/Youku link; the repo mp4 does not satisfy it.
+2. **Add the gallery images** (the 7 rendered 1200×800 PNGs, held outside the
+   repo) to the Devpost form.
 3. **Accept the T&C and Submit the project on Devpost** — the draft is already
-   filled (3/5 steps done; field map at the top of this doc). Deadline
-   2026-08-03 5:00pm EDT.
-4. **Keep the app up through 2026-08-11 5:00pm EDT** — the rules require the
-   app to stay freely testable through judging.
+   filled (field map at the top of this doc). Deadline 2026-08-03 5:00pm EDT.
+
+Housekeeping after this PR merges: one Cloud Run redeploy to pick up the P0
+fixes (1024×576 synth default, presign region/SigV4, `--timeout 600`), then
+keep the app up through **2026-08-11 5:00pm EDT** — the rules require the app
+to stay freely testable through judging.

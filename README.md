@@ -16,9 +16,10 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 - **Cloud Run:** https://cinemory-595784992266.europe-west1.run.app — the API
   (`/health`, `/occasions`, `POST /reels`) plus the React UI, running in
   **live mode** (`/health` reports the effective backends: `mode:"live"`,
-  `provider:"genblaze"`, `storage:"B2Storage"`). Generation currently
-  degrades honestly per request (`provider_degraded: true`) until the GMI
-  account is topped up — see `deploy/DEPLOYED.md`.
+  `provider:"genblaze"`, `storage:"B2Storage"`). **Real live generation is
+  proven** (2026-07-22): 8 completed Kling renders (~242s avg) and a real
+  h264 720p reel on B2, including a real generation on the live box's upload
+  path — see `demo/STATE.md` + `deploy/DEPLOYED.md`.
 - **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:58).
   YouTube link: *TODO(owner): paste the URL after upload.*

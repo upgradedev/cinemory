@@ -54,11 +54,11 @@ fakes (with a WARNING) — `GET /health` always reports the effective
 generation on the offline provider against the **same real storage** and
 labels the response `provider_degraded: true` + `degrade_reason`; the manifest
 records the provider that actually generated the assets (an offline-path
-failure still 500s). On the current revision the per-request degrade fires
-**only** because the GMI account balance is zero — real B2 writes from the
-live box are proven (full object set under `mitigation-smoke-1/` + growing
-`index.jsonl`; bucket total 31 objects incl. `live-degrade-proof/` and
-`chain-inputs/`).
+failure still 500s). On that revision the per-request degrade fired
+**only** because the GMI account balance was then zero — real B2 writes from
+the live box were already proven (full object set under `mitigation-smoke-1/`
++ growing `index.jsonl`; bucket then 31 objects incl. `live-degrade-proof/`
+and `chain-inputs/`). *The balance blocker closed 2026-07-22 — see below.*
 
 ### 2026-07-21 deploy history
 
@@ -72,11 +72,22 @@ B2 key history: the earlier key had zero capabilities (`AccessDenied` on
 PutObject/ListObjectsV2); the owner-issued key was verified Put + List on
 2026-07-21 and is live in the deploy env.
 
-**No redeploy needed for real generation:** the deployed revision already runs
-the fixed code with the full live env. The only remaining blocker is the GMI
-account credits top-up (owner-held). Once topped up,
-`CINEMORY_MODE=live bash demo/capture-demo.sh` is expected to pass unchanged
-and the live box starts producing real generations as-is.
+## ✅ 2026-07-22 — funded live run: REAL generation proven (+ P0 fixes to pick up)
+
+The GMI account was funded (spend ≈$2.6) and the full live chain ran for real:
+**8 completed Kling I2V renders** (~242s avg), one live seedance FLF2V bridge,
+a real **h264 720p 30.6s reel** (byte-exact sha256 `db6a3281…`) on B2 — bucket
+now **133 objects**, `index.jsonl` **174 rows**, sink chain verified. The live
+box itself ran a real upload-path generation (265s render); that request
+**504'd at Cloud Run's 300s default while completing server-side**, which is
+fixed by `--timeout 600` in `deploy/deploy-cloudrun.sh` (PR `fix/live-run-p0s`,
+together with the Kling-compatible 1024×576 synthetic default and the presign
+region/SigV4 fix). A bucket CORS rule `cinemoryPlayback` (GET/HEAD, the two app
+origins only) was added for browser playback; the bucket stays private.
+
+**Next redeploy:** re-run `bash deploy/deploy-cloudrun.sh` with the live env
+once the P0-fix PR is merged so the box picks up the synth-size, presign and
+timeout fixes; then re-check `/health` and one presigned playback.
 
 ### cinemory.ai domain mapping — NOT yet mapped
 

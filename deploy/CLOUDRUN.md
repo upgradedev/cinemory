@@ -13,6 +13,14 @@ when idle.
 | Artifact Registry repo | `cinemory` (docker) |
 | Port | `8000` |
 | Auth | public (`--allow-unauthenticated`) |
+| Request timeout | `600s` (`--timeout 600` — see note below) |
+
+> **Why 600s:** a real single-clip live generation measures **~330–350s**
+> end-to-end (Kling render ≈242s avg + input hosting, stitch, provenance,
+> B2 writes). Cloud Run's 300s default returned **504** to the client while
+> the reel completed server-side (observed live 2026-07-22). The deploy
+> script pins `--timeout 600` so synchronous `POST /reels*` requests outlive
+> the real generation path.
 
 ## Prerequisites (one-time)
 
@@ -81,10 +89,10 @@ GMI_API_KEY='<gmi cloud key>' \
   `B2_ENDPOINT_URL` / `B2_REGION`), so either set works out of the box.
 - ~~**Gate B — `GMI_API_KEY` not yet issued.**~~ **Closed 2026-07-21** — the key
   is issued **and deployed** to the Cloud Run service env (`/health` reports
-  `mode=live, provider=genblaze, storage=B2Storage`). The remaining lift is to
-  **top up the GMI account balance**: until then a live generation fails
-  upstream and each request degrades honestly (`provider_degraded: true`) while
-  storage stays real B2.
+  `mode=live, provider=genblaze, storage=B2Storage`). The then-remaining lift —
+  funding the GMI account — **closed 2026-07-22**: with the account funded,
+  real live generation is proven (8 completed Kling renders, incl. one on the
+  live box's upload path — see `demo/STATE.md`).
 
 Both gates are closed — the single command above is the entire cutover
 (re-run it any time to roll a new image).

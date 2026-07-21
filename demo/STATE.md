@@ -1,6 +1,50 @@
 # Cinemory — submission state
 
-_Last updated: 2026-07-21. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+_Last updated: 2026-07-22. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+
+## 2026-07-22 — REAL live generation PROVEN (funded run) + same-day P0 find-fix
+
+> Supersedes the GMI-credits blocker below: the account was funded and the
+> full live chain ran for real. Total spend **≈$2.6**.
+
+- **8 real Kling I2V renders completed** (~242s average per render) against
+  live GMI, plus **one live seedance FLF2V bridge** — the bridge path is
+  proven end-to-end once; further bridge renders were stopped by a GMI-side
+  outage (their end, not ours).
+- **The composed reel is real**: h264 720p, **30.6s**, byte-exact
+  sha256 `db6a3281…` — re-verified from the durable B2 bytes.
+- **B2 state after the run:** bucket **133 objects**, `index.jsonl` **174
+  rows**; the Genblaze **sink chain verified** (generate → ObjectStorageSink →
+  B2 → readback → sha256 chain).
+- **Live-box upload path generated for real:** a `POST /reels/upload-multipart`
+  on Cloud Run ran a real 265s Kling render — and the request 504'd at Cloud
+  Run's 300s default while the reel completed server-side. Fixed in this PR
+  (`--timeout 600` in `deploy/deploy-cloudrun.sh`).
+- **CORS for playback:** bucket rule `cinemoryPlayback` added — GET/HEAD only,
+  scoped to the two app origins (run.app + web.app); the bucket stays private
+  (presigned URLs still required).
+- **P0s found by the run, all fixed in this PR** (`fix/live-run-p0s`):
+  1. **Synthetic photos too small for Kling** — the 512×288 default is under
+     GMI Kling's 300px minimum side, so every live synthetic submit failed
+     with `Image pixel is invalid` (the `POST /reels` JSON path always
+     degraded). Default bumped to **1024×576** (16:9, proven working live).
+  2. **Presigned URLs 401** — the boto3 client was built without
+     `region_name` + SigV4; B2 rejects region-less presigned GETs (direct
+     put/get tolerate it — proven: box-minted presign → 401, region-scoped
+     presign of the SAME object → 200). Client now pins
+     `signature_version="s3v4"` + the resolved region.
+  3. **Cloud Run 300s timeout** — real single-clip generation ≈330–350s
+     end-to-end → deploy script now pins `--timeout 600`.
+  4. **`index.jsonl` last-writer-wins clobbering (P1)** — concurrent writers
+     (local run + live box) overwrote each other's rows → reels 404'd until
+     rows were manually merged back. `_persist_index` now merge-on-writes
+     (re-read remote, union by key, newest-wins per key); a small
+     read-modify-write race window remains and is accepted — no locking by
+     design.
+- **Remaining (owner-only):** YouTube upload → paste URL into Devpost +
+  `SUBMISSION.md`; gallery images onto the Devpost form; T&C + Submit.
+  (After merging this PR: one redeploy to pick up the fixes, then keep the
+  app up through 2026-08-11 5:00pm EDT.)
 
 ## 2026-07-21 (late) — live chain + fix
 
