@@ -56,40 +56,55 @@ Given a set of (synthetic) memories organised into *chapters*:
    params, timestamps and every asset hash; it is persisted to B2 *and* embedded
    into the reel container, and can be re-verified at any time.
 
+```mermaid
+flowchart TD
+    REQ["POST /reels · /reels/upload · CLI<br/>(ReelSpec: chapters · photos · occasion)"] --> RUN["ReelPipeline.run(spec)<br/>src/cinemory/pipeline.py"]
+    RUN --> P1["1 · Persist input photos<br/>kind = photos/"]
+    P1 --> P2["2 · Photo → clip (I2V)<br/>MediaProvider.generate<br/>model: Kling-Image2Video-V2.1-Master<br/>occasion pacing/tempo sealed into step params"]
+    P2 --> P3["3 · Chapter bridges (FLF2V)<br/>inputs: last frame of ch N + first frame of ch N+1<br/>model: seedance-2-0-260128"]
+    P3 --> P4["4 · Stitcher.stitch(clips) → reel.mp4<br/>FakeStitcher (deterministic) | FfmpegStitcher (cinematic grade)"]
+    P4 --> P5["5 · build_manifest → SHA-256-sealed manifest.json<br/>embed() → reel.provenance.mp4"]
+    P1 -- "put" --> B2
+    P2 -- "put clip, then get bytes back<br/>(storage round-trip)" --> B2
+    P3 -- "put + get" --> B2
+    P4 -- "put reel" --> B2
+    P5 -- "put manifest + embedded reel" --> B2
+    B2[("StorageBackend<br/>content-addressed keys:<br/>&lt;reel&gt;/&lt;kind&gt;/&lt;sha2&gt;/&lt;sha256&gt;/&lt;name&gt;<br/>+ durable index.jsonl run catalogue")]
+    P5 --> RES["ReelResult → API response<br/>reel playback URL · reel_sha256 · manifest_hash<br/>provider · provider_degraded"]
+```
+
 ---
 
 ## Architecture
 
-```
-                     ┌──────────────────────────────┐
-  Browser client ───▶│  Cinemory API (FastAPI)       │
-  (frontend/, React) │ /health·/occasions·/reels·/id  │
-                     └───────────────┬───────────────┘
-                                     │
-                         ┌───────────▼────────────┐
-                         │   ReelPipeline           │  orchestration
-                         │   (src/cinemory/          │  (ports only —
-                         │    pipeline.py)           │   provider/storage
-                         └───────┬───────┬──────────┘   agnostic)
-             MediaProvider port  │       │  StorageBackend port
-              ┌──────────────────▼─┐   ┌─▼───────────────────────┐
-   LIVE  ────▶│ Genblaze adapter    │   │ Backblaze B2 adapter     │◀──── LIVE
-              │ (video/image/audio  │   │ (S3-compatible, boto3)   │
-              │  providers)         │   └─────────────────────────┘
-   OFFLINE ──▶│ Fake provider       │   │ Fake storage (in-memory) │◀──── OFFLINE
-              │ (deterministic bytes)│  └─────────────────────────┘      (CI)
-              └─────────────────────┘
-                                     │
-                         ┌───────────▼────────────┐
-                         │  Provenance (SHA-256)    │  build · verify · embed
-                         │  src/cinemory/provenance  │  — runs for REAL offline
-                         └─────────────────────────┘
+```mermaid
+flowchart LR
+    FB["Firebase Hosting mirror<br/>upgradegr-cinemory.web.app<br/>rewrites /health · /occasions · /reels/** → Cloud Run"] --> CR
+    subgraph CR["Cloud Run — one container (Dockerfile)"]
+        UI["React SPA (frontend/, Vite build)<br/>served as static files"] --- API["FastAPI — src/cinemory/api.py"]
+    end
+    API --> PIPE["ReelPipeline<br/>depends on ports only"]
+    API -. "GET /reels/{name}/video — playback:<br/>302 to a fresh presigned URL (live)<br/>or streamed bytes (offline)" .-> SB
+    PIPE --- MP{{"MediaProvider port"}}
+    PIPE --- SB{{"StorageBackend port"}}
+    PIPE --- ST{{"Stitcher port"}}
+    MP -->|"CINEMORY_MODE=live<br/>+ genblaze SDK + GMI_API_KEY"| GEN["GenblazeMediaProvider<br/>Genblaze Pipeline step → GMI Cloud<br/>ObjectStorageSink → genblaze_s3.for_backblaze<br/>per-asset SHA-256 manifest (verify_hash)"]
+    MP -->|"otherwise — CI / offline demo"| FMP["FakeMediaProvider<br/>deterministic bytes"]
+    SB -->|"live + boto3 + B2 creds<br/>(bucket · endpoint · key id · key)"| B2S["B2Storage — boto3, S3-compatible<br/>+ index.jsonl (multi-instance safe)"]
+    SB -->|"otherwise"| FS["FakeStorage — in-memory,<br/>identical index surface"]
+    ST -->|"CINEMORY_STITCH=ffmpeg<br/>+ ffmpeg present"| FF["FfmpegStitcher"]
+    ST -->|"otherwise"| FST["FakeStitcher"]
+    GEN -. "live generation fails mid-request:<br/>re-run same spec on FakeMediaProvider + FakeStitcher,<br/>SAME storage → provider_degraded: true + degrade_reason" .-> FMP
+    GEN --> B2[("Backblaze B2 bucket")]
+    B2S --> B2
 ```
 
 **API endpoints:** `GET /health` · `GET /occasions` · `POST /reels` (synthetic
 demo) · `POST /reels/upload` (real photos, base64 JSON) ·
 `POST /reels/upload-multipart` (real photos, multipart) · `GET /reels/{name}`
-(sealed manifest).
+(sealed manifest) · `GET /reels/{name}/video` (playback: 302 to a fresh
+presigned B2 URL in live mode, streamed bytes offline — the stable
+`playback_url` every reel response carries).
 
 The orchestrator depends **only on ports** (`MediaProvider`, `StorageBackend`,
 `Stitcher`). The real adapters wrap Genblaze and B2; the fakes implement the
@@ -205,7 +220,7 @@ share-sheet covers it).
 
 ```bash
 pip install -r requirements-dev.txt
-pip install -e .
+pip install -e ".[server]"    # [server] brings uvicorn for the API step below
 
 # Generate a reel end-to-end from synthetic photos and verify provenance:
 python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges --out out
@@ -267,9 +282,9 @@ pytest tests/unit      # or a single layer
 ### Readiness gate
 
 `scripts/readiness.py` is a machine-checkable submission gate: it scores the repo
-against the five challenge criteria (**Real-World Utility · Production Readiness ·
-B2 Storage & Orchestration · Use of Genblaze · Application Security**) with
-**real-evidence** checks —
+against the four challenge criteria (**Real-World Utility · Production Readiness ·
+B2 Storage & Orchestration · Use of Genblaze**) plus our own fifth,
+**Application Security**, with **real-evidence** checks —
 each one *drives the actual code path* (the API via `TestClient`, the pipeline,
 the real B2 adapter against an in-memory S3 stub, the real Genblaze SDK), never a
 file-existence stub. Each check is `pass` / `fail` / `user-gated` (a lift that
