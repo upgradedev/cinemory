@@ -1,8 +1,21 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { Database, FileCheck2, ShieldCheck } from "lucide-react";
+import {
+  BadgeCheck,
+  Database,
+  FileCheck2,
+  Loader2,
+  ShieldAlert,
+  ShieldCheck,
+} from "lucide-react";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
 import { HashChip } from "./HashChip";
 import { useManifest } from "@/lib/queries";
+import {
+  verifyReelProvenance,
+  type ProvenanceVerification,
+} from "@/lib/provenance-verify";
 import type { ReelResponse } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
 
@@ -13,8 +26,17 @@ const MODALITY_ICON: Record<string, string> = {
   text: "📝",
 };
 
+type VerifyUiState = { phase: "idle" | "verifying" } | (ProvenanceVerification & { phase: "done" });
+
 export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
   const { data: manifest, isLoading } = useManifest(reel.reel_name);
+  const [verify, setVerify] = useState<VerifyUiState>({ phase: "idle" });
+
+  const onVerify = async () => {
+    setVerify({ phase: "verifying" });
+    const outcome = await verifyReelProvenance(reel.reel_name, reel.manifest_hash);
+    setVerify({ phase: "done", ...outcome });
+  };
 
   return (
     <motion.section
@@ -40,10 +62,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
             sealed — tampering with any field breaks the hash.
           </p>
         </div>
-        <Badge variant="verified">
-          <FileCheck2 className="h-3.5 w-3.5" />
-          Sealed
-        </Badge>
+        <SealBadge verify={verify} />
       </div>
 
       {/* Manifest seal + storage */}
@@ -60,6 +79,38 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
               {reel.manifest_uri}
             </p>
           )}
+          <div className="mt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onVerify}
+              disabled={verify.phase === "verifying"}
+              aria-describedby="verify-outcome"
+            >
+              {verify.phase === "verifying" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <BadgeCheck className="h-3.5 w-3.5" />
+              )}
+              {verify.phase === "done" ? "Re-verify provenance" : "Verify provenance"}
+            </Button>
+            <p
+              id="verify-outcome"
+              role="status"
+              aria-live="polite"
+              className={
+                verify.phase === "done" && verify.state === "failed"
+                  ? "mt-2 text-xs text-red-400"
+                  : "mt-2 text-xs text-zinc-500"
+              }
+            >
+              {verify.phase === "done"
+                ? verify.detail
+                : verify.phase === "verifying"
+                  ? "Re-fetching the manifest and recomputing its SHA-256 in your browser…"
+                  : "Re-fetch the manifest and recompute its SHA-256 right here, in your browser."}
+            </p>
+          </div>
         </div>
         <div className="rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
           <p className="text-xs uppercase tracking-wide text-zinc-500">Storage</p>
@@ -140,5 +191,57 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
         )}
       </div>
     </motion.section>
+  );
+}
+
+/** The seal badge next to the heading: "Sealed" at rest, then the live
+ *  verification outcome — "Verified ✓" (subtle pop), red "Verification
+ *  failed", or a muted "Can't verify here" when the manifest isn't fetchable. */
+function SealBadge({ verify }: { verify: VerifyUiState }) {
+  if (verify.phase === "verifying") {
+    return (
+      <Badge variant="neutral">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Verifying…
+      </Badge>
+    );
+  }
+  if (verify.phase === "done") {
+    if (verify.state === "verified") {
+      return (
+        <motion.span
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 16 }}
+        >
+          <Badge variant="verified">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Verified ✓
+          </Badge>
+        </motion.span>
+      );
+    }
+    if (verify.state === "failed") {
+      return (
+        <Badge
+          variant="neutral"
+          className="border-red-400/40 bg-red-500/10 text-red-300"
+        >
+          <ShieldAlert className="h-3.5 w-3.5" />
+          Verification failed
+        </Badge>
+      );
+    }
+    return (
+      <Badge variant="muted" title={verify.detail}>
+        Can&apos;t verify here
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="verified">
+      <FileCheck2 className="h-3.5 w-3.5" />
+      Sealed
+    </Badge>
   );
 }

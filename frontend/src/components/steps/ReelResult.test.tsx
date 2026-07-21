@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { ReelResult } from "./ReelResult";
+import { useReelStore, type LocalPhoto } from "@/store/useReelStore";
 import type { ReelResponse } from "@/lib/api";
 
 /** A live, non-degraded reel response (the backend always sends these fields). */
@@ -85,5 +86,56 @@ describe("<ReelResult /> — playback source", () => {
     expect(container.querySelector("video")).toBeNull();
     expect(screen.getByText(/the preview plays when the reel comes from live ai/i))
       .toBeInTheDocument();
+  });
+});
+
+describe("<ReelResult /> — Ken Burns slideshow fallback", () => {
+  const storePhotos: LocalPhoto[] = [1, 2, 3].map((i) => ({
+    id: `p${i}`,
+    file: new File([`f${i}`], `photo-${i}.png`, { type: "image/png" }),
+    url: `blob:mock-${i}`,
+    name: `photo-${i}.png`,
+  }));
+
+  beforeEach(() => useReelStore.setState({ photos: storePhotos }));
+  afterEach(() => useReelStore.setState({ photos: [] }));
+
+  it("plays a slideshow of the user's photos when there is no playable video", () => {
+    const { container } = renderWithQuery(<ReelResult reel={degradedReel} />);
+    expect(container.querySelector("video")).toBeNull();
+
+    const slideshow = screen.getByTestId("kenburns-slideshow");
+    expect(slideshow).toHaveAttribute("role", "img");
+    expect(slideshow).toHaveAccessibleName(/slideshow of your 3 uploaded photos/i);
+    expect(slideshow.querySelectorAll("img")).toHaveLength(3);
+    // The money screen is alive — the static poster copy is gone…
+    expect(
+      screen.queryByText(/the preview plays when the reel comes from live ai/i),
+    ).not.toBeInTheDocument();
+    // …and the honest degrade chip overlays the letterbox.
+    expect(
+      screen.getByText(/rendered on the built-in offline generator/i),
+    ).toBeInTheDocument();
+  });
+
+  it("never shows the slideshow when a real video plays", () => {
+    const { container } = renderWithQuery(<ReelResult reel={liveReel} />);
+    expect(container.querySelector("video")).not.toBeNull();
+    expect(screen.queryByTestId("kenburns-slideshow")).not.toBeInTheDocument();
+  });
+
+  it("keeps the letterbox width-driven so narrow viewports can't overflow", () => {
+    const { container } = renderWithQuery(<ReelResult reel={liveReel} />);
+    const letterbox = container.querySelector(".letterbox") as HTMLElement;
+    // Width-driven aspect box + absolutely-filled media: the height can never
+    // go stale on a desktop→mobile resize.
+    expect(letterbox.className).toContain("aspect-video");
+    expect(letterbox.className).toContain("w-full");
+    expect(letterbox.querySelector("video")?.className).toContain("absolute");
+    // Both grid columns may shrink below content size (min-w-0) — without it
+    // the letterbox column pins a ~761px min-content width at 375w.
+    const columns = container.querySelectorAll(".lg\\:col-span-3, .lg\\:col-span-2");
+    expect(columns.length).toBe(2);
+    columns.forEach((c) => expect((c as HTMLElement).className).toContain("min-w-0"));
   });
 });

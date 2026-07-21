@@ -59,15 +59,27 @@ export function OccasionPicker() {
         </div>
       )}
 
-      <div className="mt-10 flex items-center justify-between">
+      <div className="mt-10 flex items-start justify-between gap-4">
         <Button variant="ghost" size="lg" onClick={() => goTo("upload")}>
           <ArrowLeft className="h-5 w-5" />
           Back
         </Button>
-        <Button size="lg" disabled={!occasionKey} onClick={() => goTo("generate")}>
-          Generate my reel
-          <ArrowRight className="h-5 w-5" />
-        </Button>
+        <div className="flex flex-col items-end gap-1.5">
+          <Button
+            size="lg"
+            disabled={!occasionKey}
+            aria-describedby={!occasionKey ? "occasion-cta-hint" : undefined}
+            onClick={() => goTo("generate")}
+          >
+            Generate my reel
+            <ArrowRight className="h-5 w-5" />
+          </Button>
+          {!occasionKey && (
+            <p id="occasion-cta-hint" className="text-xs text-zinc-500">
+              Pick an occasion to continue
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );

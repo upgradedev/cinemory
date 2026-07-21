@@ -90,4 +90,52 @@
   .glass {
     @apply border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl;
   }
+
+  /* Ken Burns slideshow (degraded/offline letterbox fallback).
+     Slides crossfade via opacity; the active slide slowly zoom-pans. */
+  .kb-slide {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 1.4s ease-in-out;
+    will-change: opacity, transform;
+  }
+  .kb-slide-active {
+    opacity: 1;
+  }
+  .kb-pan-a {
+    animation: kb-pan-a 16s ease-in-out infinite alternate;
+  }
+  .kb-pan-b {
+    animation: kb-pan-b 16s ease-in-out infinite alternate;
+  }
+  @keyframes kb-pan-a {
+    from {
+      transform: scale(1.03) translate(0.6%, 0.4%);
+    }
+    to {
+      transform: scale(1.12) translate(-1.2%, -0.8%);
+    }
+  }
+  @keyframes kb-pan-b {
+    from {
+      transform: scale(1.12) translate(-0.8%, 0.8%);
+    }
+    to {
+      transform: scale(1.03) translate(0.8%, -0.4%);
+    }
+  }
+}
+
+/* Vestibular safety: kill the zoom/pan (motion) but keep the slow opacity
+   crossfade (a fade is not motion). Applies to every kb animation. */
+@media (prefers-reduced-motion: reduce) {
+  .kb-pan-a,
+  .kb-pan-b {
+    animation: none;
+    transform: none;
+  }
 }
