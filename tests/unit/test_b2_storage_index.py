@@ -154,3 +154,50 @@ def test_index_jsonl_is_sorted_ndjson():
     assert len(lines) == 2
     first = json.loads(lines[0])
     assert set(first) == {"key", "size", "content_type"}
+
+
+def _durable_index_keys(s3: _FakeS3) -> set[str]:
+    raw = s3.store[("cinemory-live", "cin/index.jsonl")]
+    return {json.loads(line)["key"] for line in raw.decode("utf-8").splitlines() if line}
+
+
+def test_concurrent_writers_union_by_key_not_last_writer_wins():
+    """Two writers with independent in-memory snapshots (a local run and the
+    live box) must UNION their rows at persist time, not clobber each other.
+    Proven live 2026-07-22: rows written by the box vanished when a local run
+    persisted its own stale snapshot, 404-ing the box's reels until the rows
+    were merged back by hand. Merge-on-write re-reads the remote index on
+    every persist, so each writer folds the other's rows in."""
+    s3 = _FakeS3()
+    a = B2Storage(client=s3)  # both constructed BEFORE any write —
+    b = B2Storage(client=s3)  # each starts from an empty index snapshot
+
+    a.put("r/photos/aa/a1/one.png", b"a1", content_type="image/png")
+    # b never saw a's row in memory; without merge-on-write this put would
+    # persist [b-row] alone, erasing a's row from the durable index.
+    b.put("r/reels/bb/b1/reel.mp4", b"b1", content_type="video/mp4")
+    # a is now the stale one (no b-row in memory); its next put must fold
+    # b's row back in rather than clobbering it.
+    a.put("r/manifests/cc/c1/manifest.json", b"{}", content_type="application/json")
+
+    expected = {
+        "r/photos/aa/a1/one.png",
+        "r/reels/bb/b1/reel.mp4",
+        "r/manifests/cc/c1/manifest.json",
+    }
+    assert _durable_index_keys(s3) == expected
+    # A fresh worker resolves EVERY writer's reels (this is what 404'd live).
+    reader = B2Storage(client=s3)
+    assert {r["key"] for r in reader.index} == expected
+
+
+def test_reput_same_key_is_idempotent_in_index():
+    """Keys are content-addressed, so re-putting the same key (same bytes)
+    must collapse to ONE index row — merge-by-key makes the write idempotent."""
+    s3 = _FakeS3()
+    store = B2Storage(client=s3)
+    store.put("r/reels/aa/bb/reel.mp4", b"x", content_type="video/mp4")
+    store.put("r/reels/aa/bb/reel.mp4", b"x", content_type="video/mp4")
+
+    assert [r["key"] for r in store.index] == ["r/reels/aa/bb/reel.mp4"]
+    assert len(store.index_jsonl().splitlines()) == 1

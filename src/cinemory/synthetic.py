@@ -21,8 +21,15 @@ _PALETTES = [
 ]
 
 
-def synth_photo(filename: str, *, seed: int, size: tuple[int, int] = (512, 288)) -> Photo:
-    """Generate one deterministic synthetic photo as PNG bytes."""
+def synth_photo(filename: str, *, seed: int, size: tuple[int, int] = (1024, 576)) -> Photo:
+    """Generate one deterministic synthetic photo as PNG bytes.
+
+    The default is 16:9 at **1024×576** — deliberately above GMI Kling's
+    300px minimum side. The previous 512×288 default failed live I2V submits
+    with ``Image pixel is invalid`` (288 < 300), silently degrading the
+    synthetic-JSON path (``POST /reels``); 1024×576 is proven working live
+    (2026-07-22). Keep any override's shortest side >= 300px for live runs.
+    """
     from PIL import Image, ImageDraw
 
     rng = random.Random(seed)

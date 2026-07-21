@@ -77,12 +77,17 @@ if [ "${CINEMORY_MODE}" = "live" ]; then
 fi
 
 # ── 5. Deploy to Cloud Run (public, port 8000, scales to zero) ───────────────
+# --timeout 600: a real single-clip live generation measures ~330-350s end-to-end
+# (Kling render ~242s avg + hosting/stitch/provenance). Cloud Run's 300s default
+# 504'd those requests at the edge while the reel completed server-side
+# (proven live 2026-07-22), so the request deadline must sit above the real path.
 gcloud run deploy "${SERVICE}" \
   --image "${IMAGE}" \
   --region "${REGION}" \
   --platform managed \
   --allow-unauthenticated \
   --port 8000 \
+  --timeout 600 \
   --cpu 1 --memory 512Mi \
   --min-instances 0 --max-instances 4 \
   --set-env-vars "${ENV_VARS}" \
