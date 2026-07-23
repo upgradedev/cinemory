@@ -155,9 +155,10 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
-      # Runs the same vitest suite AND collects V8 coverage. The threshold is a
-      # conservative floor (lines >= 60, app-source scoped) that only ratchets
-      # up — measured ~62% today, so it never reds the build. See package.json.
+      # Runs the same vitest suite AND collects V8 coverage. Gates on app-source
+      # coverage (lines/statements/functions >= 90, branches >= 85; measured
+      # ~98.5% lines / 100% functions / ~90% branches). Thresholds live in
+      # vite.config.ts (the single source of truth). Fails the build if breached.
       - name: Unit + component tests + coverage (vitest)
         run: npm run test:coverage
       - name: Build

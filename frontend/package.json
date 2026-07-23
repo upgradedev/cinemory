@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=\"src/**\" --coverage.thresholds.lines=60"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.0",
