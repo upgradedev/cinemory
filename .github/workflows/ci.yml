@@ -40,12 +40,15 @@ jobs:
           pip install -e .
       - name: Lint (ruff)
         run: ruff check src tests scripts
-      - name: Unit tests
-        run: pytest tests/unit -v
-      - name: Integration tests
-        run: pytest tests/integration -v
-      - name: E2E tests
-        run: pytest tests/e2e -v
+      # Coverage accumulates across all three tiers (--cov-append); the gate is
+      # enforced once on the combined total at the last tier. Measured ~97%
+      # (982 statements) — the 90% floor leaves comfortable headroom.
+      - name: Unit tests (coverage)
+        run: pytest tests/unit -v --cov=src --cov-report=
+      - name: Integration tests (coverage)
+        run: pytest tests/integration -v --cov=src --cov-append --cov-report=
+      - name: E2E tests + coverage gate (combined >= 90%)
+        run: pytest tests/e2e -v --cov=src --cov-append --cov-report=term-missing --cov-fail-under=90
       - name: Dependency audit (pip-audit)
         run: pip-audit -r requirements.txt --strict
 
@@ -152,8 +155,11 @@ jobs:
         run: npm ci
       - name: Typecheck
         run: npm run typecheck
-      - name: Unit + component tests (vitest)
-        run: npm run test
+      # Runs the same vitest suite AND collects V8 coverage. The threshold is a
+      # conservative floor (lines >= 60, app-source scoped) that only ratchets
+      # up — measured ~62% today, so it never reds the build. See package.json.
+      - name: Unit + component tests + coverage (vitest)
+        run: npm run test:coverage
       - name: Build
         run: npm run build
 
