@@ -83,6 +83,13 @@ class StepRecord:
     started_at: str
     finished_at: str
     asset: Asset
+    #: SHA-256 of every input asset this step was generated from, in input
+    #: order — the source-photo citation that binds the generated asset back to
+    #: the exact input bytes (already persisted under a content-addressed key).
+    #: Empty for steps with no inputs (e.g. a text-only step). Sealed into the
+    #: manifest as a ``StepRecord`` field, so tampering with a citation breaks
+    #: ``manifest_hash``.
+    source_sha256s: list[str] = field(default_factory=list)
 
 
 @dataclass

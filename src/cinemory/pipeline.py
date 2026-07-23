@@ -60,9 +60,13 @@ class ReelPipeline:
                                        inputs=inputs, params=params)
         finished = _now()
         asset = self._store(reel, kind, name, data, "video/mp4")
+        # Cite the source photo(s): the same content-addressing hash used for
+        # every stored asset, in input order (empty for a no-input step).
+        source_sha256s = [sha256_bytes(b) for b in inputs]
         return StepRecord(provider=self.provider.name, model=model, prompt=prompt,
                           modality=modality, params=params, started_at=started,
-                          finished_at=finished, asset=asset)
+                          finished_at=finished, asset=asset,
+                          source_sha256s=source_sha256s)
 
     # ── main ─────────────────────────────────────────────────────────────────
     def run(self, spec: ReelSpec) -> ReelResult:
