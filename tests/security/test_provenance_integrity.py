@@ -49,6 +49,17 @@ def test_mutating_a_step_field_is_detected():
     assert verify_manifest(tampered) is False
 
 
+def test_forging_a_source_photo_citation_is_detected():
+    """The clip-to-source-photo binding is sealed: an attacker who rewrites which
+    input photo a generated clip was made from (to launder a swapped source)
+    cannot do so without breaking the manifest hash."""
+    _, _, manifest = _sealed()
+    tampered = json.loads(json.dumps(manifest))
+    cited = next(s for s in tampered["steps"] if s["source_sha256s"])
+    cited["source_sha256s"][0] = "0" * 64  # forge the cited source photo
+    assert verify_manifest(tampered) is False
+
+
 def test_forged_seal_over_tampered_body_is_still_rejected():
     """An attacker who mutates a field and *recomputes a plausible-looking* seal
     over only the visible fields cannot forge the manifest: recompute over the
