@@ -26,6 +26,7 @@ web/package-lock.json
 # lockfile committed for reproducible `npm ci` in CI.
 frontend/node_modules/
 frontend/dist/
+frontend/coverage/
 
 # Generated demo output
 out/
