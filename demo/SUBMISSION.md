@@ -15,7 +15,7 @@
   serves the identical app. `cinemory.ai` is **not yet mapped** — pending DNS;
   use the run.app URL.)*
 - **Demo video:** recorded + committed —
-  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:58, inside Devpost's 3-min
+  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:17, inside Devpost's 3-min
   cap; ElevenLabs voice-over, A/V-sync-gated in CI via the `demo-video` job).
   `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
   YouTube/Vimeo/Youku link; the repo mp4 alone does not satisfy that rule.
@@ -297,7 +297,7 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - Readiness gate: automatable **100.0% (17/17) PASS**; full **85.6%** (3
   user-gated live items, of which two — live redeploy, live B2 objects — are
   now factually done; see above).
-- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:58) — ElevenLabs
+- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:17) — ElevenLabs
   voice-over, guarded by an A/V-sync CI gate (the `demo-video` job) so audio,
   video and captions cannot drift out of sync.
 - **Devpost draft filled** — submission 1108702

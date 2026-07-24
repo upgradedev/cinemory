@@ -142,7 +142,7 @@ _Last updated: 2026-07-24. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
   and bucket (`cinemory`) are correct. **A new write-entitled key is pending
   from the owner**; the live run and the live-mode redeploy are gated on it.
 - **Remaining checklist (in order):**
-  1. Upload `demo/cinemory-demo.mp4` (2:58) to YouTube; paste the URL into
+  1. Upload `demo/cinemory-demo.mp4` (2:17) to YouTube; paste the URL into
      `SUBMISSION.md` + the Devpost form (repo mp4 alone does not satisfy
      Devpost's hosted-video rule).
   2. New write-entitled B2 key → one real live run.
