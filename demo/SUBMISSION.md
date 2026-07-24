@@ -16,7 +16,8 @@
   use the run.app URL.)*
 - **Demo video:** recorded + committed —
   [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:58, inside Devpost's 3-min
-  cap). `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
+  cap; ElevenLabs voice-over, A/V-sync-gated in CI via the `demo-video` job).
+  `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
   YouTube/Vimeo/Youku link; the repo mp4 alone does not satisfy that rule.
 - **Deadline:** 2026-08-03 5:00pm EDT. Per the rules the app must stay freely
   testable through **2026-08-11 5:00pm EDT** — keep the Cloud Run service up
@@ -61,8 +62,10 @@ cinematic film:
 5. **Store on B2** — every input, clip, bridge, the final reel and the run
    manifest are written to Backblaze B2 under content-addressed keys.
 6. **Provenance** — a SHA-256-sealed manifest records provider, model, prompt,
-   params, timestamps and every asset hash; it is persisted to B2 *and* embedded
-   into the reel container, and re-verifiable offline at any time.
+   params, timestamps and every asset hash — and **cites each generated clip back
+   to its source photo's SHA-256** (`source_sha256s`), so every output traces to
+   the exact input it came from. It is persisted to B2 *and* embedded into the
+   reel container, and re-verifiable offline at any time.
 
 It began as a personal anniversary gift — photos turned into a scored short
 film. This repo generalises that into a production-shaped app. **The original
@@ -170,10 +173,11 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   pen-test, plus the SDK-boundary Genblaze contract test — which drives a
   **real** Genblaze `Pipeline` + `ObjectStorageSink` (over an in-memory
   backend) so the live sink→store→readback→sha256-chain path is genuinely
-  exercised, not just the offline fakes. **Backend: 235 passed locally**
-  (with the live extras); **in CI 232 passed + 3 env-gated skips** (2 gmicloud
-  + 1 boto3; measured 2026-07-22). **Frontend: 31 vitest tests** (5 files,
-  measured 2026-07-21).
+  exercised, not just the offline fakes. **Backend: 211 passed + 4 skipped in
+  CI** (unit 90 · integration 62 · e2e 59); the 4 skips are environment-gated —
+  optional-dependency / live-credential tests that do not run without creds.
+  **Frontend: 169 vitest tests across 31 files.** (Counts from the CI run on
+  `main`, 2026-07-24.)
 - **Readiness gate:** `python scripts/readiness.py` scores the repo against the
   judging criteria with real-evidence checks. As of 2026-07-22: automatable
   completeness **100.0% (17/17) PASS**; full completeness **85.6%** with 3
@@ -185,7 +189,8 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   `pip-audit --strict` · `npm audit` · ruff · pen-test suite (`tests/security/`).
 - **Deployable:** `Dockerfile` (ffmpeg included) → Cloud Run / Container Apps /
   Fly; FastAPI API (`/health`, `/occasions`, `/reels`, `/reels/upload` +
-  `/reels/upload-multipart` for real photo bytes, `/reels/{name}`).
+  `/reels/upload-multipart` for real photo bytes, `/reels/{name}`,
+  `/reels/{name}/video` playback, `/reels/{name}/verify` re-verification receipt).
 - **Never-500 core action:** in `live` mode the API uses the real Genblaze/B2
   backends only when their credentials are present, and otherwise degrades
   transparently to the offline path — so `POST /reels` always returns a real
@@ -282,9 +287,8 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
   objects, including 9 under `live-degrade-proof/` and the `chain-inputs/`
   photo hosting. The earlier zero-capability B2 key is history — the
   owner-issued key is verified for Put + List.
-- Full offline pipeline + provenance runs for real. Backend **216 passed
-  locally** (with the gmicloud extra); **in CI 214 passed + 2 gmicloud-gated
-  skips**; frontend **21 vitest tests**.
+- Full offline pipeline + provenance runs for real, all offline in CI — see the
+  canonical backend/frontend test counts under "Production readiness" above.
 - Genblaze adapter **verified against the real published SDK** — the contract
   test passes against genblaze-core 0.3.6 (SDK line released 2026-07-17:
   genblaze 0.4.3 / core 0.3.6 / s3 0.3.5 / gmicloud 0.3.3; existing pins
@@ -293,7 +297,9 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - Readiness gate: automatable **100.0% (17/17) PASS**; full **85.6%** (3
   user-gated live items, of which two — live redeploy, live B2 objects — are
   now factually done; see above).
-- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:58).
+- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:58) — ElevenLabs
+  voice-over, guarded by an A/V-sync CI gate (the `demo-video` job) so audio,
+  video and captions cannot drift out of sync.
 - **Devpost draft filled** — submission 1108702
   (https://devpost.com/software/cinemory), DRAFT with 3/5 steps done; gallery
   + thumbnail assets rendered (held outside the repo).
