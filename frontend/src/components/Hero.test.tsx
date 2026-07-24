@@ -16,4 +16,20 @@ describe("<Hero />", () => {
     await userEvent.click(screen.getByRole("button", { name: /create your reel/i }));
     expect(onStart).toHaveBeenCalledOnce();
   });
+
+  it("hides the sample CTA unless onTrySamples is provided", () => {
+    render(<Hero onStart={() => {}} />);
+    expect(
+      screen.queryByRole("button", { name: /try with sample photos/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("fires onTrySamples from the secondary CTA when provided", async () => {
+    const onTrySamples = vi.fn().mockResolvedValue(undefined);
+    render(<Hero onStart={() => {}} onTrySamples={onTrySamples} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: /try with sample photos/i }),
+    );
+    expect(onTrySamples).toHaveBeenCalledOnce();
+  });
 });

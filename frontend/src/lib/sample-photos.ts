@@ -267,3 +267,19 @@ export async function generateSamplePhotos(
   }
   return files;
 }
+
+/** Paint the same deterministic scenes to JPEG data URLs for the decorative
+ *  landing preview (JPEG keeps the inlined bytes small vs. the lossless PNG
+ *  used for real, provenance-sealed uploads). Throws if Canvas 2D is
+ *  unavailable (e.g. jsdom) so callers can fall back to a static preview. */
+export function renderSampleSceneDataUrls(doc: Document = document): string[] {
+  return samplePhotoSpecs().map((spec) => {
+    const canvas = doc.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D is not supported in this browser.");
+    drawScene(ctx, spec);
+    return canvas.toDataURL("image/jpeg", 0.82);
+  });
+}

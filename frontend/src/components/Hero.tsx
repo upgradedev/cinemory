@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { ArrowRight, Film, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Film, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "./ui/button";
+import { ExampleReel } from "./ExampleReel";
 
 const features = [
   {
@@ -20,7 +22,26 @@ const features = [
   },
 ];
 
-export function Hero({ onStart }: { onStart: () => void }) {
+export function Hero({
+  onStart,
+  onTrySamples,
+}: {
+  onStart: () => void;
+  /** Optional zero-friction demo entry — generates the sample set and jumps
+   *  straight into the studio. When omitted the secondary CTA is hidden. */
+  onTrySamples?: () => void | Promise<void>;
+}) {
+  const [sampling, setSampling] = useState(false);
+  const trySamples = async () => {
+    if (!onTrySamples) return;
+    setSampling(true);
+    try {
+      await onTrySamples();
+    } finally {
+      setSampling(false);
+    }
+  };
+
   return (
     <section className="relative overflow-hidden">
       {/* Ambient cinematic light beams */}
@@ -65,42 +86,54 @@ export function Hero({ onStart }: { onStart: () => void }) {
           reel — and seals it with cryptographic provenance you can verify.
         </motion.p>
 
+        <motion.p
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-3 max-w-lg text-sm text-zinc-400"
+        >
+          Made for families, couples and small teams — no video editor required.
+        </motion.p>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-          className="mt-10 flex flex-col items-center gap-4 sm:flex-row"
+          className="mt-10 flex flex-col items-center gap-3 sm:flex-row"
         >
           <Button size="lg" onClick={onStart} className="group">
             Create your reel
             <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
           </Button>
-          <span className="text-sm text-zinc-400">
-            No account · No watermark · ~30 seconds
-          </span>
+          {onTrySamples && (
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={trySamples}
+              disabled={sampling}
+              aria-busy={sampling}
+            >
+              {sampling ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Sparkles className="h-5 w-5" />
+              )}
+              {sampling ? "Preparing samples…" : "Try with sample photos"}
+            </Button>
+          )}
         </motion.div>
+        <span className="mt-4 text-sm text-zinc-400">
+          No account · No watermark · ~30 seconds
+        </span>
 
-        {/* Film-strip motif */}
+        {/* A live, muted, looping example of the generative output. */}
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.9, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}
-          className="letterbox mt-20 aspect-video w-full max-w-3xl overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-800 shadow-film"
+          className="mt-16 w-full max-w-3xl"
         >
-          <div className="grid h-full grid-cols-4 gap-px bg-black/40">
-            {["from-rose-500/30", "from-amber-400/30", "from-violet-500/30", "from-sky-400/30"].map(
-              (g, i) => (
-                <div
-                  key={i}
-                  className={`bg-gradient-to-br ${g} to-ink-900 flex items-end p-4`}
-                >
-                  <span className="font-mono text-[10px] uppercase tracking-widest text-white/40">
-                    Ch.{i + 1}
-                  </span>
-                </div>
-              ),
-            )}
-          </div>
+          <ExampleReel />
         </motion.div>
       </div>
 
