@@ -7,6 +7,8 @@
 
 Built for the [Backblaze Generative Media Hackathon](https://backblaze-generative-media.devpost.com/).
 
+![Cinemory — generative media, provenance first: built with Genblaze, stored on Backblaze B2, sealed with SHA-256](demo/video-assets/cards/cinemory-01-thumbnail.png)
+
 > **Canonical repo:** [github.com/upgradedev/cinemory](https://github.com/upgradedev/cinemory)
 > (local working copy: `repos/cinemory`). Feature roadmap, opt-in connectors,
 > show-stoppers and go-live steps: **[`ROADMAP.md`](ROADMAP.md)**.
@@ -23,6 +25,38 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 - **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:17).
   YouTube link: *TODO(owner): paste the URL after upload.*
+
+---
+
+## Verify it yourself
+
+Every reel is sealed with a SHA-256 manifest, and the seal is not a "trust us"
+claim — you can recompute it yourself, offline or in the browser.
+
+**Offline, from the CLI** (no credentials needed):
+
+```bash
+pip install -r requirements-dev.txt && pip install -e .
+python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges --out out
+```
+
+```
+...
+verify manifest: True
+verify asset:    True
+verify embedded: True
+```
+
+Three independent checks, computed locally from the bytes written to disk: the
+sealed manifest hash, the reel file's own SHA-256, and the manifest
+re-extracted from *inside* the reel's video container.
+
+**In the running app:** open a reel's Provenance panel and click **Verify** —
+one click runs two independent checks in parallel. The browser re-fetches the
+manifest and recomputes its SHA-256 itself with WebCrypto, so the seal isn't
+taken on the server's word. At the same time, `GET /reels/{name}/verify`
+re-fetches every stored artifact server-side and re-runs each named check,
+returning a signed receipt. Two different trust boundaries, same answer.
 
 ---
 
@@ -44,6 +78,8 @@ is read, generated, or committed anywhere in this project. See
 ## What it does
 
 Given a set of (synthetic) memories organised into *chapters*:
+
+![Cinemory's six-step pipeline: photos to I2V clips to chapter bridges to music-driven cuts to reel to B2 + manifest](demo/video-assets/cards/cinemory-02-pipeline.png)
 
 1. **Photo → clip** — each photo is animated into a short video via an
    image-to-video model (Genblaze step).
@@ -143,6 +179,8 @@ API degrades transparently to the offline path, so `POST /reels` never 500s.
   media library.
 - B2 is S3-compatible, so the adapter ([`b2_storage.py`](src/cinemory/adapters/b2_storage.py))
   is a thin boto3 client; credentials come only from the environment.
+
+![Real Backblaze B2 object listing for the cinemory bucket, showing the content-addressed reel/kind/sha-prefix/sha256/name key layout](demo/video-assets/cards/cinemory-04-b2-objects.png)
 
 ## How Genblaze is used
 

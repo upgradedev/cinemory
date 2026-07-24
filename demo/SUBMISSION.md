@@ -97,6 +97,9 @@ degrades transparently to the offline path, so the core action never 500s.
 The Genblaze adapter is contract-tested against the real published SDK in CI,
 so API drift fails the build instead of failing the demo.
 
+The codebase is 100% new for this Submission Period. Cinemory's founder is
+also this Devpost entrant, so there's no third-party IP involved.
+
 ---
 
 ## How Backblaze B2 is used (criterion 3: B2 Storage & Data Orchestration)
@@ -208,7 +211,7 @@ GMI Cloud; further Genblaze providers are on the roadmap.
 
 ## Try it out (Devpost: "How to run" / setup instructions)
 
-### Offline (no credentials — what CI runs, judges can run in <1 min)
+### Offline (no credentials — what CI runs, judges can run in a couple of minutes including install)
 
 ```bash
 pip install -r requirements-dev.txt && pip install -e .

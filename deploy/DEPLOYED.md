@@ -85,9 +85,9 @@ together with the Kling-compatible 1024×576 synthetic default and the presign
 region/SigV4 fix). A bucket CORS rule `cinemoryPlayback` (GET/HEAD, the two app
 origins only) was added for browser playback; the bucket stays private.
 
-**Next redeploy:** re-run `bash deploy/deploy-cloudrun.sh` with the live env
-once the P0-fix PR is merged so the box picks up the synth-size, presign and
-timeout fixes; then re-check `/health` and one presigned playback.
+**Redeploy status:** the P0-fix PR (`147aca6`) merged 2026-07-22; the live
+service was redeployed afterward (`bash deploy/deploy-cloudrun.sh` with the
+live env) to pick up the synth-size, presign and timeout fixes.
 
 ### cinemory.ai domain mapping — NOT yet mapped
 
