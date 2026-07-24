@@ -59,14 +59,22 @@ export function OccasionPicker() {
         </div>
       )}
 
-      <div className="mt-10 flex items-start justify-between gap-4">
-        <Button variant="ghost" size="lg" onClick={() => goTo("upload")}>
+      {/* Stack on mobile (two lg nowrap buttons cannot share a 375px row
+          without overflowing); split left/right from >=sm. */}
+      <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <Button
+          variant="ghost"
+          size="lg"
+          className="w-full sm:w-auto"
+          onClick={() => goTo("upload")}
+        >
           <ArrowLeft className="h-5 w-5" />
           Back
         </Button>
-        <div className="flex flex-col items-end gap-1.5">
+        <div className="flex flex-col gap-1.5 sm:items-end">
           <Button
             size="lg"
+            className="w-full sm:w-auto"
             disabled={!occasionKey}
             aria-describedby={!occasionKey ? "occasion-cta-hint" : undefined}
             onClick={() => goTo("generate")}
@@ -75,7 +83,10 @@ export function OccasionPicker() {
             <ArrowRight className="h-5 w-5" />
           </Button>
           {!occasionKey && (
-            <p id="occasion-cta-hint" className="text-xs text-zinc-500">
+            <p
+              id="occasion-cta-hint"
+              className="text-center text-xs text-zinc-400 sm:text-right"
+            >
               Pick an occasion to continue
             </p>
           )}
@@ -138,9 +149,9 @@ function OccasionCard({
             <Check className="h-3.5 w-3.5" />
           </span>
         </div>
-        <h3 className="mt-4 font-display text-lg font-semibold text-zinc-50">
+        <h2 className="mt-4 font-display text-lg font-semibold text-zinc-50">
           {occasion.label}
-        </h3>
+        </h2>
         <p className="mt-0.5 text-sm text-zinc-400">{theme.tagline}</p>
 
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-zinc-400">

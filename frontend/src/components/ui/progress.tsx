@@ -4,13 +4,16 @@ interface ProgressProps {
   value: number; // 0..100
   className?: string;
   indeterminate?: boolean;
+  /** Accessible name for the progressbar (required for a11y). */
+  label?: string;
 }
 
-export function Progress({ value, className, indeterminate }: ProgressProps) {
+export function Progress({ value, className, indeterminate, label = "Progress" }: ProgressProps) {
   const clamped = Math.max(0, Math.min(100, value));
   return (
     <div
       role="progressbar"
+      aria-label={label}
       aria-valuenow={indeterminate ? undefined : Math.round(clamped)}
       aria-valuemin={0}
       aria-valuemax={100}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Stepper } from "./Stepper";
 import { PhotoUpload } from "./steps/PhotoUpload";
 import { OccasionPicker } from "./steps/OccasionPicker";
@@ -20,6 +20,7 @@ export function Studio() {
   const goTo = useReelStore((s) => s.goTo);
   const [reel, setReel] = useState<ReelResponse | null>(null);
   const regionRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   // Move keyboard/screen-reader focus to the new step on each transition so
   // the wizard is navigable without a mouse, and announce it via aria-live.
@@ -35,37 +36,39 @@ export function Studio() {
         {STEP_LABEL[step]}
       </p>
 
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={step}
-          ref={regionRef}
-          tabIndex={-1}
-          role="group"
-          aria-label={STEP_LABEL[step]}
-          className="outline-none"
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -24 }}
-          transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        >
-          {step === "upload" && <PhotoUpload />}
-          {step === "occasion" && <OccasionPicker />}
-          {step === "generate" && (
-            <GenerateReel
-              onComplete={(r) => {
-                setReel(r);
-                goTo("result");
-              }}
-            />
-          )}
-          {step === "result" &&
-            (reel ? (
-              <ReelResult reel={reel} />
-            ) : (
-              <PhotoUpload />
-            ))}
-        </motion.div>
-      </AnimatePresence>
+      {/* Each step is a fresh keyed subtree that mounts and runs its own enter
+          animation immediately on every step change. We deliberately do NOT
+          wrap this in AnimatePresence mode="wait": that mode defers the
+          incoming step's animation until the OUTGOING step's exit completes,
+          and when that exit is throttled or dropped (a backgrounded tab, some
+          headless environments) the new step stays stuck at its initial
+          opacity:0 and the wizard blanks — the panel-2 dead-end. Mounting the
+          incoming step unconditionally makes the transition robust regardless
+          of exit timing, and prefers-reduced-motion renders it instantly with
+          no transform. */}
+      <motion.div
+        key={step}
+        ref={regionRef}
+        tabIndex={-1}
+        role="group"
+        aria-label={STEP_LABEL[step]}
+        className="outline-none"
+        initial={reduceMotion ? false : { opacity: 0, x: 24 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {step === "upload" && <PhotoUpload />}
+        {step === "occasion" && <OccasionPicker />}
+        {step === "generate" && (
+          <GenerateReel
+            onComplete={(r) => {
+              setReel(r);
+              goTo("result");
+            }}
+          />
+        )}
+        {step === "result" && (reel ? <ReelResult reel={reel} /> : <PhotoUpload />)}
+      </motion.div>
     </section>
   );
 }

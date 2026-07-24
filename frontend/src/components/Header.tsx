@@ -22,7 +22,11 @@ export function Header() {
       className="sticky top-0 z-40 border-b border-white/[0.05] bg-ink-950/70 backdrop-blur-xl"
     >
       <div className="container flex h-16 items-center justify-between">
-        <a href="/" className="rounded-lg" aria-label="Cinemory home">
+        <a
+          href="/"
+          className="inline-flex min-h-11 items-center rounded-lg"
+          aria-label="Cinemory home"
+        >
           <Wordmark />
         </a>
         <div className="flex items-center gap-3">

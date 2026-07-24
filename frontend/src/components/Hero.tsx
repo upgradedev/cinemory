@@ -75,7 +75,7 @@ export function Hero({ onStart }: { onStart: () => void }) {
             Create your reel
             <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
           </Button>
-          <span className="text-sm text-zinc-500">
+          <span className="text-sm text-zinc-400">
             No account · No watermark · ~30 seconds
           </span>
         </motion.div>
@@ -118,9 +118,9 @@ export function Hero({ onStart }: { onStart: () => void }) {
             <span className="grid h-10 w-10 place-items-center rounded-xl bg-gold-400/10 text-gold-300">
               <f.icon className="h-5 w-5" />
             </span>
-            <h3 className="mt-4 font-display text-lg font-semibold text-zinc-100">
+            <h2 className="mt-4 font-display text-lg font-semibold text-zinc-100">
               {f.title}
-            </h3>
+            </h2>
             <p className="mt-1.5 text-sm leading-relaxed text-zinc-400">{f.body}</p>
           </motion.div>
         ))}

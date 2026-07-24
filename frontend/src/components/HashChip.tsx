@@ -32,7 +32,7 @@ export function HashChip({
       disabled={!hash}
       title={hash ? `${label ? label + ": " : ""}${hash} — click to copy` : "unavailable"}
       className={cn(
-        "group inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/70 px-2 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-gold-400/40 hover:text-gold-200 disabled:opacity-50",
+        "group inline-flex min-h-11 items-center gap-1.5 rounded-md border border-white/[0.08] bg-ink-900/70 px-2 py-1 font-mono text-xs text-zinc-300 transition-colors hover:border-gold-400/40 hover:text-gold-200 disabled:opacity-50 sm:min-h-0",
         className,
       )}
     >

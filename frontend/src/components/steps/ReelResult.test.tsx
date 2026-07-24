@@ -95,6 +95,7 @@ describe("<ReelResult /> — Ken Burns slideshow fallback", () => {
     file: new File([`f${i}`], `photo-${i}.png`, { type: "image/png" }),
     url: `blob:mock-${i}`,
     name: `photo-${i}.png`,
+    alt: `photo-${i}.png`,
   }));
 
   beforeEach(() => useReelStore.setState({ photos: storePhotos }));

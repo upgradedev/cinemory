@@ -16,11 +16,14 @@ const buttonVariants = cva(
         outline:
           "border border-gold-400/40 text-gold-200 hover:bg-gold-400/10 hover:border-gold-400/70 active:scale-[0.98]",
       },
+      // Mobile-first tap targets: every control clears the 44px WCAG 2.5.5
+      // minimum on touch viewports, then tightens to its compact desktop size
+      // at >=sm (640px) so the dense premium layout is preserved.
       size: {
-        sm: "h-9 px-4 text-xs",
+        sm: "h-11 px-4 text-xs sm:h-9",
         md: "h-11 px-6",
         lg: "h-14 px-9 text-base",
-        icon: "h-10 w-10",
+        icon: "h-11 w-11 sm:h-10 sm:w-10",
       },
     },
     defaultVariants: { variant: "primary", size: "md" },

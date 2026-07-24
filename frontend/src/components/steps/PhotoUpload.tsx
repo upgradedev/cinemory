@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useReelStore } from "@/store/useReelStore";
-import { generateSamplePhotos } from "@/lib/sample-photos";
+import { generateSamplePhotos, samplePhotoAlts } from "@/lib/sample-photos";
 import { cn } from "@/lib/utils";
 
 export function PhotoUpload() {
@@ -39,7 +39,7 @@ export function PhotoUpload() {
     setSampling(true);
     setSampleError(null);
     try {
-      addPhotos(await generateSamplePhotos());
+      addPhotos(await generateSamplePhotos(), samplePhotoAlts());
     } catch (err) {
       setSampleError(
         err instanceof Error ? err.message : "Sample photos couldn't be generated.",
@@ -86,7 +86,7 @@ export function PhotoUpload() {
         <p className="mt-4 text-base font-medium text-zinc-200">
           Drag & drop your photos here
         </p>
-        <p className="mt-1 text-sm text-zinc-500">or</p>
+        <p className="mt-1 text-sm text-zinc-400">or</p>
         <Button
           variant="secondary"
           className="mt-3"
@@ -95,7 +95,7 @@ export function PhotoUpload() {
           <ImagePlus className="h-4 w-4" />
           Browse files
         </Button>
-        <p className="mt-4 text-xs text-zinc-600">
+        <p className="mt-4 text-xs text-zinc-400">
           JPG, PNG, HEIC, WebP · uploaded securely to seal verifiable provenance
         </p>
         <input
@@ -130,7 +130,7 @@ export function PhotoUpload() {
           )}
           {sampling ? "Preparing samples…" : "Try with sample photos"}
         </Button>
-        <p id="sample-photos-hint" className="text-xs text-zinc-600">
+        <p id="sample-photos-hint" className="text-xs text-zinc-400">
           No photos handy? Use our synthetic sample set.
         </p>
         {sampleError && (
@@ -180,7 +180,7 @@ export function PhotoUpload() {
                 >
                   <img
                     src={p.url}
-                    alt={p.name}
+                    alt={p.alt}
                     className="h-full w-full object-cover"
                     draggable={false}
                   />
@@ -191,9 +191,12 @@ export function PhotoUpload() {
                     type="button"
                     onClick={() => removePhoto(p.id)}
                     aria-label={`Remove ${p.name}`}
-                    className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white/90 opacity-0 transition-opacity hover:bg-ember-500 focus-visible:opacity-100 group-hover:opacity-100"
+                    // Touch has no hover: keep a full 44px tap target that is
+                    // always visible on mobile, shrinking to the tasteful
+                    // hover-reveal 24px chip only on >=sm pointer viewports.
+                    className="absolute right-1.5 top-1.5 grid h-11 w-11 place-items-center rounded-full bg-black/70 text-white/90 opacity-100 transition-opacity hover:bg-ember-500 focus-visible:opacity-100 sm:h-6 sm:w-6 sm:opacity-0 sm:group-hover:opacity-100"
                   >
-                    <X className="h-3.5 w-3.5" />
+                    <X className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                   </button>
                 </motion.li>
               ))}
@@ -201,13 +204,13 @@ export function PhotoUpload() {
           </ul>
         </div>
       ) : (
-        <p className="mt-8 text-center text-sm text-zinc-600">
+        <p className="mt-8 text-center text-sm text-zinc-400">
           Your selected photos will appear here as a reorderable storyboard.
         </p>
       )}
 
       <div className="mt-10 flex items-start justify-between gap-4">
-        <span className="text-xs text-zinc-600">
+        <span className="text-xs text-zinc-400">
           Tip: 4–12 photos make the richest reel.
         </span>
         <div className="flex flex-col items-end gap-1.5">
@@ -221,7 +224,7 @@ export function PhotoUpload() {
             <ArrowRight className="h-5 w-5" />
           </Button>
           {photos.length === 0 && (
-            <p id="upload-cta-hint" className="text-xs text-zinc-500">
+            <p id="upload-cta-hint" className="text-xs text-zinc-400">
               Add at least 1 photo to continue
             </p>
           )}
@@ -240,9 +243,9 @@ export function StepHeading({
 }) {
   return (
     <div className="mb-8 text-center">
-      <h2 className="font-display text-3xl font-semibold text-zinc-50 md:text-4xl">
+      <h1 className="font-display text-3xl font-semibold text-zinc-50 md:text-4xl">
         {title}
-      </h2>
+      </h1>
       <p className="mx-auto mt-3 max-w-xl text-balance text-zinc-400">{subtitle}</p>
     </div>
   );

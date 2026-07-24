@@ -22,8 +22,16 @@ export default function App() {
 
   return (
     <div className="film-grain flex min-h-dvh flex-col">
+      {/* Keyboard-first: a hidden skip link that reveals on focus and jumps
+          past the header straight to the main content. */}
+      <a
+        href="#main-content"
+        className="sr-only rounded-lg bg-gold-400 px-4 py-2 text-sm font-semibold text-ink-950 focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:inline-flex focus:items-center"
+      >
+        Skip to content
+      </a>
       <Header />
-      <main className="flex-1">
+      <main id="main-content" className="flex-1">
         {started ? <Studio /> : <Hero onStart={start} />}
       </main>
       <Footer />

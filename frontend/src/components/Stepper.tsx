@@ -20,7 +20,11 @@ export function Stepper({ current }: { current: Step }) {
           const done = i < currentIndex;
           const active = i === currentIndex;
           return (
-            <li key={s.key} className="flex flex-1 items-center last:flex-none">
+            <li
+              key={s.key}
+              aria-current={active ? "step" : undefined}
+              className="flex flex-1 items-center last:flex-none"
+            >
               <div className="flex flex-col items-center gap-2">
                 <span
                   className={cn(
@@ -28,16 +32,15 @@ export function Stepper({ current }: { current: Step }) {
                     done && "border-gold-400 bg-gold-400 text-ink-950",
                     active &&
                       "border-gold-400 bg-gold-400/15 text-gold-200 shadow-glow-sm",
-                    !done && !active && "border-white/10 bg-ink-800 text-zinc-500",
+                    !done && !active && "border-white/10 bg-ink-800 text-zinc-400",
                   )}
-                  aria-current={active ? "step" : undefined}
                 >
                   {done ? <Check className="h-4 w-4" /> : i + 1}
                 </span>
                 <span
                   className={cn(
                     "text-xs font-medium",
-                    active ? "text-zinc-200" : "text-zinc-500",
+                    active ? "text-zinc-200" : "text-zinc-400",
                   )}
                 >
                   {s.label}

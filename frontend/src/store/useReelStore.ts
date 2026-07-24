@@ -7,6 +7,8 @@ export interface LocalPhoto {
   file: File;
   url: string; // object URL for the thumbnail preview
   name: string;
+  /** Descriptive alt text for the thumbnail (defaults to the filename). */
+  alt: string;
 }
 
 interface ReelState {
@@ -15,7 +17,7 @@ interface ReelState {
   occasionKey: string | null;
 
   goTo: (step: Step) => void;
-  addPhotos: (files: File[]) => void;
+  addPhotos: (files: File[], alts?: string[]) => void;
   removePhoto: (id: string) => void;
   reorderPhotos: (fromId: string, toId: string) => void;
   clearPhotos: () => void;
@@ -35,15 +37,19 @@ export const useReelStore = create<ReelState>((set, get) => ({
 
   goTo: (step) => set({ step }),
 
-  addPhotos: (files) =>
+  addPhotos: (files, alts) =>
     set((state) => {
+      // Pair alt text with each file BEFORE filtering so alignment survives a
+      // dropped non-image; alt falls back to the filename.
       const next = files
-        .filter((f) => ACCEPTED.test(f.type))
-        .map<LocalPhoto>((file) => ({
+        .map((file, i) => ({ file, alt: alts?.[i] }))
+        .filter(({ file }) => ACCEPTED.test(file.type))
+        .map<LocalPhoto>(({ file, alt }) => ({
           id: uid(),
           file,
           url: URL.createObjectURL(file),
           name: file.name,
+          alt: alt ?? file.name,
         }));
       return { photos: [...state.photos, ...next] };
     }),

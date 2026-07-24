@@ -9,23 +9,30 @@
 // licensing: every pixel is generated here, deterministically (seeded PRNG),
 // and each frame is labelled "Sample n" so screenshots stay honest.
 
+type Scene = "dawn" | "ridge" | "coast" | "lanterns" | "bokeh";
+
 export interface SamplePhotoSpec {
   /** Honest on-image label, e.g. "Sample 1". */
   label: string;
   filename: string;
   seed: number;
-  scene: "dawn" | "ridge" | "coast" | "lanterns" | "bokeh";
+  scene: Scene;
+  /** Human, content-describing alt text (screen readers; never the filename). */
+  description: string;
 }
 
 export const SAMPLE_PHOTO_COUNT = 5;
 
-const SCENES: ReadonlyArray<SamplePhotoSpec["scene"]> = [
-  "dawn",
-  "ridge",
-  "coast",
-  "lanterns",
-  "bokeh",
-];
+const SCENES: ReadonlyArray<Scene> = ["dawn", "ridge", "coast", "lanterns", "bokeh"];
+
+/** Content-describing alt text per scene — what the picture actually depicts. */
+const SCENE_DESCRIPTION: Record<Scene, string> = {
+  dawn: "A cinematic dawn breaking in gold over layered dark hills",
+  ridge: "Warm sunset glow behind a silhouetted mountain ridge",
+  coast: "Golden-hour light shimmering across a calm coastline",
+  lanterns: "Paper lanterns rising into a starlit night sky",
+  bokeh: "Soft, warm out-of-focus bokeh lights in cinematic tones",
+};
 
 /** The deterministic storyboard: same specs (order, seeds, scenes) every call. */
 export function samplePhotoSpecs(): SamplePhotoSpec[] {
@@ -35,7 +42,13 @@ export function samplePhotoSpecs(): SamplePhotoSpec[] {
     // Fixed per-frame seeds → byte-stable art across clicks and sessions.
     seed: 0xc1e0 + i * 7919,
     scene,
+    description: SCENE_DESCRIPTION[scene],
   }));
+}
+
+/** Descriptive alt strings, aligned to `generateSamplePhotos()` order. */
+export function samplePhotoAlts(): string[] {
+  return samplePhotoSpecs().map((s) => s.description);
 }
 
 /** Deterministic PRNG (mulberry32) — the standard tiny seeded generator. */

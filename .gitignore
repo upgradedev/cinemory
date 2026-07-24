@@ -28,6 +28,11 @@ frontend/node_modules/
 frontend/dist/
 frontend/coverage/
 
+# Playwright e2e outputs (the HTML report is archived as a CI artifact instead).
+frontend/test-results/
+frontend/playwright-report/
+frontend/playwright/.cache/
+
 # Generated demo output
 out/
 sample-data/generated/

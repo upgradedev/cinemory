@@ -171,7 +171,11 @@ export function GenerateReel({
           </span>
           <span className="font-mono text-gold-300">{pct}%</span>
         </div>
-        <Progress value={pct} indeterminate={mutation.isPending} />
+        <Progress
+          value={pct}
+          indeterminate={mutation.isPending}
+          label="Reel generation progress"
+        />
 
         <ol className="mt-8 space-y-3">
           {STAGES.map((label, i) => {
@@ -186,7 +190,7 @@ export function GenerateReel({
                     ? "text-zinc-300"
                     : active
                       ? "text-zinc-100"
-                      : "text-zinc-600",
+                      : "text-zinc-400",
                 )}
               >
                 <span
