@@ -1,327 +1,508 @@
 #!/usr/bin/env python3
-"""Build the Cinemory demo mp4 from real captured outputs + edge-tts narration.
+"""Build the Cinemory demo video — ElevenLabs narration, per-beat audio-locked.
 
-Fully automatable, no paid services:
-  * slides + terminal panels rendered with Pillow,
-  * free narration via edge-tts,
-  * composed with ffmpeg.
+Each script beat carries its own narration line. The build is BEAT-BY-BEAT so the
+audio and the picture can never drift apart:
 
-The terminal panels show the ACTUAL captured command output committed under
-``demo/video-assets/`` (regenerate them with ``demo/capture-demo.sh`` +
-``pytest`` + a couple of ``curl`` calls against the live service). There is no
-live-browser segment — the React-wizard shot is left as a precise shot-list in
-``demo/video-script.md`` (add Playwright ``recordVideo`` to automate it).
+  1. Synthesize the beat's line with ElevenLabs (one professional voice for the
+     whole video). Per-beat audio is cached by a hash of (text + voice + model),
+     so re-running to tune one beat never re-synthesizes or re-bills the others.
+  2. Decode to WAV, MEASURE the real narration length, then snap (length + a short
+     tail) to a whole number of frames and pad with silence to exactly that many.
+  3. The beat's PICTURE is rendered to the SAME frame-quantized length: a gentle
+     Ken Burns move over a real, on-brand still (the finished gallery cards and
+     real generated Kling frames), with a burned-in caption. Audio span == video
+     span for every beat, frame-aligned, zero cumulative drift.
+  4. Concatenate. Final duration == sum(beat durations) == the voiceover length.
 
-Usage:  pip install pillow edge-tts   # plus ffmpeg on PATH
-        python demo/build-video.py            # -> demo/cinemory-demo.mp4
+Real assets only (committed under ``demo/video-assets/``): the six gallery cards
+and three frames pulled straight from a real live generation run. No fabricated
+UI. The stale ``203/21`` test-count card is deliberately not used.
+
+Deliverables written next to this script:
+  * ``cinemory-demo.mp4``       — the video (H.264 1280x720 30fps + AAC)
+  * ``cinemory-demo.en.srt``    — caption sidecar, full narration per beat
+  * ``cinemory-demo.beats.json``— the machine-readable beat/timing script
+
+Deps:  Python 3.11+, Pillow, and ffmpeg/ffprobe on PATH.
+Env:   ELEVENLABS_API_KEY  (required — no silent TTS fallback; the build STOPS
+                            and reports if the key is missing or errors)
+       ELEVENLABS_VOICE_ID (default pNInz6obpgDQGcFmaJgB — a clear pro voice,
+                            the same one our other project demos use)
+       ELEVENLABS_MODEL_ID (default eleven_multilingual_v2)
+       FPS (default 30) · TAIL_SECONDS (default 0.45)
+
+Usage:  python demo/build-video.py            # -> demo/cinemory-demo.mp4
 """
 from __future__ import annotations
 
-import asyncio
+import hashlib
 import json
+import os
 import subprocess
 import sys
-from pathlib import Path
+import textwrap
+import time
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
 
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-import edge_tts
+DEMO = os.path.dirname(os.path.abspath(__file__))
+ASSETS = os.path.join(DEMO, "video-assets")
+CARDS = os.path.join(ASSETS, "cards")
+FRAMES = os.path.join(ASSETS, "frames")
+WORK = os.path.join(DEMO, ".video-build")
+CACHE = os.path.join(WORK, "tts-cache")
 
-DEMO = Path(__file__).resolve().parent
-CAP = DEMO / "video-assets"
-WORK = DEMO / ".video-build"
-WORK.mkdir(exist_ok=True)
-OUT = Path(sys.argv[1]) if len(sys.argv) > 1 else (DEMO / "cinemory-demo.mp4")
+OUT_MP4 = os.path.join(DEMO, "cinemory-demo.mp4")
+OUT_SRT = os.path.join(DEMO, "cinemory-demo.en.srt")
+OUT_BEATS = os.path.join(DEMO, "cinemory-demo.beats.json")
 
 W, H = 1280, 720
-BG = (11, 11, 13)
-PANEL = (18, 18, 22)
-PANEL_BAR = (28, 28, 34)
+FPS = int(os.environ.get("FPS", "30"))
+TAIL = float(os.environ.get("TAIL_SECONDS", "0.45"))
+VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID") or "pNInz6obpgDQGcFmaJgB"
+MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID") or "eleven_multilingual_v2"
+
+FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
+FFPROBE = os.environ.get("FFPROBE", "ffprobe")
+
+# Brand palette (matches the gallery cards).
+INK = (11, 13, 20)
+WHITE = (244, 244, 246)
+EMBER = (233, 84, 74)
 GOLD = (212, 169, 78)
-ZINC = (212, 212, 216)
-ZINC_DIM = (140, 140, 150)
-GREEN = (74, 222, 128)
-RED = (248, 113, 113)
-BLUE = (125, 176, 232)
+ZINC = (198, 200, 208)
+
 
 def _first_font(*candidates: str) -> str:
     for c in candidates:
-        if Path(c).exists():
+        if os.path.exists(c):
             return c
-    return candidates[-1]  # let PIL raise a clear error if truly none exist
+    return candidates[-1]
 
 
 FONT = _first_font("C:/Windows/Fonts/segoeui.ttf",
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+                   "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
 FONTB = _first_font("C:/Windows/Fonts/segoeuib.ttf",
                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")
-MONO = _first_font("C:/Windows/Fonts/consola.ttf",
-                   "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")
-MONOB = _first_font("C:/Windows/Fonts/consolab.ttf",
-                    "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf")
-VOICE = "en-US-GuyNeural"
 
 
-def f(path, size):
+def font(path: str, size: int) -> ImageFont.FreeTypeFont:
     return ImageFont.truetype(path, size)
 
 
-def new_frame():
-    return Image.new("RGB", (W, H), BG)
+# --------------------------------------------------------------------------- #
+# The script — one beat per picture, honest to the current app.
+# --------------------------------------------------------------------------- #
+@dataclass
+class Beat:
+    id: str
+    assets: list[str]          # one still = Ken Burns; several = a mini montage
+    caption: str               # short burned-in line
+    narration: str             # spoken + the SRT cue
+    dur: float = field(default=0.0, init=False)
 
 
-def letterbox(d):
-    d.rectangle([0, 0, W, 46], fill=(0, 0, 0))
-    d.rectangle([0, H - 46, W, H], fill=(0, 0, 0))
+def card(name: str) -> str:
+    return os.path.join(CARDS, name)
 
 
-def center_text(d, cx, y, text, font, fill):
-    b = d.textbbox((0, 0), text, font=font)
-    d.text((cx - (b[2] - b[0]) / 2, y), text, font=font, fill=fill)
+def frame(name: str) -> str:
+    return os.path.join(FRAMES, name)
 
 
-def _fit_font(d, text, path, start, max_w):
-    size = start
-    while size > 20:
-        fnt = f(path, size)
-        b = d.textbbox((0, 0), text, font=fnt)
-        if (b[2] - b[0]) <= max_w:
-            return fnt
-        size -= 2
-    return f(path, 20)
+BEATS: list[Beat] = [
+    Beat(
+        "01-hook",
+        [card("cinemory-01-thumbnail.png")],
+        "Cinemory — memories, made into film",
+        "Your memories, made into film. And sealed, so anyone can prove it's "
+        "real. This is Cinemory. It began as an anniversary gift, turning a "
+        "folder of photos into a short film you could actually keep.",
+    ),
+    Beat(
+        "02-trust",
+        [frame("frame-clip1-kling.png")],
+        "Easy to make. Hard to trust.",
+        "Generative video like this is easy to make, and hard to trust. When an "
+        "AI turns your photos into a highlight reel, three questions matter. "
+        "Which model made it. From which photos. And can you prove that not one "
+        "frame was changed?",
+    ),
+    Beat(
+        "03-what",
+        [card("cinemory-02-pipeline.png")],
+        "Photos in. A scored reel out. Provenance sealed.",
+        "Cinemory answers all three. You give it photos, you pick an occasion, "
+        "and it returns a scored, cinematic reel. Every clip is stored on "
+        "Backblaze B2 at its own hash, and sealed with SHA-256 provenance, so "
+        "the record of how it was made travels with the video.",
+    ),
+    Beat(
+        "04-reel",
+        [frame("frame-clip4-kling.png"), frame("frame-livebox-upload-kling.png")],
+        "Four steps: photos, occasion, generate, play",
+        "It runs in four steps. Add your photos, choose an occasion that sets "
+        "the music and the pacing, hit generate, and the reel plays. Real clips, "
+        "animated from each photo, bridged and graded into one film.",
+    ),
+    Beat(
+        "05-verify",
+        [card("cinemory-05-provenance.png")],
+        "Press Verify — the seal recomputes to Verified",
+        "Then open the Provenance panel. It shows the model, the prompt, and a "
+        "hash for every step. Press Verify, and your browser recomputes the "
+        "SHA-256 itself. The seal flips to Verified. A server re-check then "
+        "re-hashes every stored file and reports each check as passed.",
+    ),
+    Beat(
+        "06-honest",
+        [card("cinemory-04-b2-objects.png")],
+        "Every clip cites its source photo, by hash",
+        "Two things keep it honest. Every clip cites the exact source photo it "
+        "came from, by hash. Change a single byte, and the seal breaks. And when "
+        "a live model is down, Cinemory degrades in the open, records the "
+        "provider it actually used, and never fakes a result.",
+    ),
+    Beat(
+        "07-stack",
+        [card("cinemory-06-architecture.png")],
+        "One core, three ports. Live adapters, offline fakes.",
+        "The design is one clean core with three ports. Genblaze drives Kling "
+        "and seedance through GMI Cloud. Backblaze B2 holds every artifact "
+        "behind a queryable index. FastAPI and React run on Cloud Run. And "
+        "offline fakes run the whole pipeline in tests, with no credentials.",
+    ),
+    Beat(
+        "08-close",
+        [card("cinemory-03-live-proof.png")],
+        "Live now · open source · github.com/upgradedev/cinemory",
+        "It's live on Cloud Run, mirrored on Firebase, and fully open source. "
+        "Cinemory. Memories, made into film, that you can trust.",
+    ),
+]
 
 
-def slide_title(title, subtitle, tag=None):
-    img = new_frame()
-    d = ImageDraw.Draw(img)
-    letterbox(d)
-    # gold rule
-    d.rectangle([W / 2 - 40, 250, W / 2 + 40, 253], fill=GOLD)
-    title_font = _fit_font(d, title, FONTB, 60, W - 140)
-    center_text(d, W / 2, 285, title, title_font, ZINC)
-    if subtitle:
-        sub_font = _fit_font(d, subtitle, FONT, 30, W - 140)
-        center_text(d, W / 2, 375, subtitle, sub_font, ZINC_DIM)
-    if tag:
-        center_text(d, W / 2, 620, tag, f(MONO, 22), GOLD)
-    return img
+# --------------------------------------------------------------------------- #
+# ffmpeg helpers
+# --------------------------------------------------------------------------- #
+def run(cmd: list[str]) -> str:
+    r = subprocess.run(cmd, capture_output=True)
+    if r.returncode != 0:
+        sys.stderr.write("CMD FAILED: " + " ".join(map(str, cmd)) + "\n")
+        sys.stderr.write(r.stderr.decode(errors="replace")[-1600:] + "\n")
+        raise SystemExit(1)
+    return r.stdout.decode(errors="replace")
 
 
-def slide_bullets(header, bullets, footer=None):
-    img = new_frame()
-    d = ImageDraw.Draw(img)
-    d.text((110, 90), header, font=f(FONTB, 44), fill=ZINC)
-    d.rectangle([110, 158, 260, 162], fill=GOLD)
-    y = 220
-    for label, desc in bullets:
-        d.text((120, y), "●", font=f(FONT, 26), fill=GOLD)
-        d.text((165, y - 4), label, font=f(FONTB, 30), fill=ZINC)
-        if desc:
-            d.text((165, y + 36), desc, font=f(FONT, 24), fill=ZINC_DIM)
-        y += 108
-    if footer:
-        d.text((120, H - 96), footer, font=f(MONO, 22), fill=GOLD)
-    return img
+def probe_duration(path: str) -> float:
+    out = run([FFPROBE, "-v", "error", "-show_entries", "format=duration",
+               "-of", "default=nw=1:nk=1", path])
+    return float(out.strip())
 
 
-def _color_for(line):
-    ls = line.strip()
-    if "True" in line or "PASSED" in line or '"status":"ok"' in line or "200" in line:
-        return GREEN
-    if "FAILED" in line or "AccessDenied" in line or "Error" in line:
-        return RED
-    if ls.startswith("$") or ls.startswith("#") or ls.startswith("▶"):
-        return GOLD
-    return ZINC
+# --------------------------------------------------------------------------- #
+# ElevenLabs (no silent fallback — the build STOPS on any TTS error)
+# --------------------------------------------------------------------------- #
+def synth_elevenlabs(text: str, out_mp3: str, key: str, retries: int = 3) -> None:
+    """Cached, retried ElevenLabs TTS. Cache key = sha256(text|voice|model)."""
+    digest = hashlib.sha256(f"{text}|{VOICE_ID}|{MODEL_ID}".encode()).hexdigest()[:16]
+    cached = os.path.join(CACHE, digest + ".mp3")
+    if os.path.exists(cached) and os.path.getsize(cached) > 3000:
+        _copy(cached, out_mp3)
+        print(f"[tts] cache hit  {digest}")
+        return
 
-
-def terminal(header, cmd, lines, note=None, mono_size=22):
-    img = new_frame()
-    d = ImageDraw.Draw(img)
-    d.text((110, 66), header, font=f(FONTB, 38), fill=ZINC)
-    # panel
-    x0, y0, x1, y1 = 90, 140, W - 90, H - 96
-    d.rounded_rectangle([x0, y0, x1, y1], radius=14, fill=PANEL)
-    d.rounded_rectangle([x0, y0, x1, y0 + 40], radius=14, fill=PANEL_BAR)
-    d.rectangle([x0, y0 + 26, x1, y0 + 40], fill=PANEL_BAR)
-    for i, c in enumerate([(255, 95, 86), (255, 189, 46), (39, 201, 63)]):
-        d.ellipse([x0 + 18 + i * 22, y0 + 14, x0 + 30 + i * 22, y0 + 26], fill=c)
-    d.text((x0 + 96, y0 + 11), "bash — cinemory", font=f(MONO, 18), fill=ZINC_DIM)
-    fm = f(MONO, mono_size)
-    y = y0 + 62
-    if cmd:
-        d.text((x0 + 26, y), "$ ", font=f(MONOB, mono_size), fill=GREEN)
-        d.text((x0 + 26 + 22, y), cmd, font=f(MONOB, mono_size), fill=ZINC)
-        y += mono_size + 12
-    for ln in lines:
-        d.text((x0 + 26, y), ln, font=fm, fill=_color_for(ln))
-        y += mono_size + 8
-    if note:
-        d.text((110, H - 78), note, font=f(FONT, 22), fill=ZINC_DIM)
-    return img
-
-
-def read_lines(name, maxn=14):
-    txt = (CAP / name).read_text(encoding="utf-8", errors="replace")
-    out = []
-    for ln in txt.splitlines():
-        ln = ln.rstrip()
-        if len(ln) > 78:
-            ln = ln[:75] + "..."
-        out.append(ln)
-    return out[:maxn]
-
-
-async def synth(text, path):
-    c = edge_tts.Communicate(text, VOICE, rate="-4%")
-    await c.save(str(path))
-
-
-def duration(path):
-    r = subprocess.run(
-        ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", str(path)],
-        capture_output=True, text=True,
+    url = (f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+           f"?output_format=mp3_44100_128")
+    body = json.dumps({
+        "text": text,
+        "model_id": MODEL_ID,
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.8,
+                           "style": 0.0, "use_speaker_boost": True},
+    }).encode("utf-8")
+    last: Exception | None = None
+    for attempt in range(retries):
+        try:
+            req = urllib.request.Request(url, data=body, headers={
+                "xi-api-key": key, "Content-Type": "application/json",
+                "Accept": "audio/mpeg"})
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                data = resp.read()
+            if len(data) < 3000:
+                raise RuntimeError(f"suspiciously tiny audio ({len(data)} bytes)")
+            with open(cached, "wb") as fh:
+                fh.write(data)
+            _copy(cached, out_mp3)
+            return
+        except urllib.error.HTTPError as e:  # noqa: PERF203
+            detail = e.read().decode(errors="replace")[:400]
+            last = RuntimeError(f"HTTP {e.code}: {detail}")
+            if e.code in (401, 403, 422):  # auth/quota/validation — don't hammer
+                break
+            time.sleep(2 * (attempt + 1))
+        except Exception as e:  # noqa: BLE001
+            last = e
+            time.sleep(2 * (attempt + 1))
+    raise SystemExit(
+        f"[STOP] ElevenLabs TTS failed for beat text {text[:48]!r}: {last}\n"
+        f"       Set a valid ELEVENLABS_API_KEY. No edge-tts fallback by design."
     )
-    return float(json.loads(r.stdout)["format"]["duration"])
 
 
-# ── segments ──────────────────────────────────────────────────────────────────
-def build_segments():
-    segs = []
-
-    segs.append((
-        slide_title("Cinemory", "your memories, made into film",
-                    "generated with Genblaze · stored on Backblaze B2 · SHA-256 provenance"),
-        "Cinemory turns your photos into a scored cinematic film. Generated with "
-        "Genblaze, stored on Backblaze B2, and sealed with verifiable SHA-256 "
-        "provenance on every frame it produces. It started as an anniversary gift; "
-        "the personal content stays private, so this demo uses synthetic photos only.",
-    ))
-
-    segs.append((
-        slide_bullets("AI media is easy to make — and hard to trust", [
-            ("What made this?", "which model, prompt and parameters produced the reel"),
-            ("From what inputs?", "every source photo, content-addressed"),
-            ("Can I prove it wasn't tampered with?", "a seal that fails loudly if a byte changes"),
-        ], footer="Cinemory answers all three."),
-        "AI media is easy to make and hard to trust. For a comms team turning an "
-        "event's photos into a branded highlight reel, three questions matter: what "
-        "made this, from what inputs, and can I prove it wasn't tampered with. "
-        "Cinemory answers all three.",
-    ))
-
-    segs.append((
-        slide_bullets("The product — a four-step cinematic wizard", [
-            ("Photos", "drag-drop your real photos; the actual bytes are the input"),
-            ("Occasion", "presets set music, pacing and aspect ratio"),
-            ("Generate", "real bytes stream to POST /reels/upload-multipart"),
-            ("Result + Provenance", "the reel plays; per-step hashes + the manifest seal"),
-        ], footer="Live: upgradegr-cinemory.web.app"),
-        "The product is a four-step cinematic wizard. You drag and drop your real "
-        "photos onto the storyboard; the actual pixels are the input, not just a "
-        "count. You pick an occasion, which sets the music mood, pacing and aspect "
-        "ratio. You hit generate, and the real photo bytes stream to the upload "
-        "endpoint. The reel plays, and a provenance panel shows every step's hash "
-        "and the manifest seal.",
-    ))
-
-    segs.append((
-        terminal("The pipeline in the raw", "bash demo/capture-demo.sh",
-                 read_lines("cli.txt"),
-                 note="17 objects persisted; manifest, asset and embedded provenance all verify."),
-        "Under the hood, the same pipeline runs from the command line. Each photo "
-        "becomes a short clip through a Genblaze pipeline step, chapters are bridged "
-        "with first-last-frame transitions, and the reel is stitched. Every artifact "
-        "is content-addressed and stored — Backblaze B2 in live mode, an in-memory "
-        "store here, so this whole run works offline with no credentials. Seventeen "
-        "objects are stored, and the manifest, the asset and the embedded provenance "
-        "all verify — true, true, true.",
-    ))
-
-    segs.append((
-        terminal("Provenance is real", "cat manifest.json  # first step",
-                 read_lines("manifest.txt"),
-                 note="Provider, model, modality, per-asset SHA-256 — sealed into a manifest."),
-        "Provenance isn't a badge; it's data. The manifest records the provider, the "
-        "model, the modality and a SHA-256 hash for every asset, timestamped, and it "
-        "is embedded into the reel container so it re-verifies offline with no network.",
-    ))
-
-    segs.append((
-        terminal("Tamper-evident by test", "pytest tests/unit/test_provenance.py -v",
-                 read_lines("tamper.txt"),
-                 note="Flip one byte and verification fails — trust is a passing test."),
-        "And it's tamper-evident. Flip a single byte in a sealed asset and "
-        "verification fails. Trust isn't a claim here; it's a test that runs in CI — "
-        "including the one that proves tampering is detected.",
-    ))
-
-    segs.append((
-        terminal("The core action never 500s", "curl /health   &&   POST /reels",
-                 read_lines("health.txt", 2) + [""] + read_lines("reels.txt", 6),
-                 note="Live mode uses real backends only when creds are present; else it degrades to 200."),
-        "Production readiness starts with never failing the core action. In live "
-        "mode the API uses the real Genblaze and B2 backends only when their "
-        "credentials are present, and otherwise degrades transparently to the "
-        "offline path. Health reports the effective provider and storage, and a "
-        "reel request returns two hundred with a sealed manifest even with no "
-        "credentials.",
-    ))
-
-    segs.append((
-        terminal("Verified against the real SDK",
-                 "pytest tests/integration/test_genblaze_contract.py -v",
-                 read_lines("contract.txt"),
-                 note="154 tests green offline; the adapter runs against the real Genblaze SDK."),
-        "The whole suite runs green offline with zero credentials — a hundred and "
-        "fifty-four tests — including a contract test that runs the adapter against "
-        "the real published Genblaze SDK, so any API drift fails CI.",
-    ))
-
-    segs.append((
-        slide_title("Memories, made into film — that you can trust",
-                    "Genblaze generation · B2 storage + queryable index · verifiable provenance",
-                    "github.com/upgradedev/cinemory · upgradegr-cinemory.web.app"),
-        "Genblaze for generation and per-asset provenance; Backblaze B2 for durable, "
-        "content-addressed storage of every artifact plus a queryable run index; and "
-        "provenance you can verify, that fails loudly when tampered. That's Cinemory "
-        "— memories, made into film, that you can trust.",
-    ))
-
-    return segs
+def _copy(src: str, dst: str) -> None:
+    with open(src, "rb") as a, open(dst, "wb") as b:
+        b.write(a.read())
 
 
-def main():
-    segs = build_segments()
-    parts = []
-    for i, (img, narration) in enumerate(segs):
-        png = WORK / f"seg{i:02d}.png"
-        img.save(png)
-        mp3 = WORK / f"seg{i:02d}.mp3"
-        asyncio.run(synth(narration, mp3))
-        dur = duration(mp3) + 0.7
-        seg_mp4 = WORK / f"seg{i:02d}.mp4"
-        subprocess.run([
-            "ffmpeg", "-y", "-loop", "1", "-i", str(png), "-i", str(mp3),
-            "-c:v", "libx264", "-tune", "stillimage", "-pix_fmt", "yuv420p",
-            "-r", "30", "-t", f"{dur:.2f}",
-            "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
-            "-af", "apad", "-shortest",
-            "-vf", f"scale={W}:{H}", str(seg_mp4),
-        ], check=True, capture_output=True)
-        parts.append(seg_mp4)
-        print(f"  seg{i:02d}: {dur:.1f}s")
+def build_audio(beats: list[Beat], key: str) -> tuple[str, list[float]]:
+    """Synthesize + measure + frame-snap + pad each beat; concat the voiceover."""
+    padded, durations = [], []
+    for i, b in enumerate(beats):
+        mp3 = os.path.join(WORK, f"nar_{i:02d}.mp3")
+        synth_elevenlabs(b.narration, mp3, key)
+        wav = os.path.join(WORK, f"nar_{i:02d}.wav")
+        run([FFMPEG, "-y", "-i", mp3, "-ac", "1", "-ar", "44100", "-f", "wav", wav])
+        d = probe_duration(wav)
+        frames = max(1, round((d + TAIL) * FPS))
+        dur = frames / FPS
+        pad = os.path.join(WORK, f"pad_{i:02d}.wav")
+        run([FFMPEG, "-y", "-i", wav, "-af", "apad", "-t", f"{dur:.6f}",
+             "-ac", "1", "-ar", "44100", "-c:a", "pcm_s16le", "-f", "wav", pad])
+        padded.append(pad)
+        durations.append(dur)
+        b.dur = dur
+        print(f"[audio] {b.id:<10} speech={d:6.3f}s  scene={dur:6.3f}s")
 
-    listf = WORK / "concat.txt"
-    listf.write_text("".join(f"file '{p.as_posix()}'\n" for p in parts))
-    subprocess.run([
-        "ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(listf),
-        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-        "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart",
-        str(OUT),
-    ], check=True, capture_output=True)
-    print("total:", duration(OUT), "s ->", OUT)
+    listf = os.path.join(WORK, "audio_concat.txt")
+    with open(listf, "w", encoding="utf-8") as fh:
+        for p in padded:
+            fh.write(f"file '{p}'\n")
+    voice = os.path.join(WORK, "voiceover.wav")
+    run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", listf,
+         "-ac", "1", "-ar", "44100", "-c:a", "pcm_s16le", voice])
+    return voice, durations
+
+
+# --------------------------------------------------------------------------- #
+# Picture: Pillow composites + ffmpeg Ken Burns + burned caption
+# --------------------------------------------------------------------------- #
+def _cover(im: Image.Image, w: int, h: int) -> Image.Image:
+    scale = max(w / im.width, h / im.height)
+    r = im.resize((round(im.width * scale), round(im.height * scale)), Image.LANCZOS)
+    left, top = (r.width - w) // 2, (r.height - h) // 2
+    return r.crop((left, top, left + w, top + h))
+
+
+def compose_base(src: str, is_card: bool) -> Image.Image:
+    """A full 1280x720 still. Cards are letterboxed onto a blurred fill of
+    themselves (invisible pillarbox, fully legible); real 16:9 frames fill."""
+    im = Image.open(src).convert("RGB")
+    if not is_card:
+        return _cover(im, W, H)
+    bg = _cover(im, W, H).filter(ImageFilter.GaussianBlur(30))
+    bg = Image.blend(bg, Image.new("RGB", (W, H), (0, 0, 0)), 0.42)
+    fscale = min(W / im.width, H / im.height) * 0.93
+    fg = im.resize((round(im.width * fscale), round(im.height * fscale)), Image.LANCZOS)
+    canvas = bg.copy()
+    canvas.paste(fg, ((W - fg.width) // 2, (H - fg.height) // 2))
+    return canvas
+
+
+def caption_overlay(text: str, show_wordmark: bool) -> Image.Image:
+    """Transparent 1280x720: a lower-third caption band + caption text, and (only
+    on the otherwise-unbranded photo beats) a small brand wordmark. Overlaid AFTER
+    the Ken Burns zoom, so it stays crisp and fixed. The band ramps to near-solid
+    at the bottom so it cleanly covers each gallery card's own footer."""
+    ov = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    d = ImageDraw.Draw(ov)
+    band_h = 190
+    for y in range(band_h):
+        p = y / band_h
+        # ramp to fully opaque by ~2/3 down, so the band covers each card's
+        # own footer line cleanly while the top edge still fades in softly.
+        a = int(236 * min(1.0, (p * 1.5) ** 1.3))
+        d.line([(0, H - band_h + y), (W, H - band_h + y)], fill=(6, 7, 11, a))
+    # caption (shrink to fit)
+    size = 33
+    while size > 20:
+        fnt = font(FONTB, size)
+        if d.textlength(text, font=fnt) <= W - 150:
+            break
+        size -= 1
+    fnt = font(FONTB, size)
+    tw = d.textlength(text, font=fnt)
+    ty = H - 64
+    # gold accent bar above the caption
+    d.rectangle([(W - 64) / 2, ty - 22, (W + 64) / 2, ty - 19], fill=GOLD + (255,))
+    d.text(((W - tw) / 2, ty), text, font=fnt, fill=WHITE + (255,))
+    # brand wordmark, top-left — only on photo beats (the cards are self-branded)
+    if show_wordmark:
+        wf = font(FONTB, 24)
+        d.ellipse([40, 42, 54, 56], fill=EMBER + (255,))
+        d.text((64, 38), "Cinemory", font=wf, fill=(235, 236, 240, 235))
+    return ov
+
+
+def frame_split(total_frames: int, n: int) -> list[int]:
+    """Split total_frames into n parts; the last part absorbs the remainder so
+    the montage sums EXACTLY to the beat's frame-locked length."""
+    base = total_frames // n
+    parts = [base] * n
+    parts[-1] += total_frames - base * n
+    return parts
+
+
+def kenburns(base_png: str, out_mp4: str, frames: int, zoom_in: bool) -> None:
+    """One still -> exact `frames`-long clip with a gentle center Ken Burns."""
+    zmax = 1.08
+    if zoom_in:
+        z = f"min(zoom+{(zmax - 1.0) / max(frames - 1, 1):.6f},{zmax})"
+    else:  # start zoomed, ease out to full frame
+        z = f"if(eq(on,0),{zmax},max(zoom-{(zmax - 1.0) / max(frames - 1, 1):.6f},1.0))"
+    vf = (f"scale={W * 2}:{H * 2},"
+          f"zoompan=z='{z}':d={frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
+          f"s={W}x{H}:fps={FPS},format=yuv420p")
+    run([FFMPEG, "-y", "-loop", "1", "-i", base_png, "-t", f"{frames / FPS:.6f}",
+         "-vf", vf, "-r", str(FPS), "-an",
+         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+         out_mp4])
+
+
+def render_beat(idx: int, beat: Beat, dur: float) -> str:
+    """Ken Burns motion (single still or montage) + burned caption -> seg mp4."""
+    frames = round(dur * FPS)
+    # 1) motion (video only, exact length)
+    motion = os.path.join(WORK, f"motion_{idx:02d}.mp4")
+    subs = []
+    parts = frame_split(frames, len(beat.assets))
+    for j, (asset, pf) in enumerate(zip(beat.assets, parts, strict=True)):
+        base_png = os.path.join(WORK, f"base_{idx:02d}_{j}.png")
+        compose_base(asset, is_card="/cards/" in asset.replace(os.sep, "/")).save(base_png)
+        sub = os.path.join(WORK, f"sub_{idx:02d}_{j}.mp4")
+        kenburns(base_png, sub, pf, zoom_in=((idx + j) % 2 == 0))
+        subs.append(sub)
+    if len(subs) == 1:
+        motion = subs[0]
+    else:
+        cat = os.path.join(WORK, f"motion_concat_{idx:02d}.txt")
+        with open(cat, "w", encoding="utf-8") as fh:
+            for s in subs:
+                fh.write(f"file '{s}'\n")
+        run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", cat,
+             "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+             "-pix_fmt", "yuv420p", motion])
+    # 2) burn caption + mux this beat's padded audio. The brand wordmark rides
+    #    only on photo beats; the gallery cards are already self-branded.
+    is_card_beat = any("/cards/" in a.replace(os.sep, "/") for a in beat.assets)
+    cap_png = os.path.join(WORK, f"cap_{idx:02d}.png")
+    caption_overlay(beat.caption, show_wordmark=not is_card_beat).save(cap_png)
+    audio = os.path.join(WORK, f"pad_{idx:02d}.wav")
+    seg = os.path.join(WORK, f"seg_{idx:02d}.mp4")
+    run([FFMPEG, "-y", "-i", motion, "-i", cap_png, "-i", audio,
+         "-filter_complex", "[0:v][1:v]overlay=0:0[v]",
+         "-map", "[v]", "-map", "2:a", "-t", f"{dur:.6f}",
+         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-b:a", "192k", "-ar", "44100", seg])
+    return seg
+
+
+# --------------------------------------------------------------------------- #
+# Sidecars: SRT + beats.json
+# --------------------------------------------------------------------------- #
+def srt_ts(seconds: float) -> str:
+    ms = round(seconds * 1000)
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1_000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def write_sidecars(beats: list[Beat], durations: list[float]) -> None:
+    cues, meta, t = [], [], 0.0
+    for i, (b, dur) in enumerate(zip(beats, durations, strict=True), start=1):
+        start, end = t, t + dur
+        text = "\n".join(textwrap.wrap(" ".join(b.narration.split()), width=64))
+        cues.append(f"{i}\n{srt_ts(start)} --> {srt_ts(end)}\n{text}\n")
+        meta.append({
+            "index": i, "id": b.id,
+            "assets": [os.path.relpath(a, DEMO).replace(os.sep, "/") for a in b.assets],
+            "caption": b.caption, "narration": " ".join(b.narration.split()),
+            "start": round(start, 3), "end": round(end, 3), "dur": round(dur, 3),
+        })
+        t = end
+    with open(OUT_SRT, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write("\n".join(cues))
+    with open(OUT_BEATS, "w", encoding="utf-8", newline="\n") as fh:
+        json.dump({
+            "video": os.path.basename(OUT_MP4),
+            "srt": os.path.basename(OUT_SRT),
+            "fps": FPS, "width": W, "height": H,
+            "voice": {"provider": "elevenlabs", "voice_id": VOICE_ID, "model_id": MODEL_ID},
+            "total_seconds": round(sum(durations), 3),
+            "beats": meta,
+        }, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+
+
+# --------------------------------------------------------------------------- #
+def main() -> int:
+    key = os.environ.get("ELEVENLABS_API_KEY")
+    if not key:
+        raise SystemExit(
+            "[STOP] ELEVENLABS_API_KEY is not set. This build is ElevenLabs-only "
+            "(no edge-tts fallback by design). Export the key and re-run."
+        )
+    os.makedirs(WORK, exist_ok=True)
+    os.makedirs(CACHE, exist_ok=True)
+
+    chars = sum(len(b.narration) for b in BEATS)
+    print(f"[build] {len(BEATS)} beats · {chars} narration chars · fps={FPS} · tail={TAIL}s")
+    print(f"[voice] elevenlabs voice_id={VOICE_ID} model_id={MODEL_ID}")
+
+    _voice, durations = build_audio(BEATS, key)
+
+    segs = [render_beat(i, b, d) for i, (b, d) in enumerate(zip(BEATS, durations, strict=True))]
+
+    listf = os.path.join(WORK, "video_concat.txt")
+    with open(listf, "w", encoding="utf-8") as fh:
+        for s in segs:
+            fh.write(f"file '{s}'\n")
+    # Concat to a fresh temp, then swap into place. On Windows the destination mp4
+    # can hold a lingering read/AV handle right after a previous build; encoding to
+    # a new name and atomically replacing avoids ffmpeg fighting a locked output.
+    tmp_out = os.path.join(WORK, "final.mp4")
+    run([FFMPEG, "-y", "-f", "concat", "-safe", "0", "-i", listf,
+         "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+         "-movflags", "+faststart", tmp_out])
+    for attempt in range(5):
+        try:
+            os.replace(tmp_out, OUT_MP4)
+            break
+        except OSError as e:  # destination briefly locked — back off and retry
+            if attempt == 4:
+                raise SystemExit(f"[STOP] could not replace {OUT_MP4}: {e}") from e
+            time.sleep(1.5)
+
+    write_sidecars(BEATS, durations)
+
+    total = sum(durations)
+    vdur = probe_duration(OUT_MP4)
+    print(f"\n[guard] beats={len(BEATS)} sum={total:.3f}s  video={vdur:.3f}s  chars={chars}")
+    if abs(vdur - total) > (1.0 / FPS) + 0.20:
+        raise SystemExit(f"[STOP] video {vdur:.3f}s vs sum {total:.3f}s drift too large")
+    if vdur >= 180.0:
+        raise SystemExit(f"[STOP] video {vdur:.3f}s exceeds the 180s hard cap")
+    mm, ss = divmod(vdur, 60)
+    print(f"[ok] {OUT_MP4}  {int(mm)}:{ss:04.1f}  ({chars} chars sent to ElevenLabs)")
+    print(f"[ok] {OUT_SRT}")
+    print(f"[ok] {OUT_BEATS}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

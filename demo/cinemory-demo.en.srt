@@ -1,0 +1,57 @@
+1
+00:00:00,000 --> 00:00:15,300
+Your memories, made into film. And sealed, so anyone can prove
+it's real. This is Cinemory. It began as an anniversary gift,
+turning a folder of photos into a short film you could actually
+keep.
+
+2
+00:00:15,300 --> 00:00:32,333
+Generative video like this is easy to make, and hard to trust.
+When an AI turns your photos into a highlight reel, three
+questions matter. Which model made it. From which photos. And
+can you prove that not one frame was changed?
+
+3
+00:00:32,333 --> 00:00:52,300
+Cinemory answers all three. You give it photos, you pick an
+occasion, and it returns a scored, cinematic reel. Every clip is
+stored on Backblaze B2 at its own hash, and sealed with SHA-256
+provenance, so the record of how it was made travels with the
+video.
+
+4
+00:00:52,300 --> 00:01:06,400
+It runs in four steps. Add your photos, choose an occasion that
+sets the music and the pacing, hit generate, and the reel plays.
+Real clips, animated from each photo, bridged and graded into
+one film.
+
+5
+00:01:06,400 --> 00:01:26,433
+Then open the Provenance panel. It shows the model, the prompt,
+and a hash for every step. Press Verify, and your browser
+recomputes the SHA-256 itself. The seal flips to Verified. A
+server re-check then re-hashes every stored file and reports
+each check as passed.
+
+6
+00:01:26,433 --> 00:01:46,400
+Two things keep it honest. Every clip cites the exact source
+photo it came from, by hash. Change a single byte, and the seal
+breaks. And when a live model is down, Cinemory degrades in the
+open, records the provider it actually used, and never fakes a
+result.
+
+7
+00:01:46,400 --> 00:02:07,800
+The design is one clean core with three ports. Genblaze drives
+Kling and seedance through GMI Cloud. Backblaze B2 holds every
+artifact behind a queryable index. FastAPI and React run on
+Cloud Run. And offline fakes run the whole pipeline in tests,
+with no credentials.
+
+8
+00:02:07,800 --> 00:02:16,567
+It's live on Cloud Run, mirrored on Firebase, and fully open
+source. Cinemory. Memories, made into film, that you can trust.
