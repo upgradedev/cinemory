@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  fetchReelReceipt,
   parseJsonPreservingLexemes,
+  parseVerificationReceipt,
   pythonCanonicalJson,
   pythonEscapeString,
   sha256HexUtf8,
   verifyManifestText,
   verifyReelProvenance,
+  type VerificationReceipt,
 } from "./provenance-verify";
 // The GOLDEN fixture is the raw HTTP body of `GET /reels/{name}` produced by
 // the REAL backend (FastAPI TestClient over the offline pipeline) — see the
@@ -141,5 +144,101 @@ describe("verifyReelProvenance", () => {
     expect(fetchImpl.mock.calls[0]?.[0]).toBe(
       "/reels/golden%20%CE%BC%2F..%2Fx",
     );
+  });
+});
+
+// ── server-side aggregate named-check receipt ─────────────────────────────────
+
+const RECEIPT: VerificationReceipt = {
+  success: true,
+  digest: "a".repeat(64),
+  checks: [
+    { id: "seal.manifest_hash", label: "Manifest seal recomputes (SHA-256)", passed: true, evidence: "matches" },
+    { id: "artifact.reel", label: "Reel bytes match the sealed hash", passed: true, evidence: "matches" },
+  ],
+};
+
+describe("parseVerificationReceipt", () => {
+  it("accepts a well-formed receipt", () => {
+    expect(parseVerificationReceipt(RECEIPT)).toEqual(RECEIPT);
+  });
+
+  it("rejects non-objects and null", () => {
+    expect(parseVerificationReceipt(null)).toBeNull();
+    expect(parseVerificationReceipt("nope")).toBeNull();
+    expect(parseVerificationReceipt(42)).toBeNull();
+  });
+
+  it("rejects a manifest masquerading as a receipt (no success/digest/checks)", () => {
+    expect(parseVerificationReceipt({ schema: "cinemory/manifest/v1", steps: [] })).toBeNull();
+  });
+
+  it("rejects a receipt whose checks are malformed", () => {
+    expect(
+      parseVerificationReceipt({ success: true, digest: "d", checks: [{ id: "x" }] }),
+    ).toBeNull();
+    expect(
+      parseVerificationReceipt({ success: true, digest: "d", checks: ["not-an-object"] }),
+    ).toBeNull();
+  });
+});
+
+describe("fetchReelReceipt", () => {
+  const okJson = (body: unknown) =>
+    ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
+
+  it("returns 'verified' for a well-formed all-pass receipt", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJson(RECEIPT));
+    const res = await fetchReelReceipt("reel-1", fetchImpl);
+    expect(res.state).toBe("verified");
+    expect(res.state !== "unavailable" && res.receipt.checks).toHaveLength(2);
+    expect(fetchImpl).toHaveBeenCalledWith(
+      "/reels/reel-1/verify",
+      expect.objectContaining({ headers: { Accept: "application/json" } }),
+    );
+  });
+
+  it("returns 'failed' when the receipt's success is false (server tamper signal)", async () => {
+    const failing = {
+      ...RECEIPT,
+      success: false,
+      checks: [{ ...RECEIPT.checks[0], passed: false, evidence: "does NOT match" }],
+    };
+    const res = await fetchReelReceipt("reel-1", vi.fn().mockResolvedValue(okJson(failing)));
+    expect(res.state).toBe("failed");
+  });
+
+  it("is honest (unavailable) on 404, other non-2xx, and network error", async () => {
+    const notFound = vi.fn().mockResolvedValue({ ok: false, status: 404 } as Response);
+    expect((await fetchReelReceipt("r", notFound)).state).toBe("unavailable");
+
+    const err500 = vi.fn().mockResolvedValue({ ok: false, status: 500 } as Response);
+    expect((await fetchReelReceipt("r", err500)).state).toBe("unavailable");
+
+    const netFail = vi.fn().mockRejectedValue(new TypeError("network down"));
+    expect((await fetchReelReceipt("r", netFail)).state).toBe("unavailable");
+  });
+
+  it("is honest (unavailable) when the body isn't a well-formed receipt", async () => {
+    // A manifest (or any legacy/degraded shape) must never masquerade as failed.
+    const manifestBody = vi.fn().mockResolvedValue(okJson({ schema: "cinemory/manifest/v1" }));
+    expect((await fetchReelReceipt("r", manifestBody)).state).toBe("unavailable");
+  });
+
+  it("is honest (unavailable) when the response body is not valid JSON", async () => {
+    const badJson = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected token");
+      },
+    } as unknown as Response);
+    expect((await fetchReelReceipt("r", badJson)).state).toBe("unavailable");
+  });
+
+  it("url-encodes the reel name on the verify fetch", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(okJson(RECEIPT));
+    await fetchReelReceipt("golden μ/../x", fetchImpl);
+    expect(fetchImpl.mock.calls[0]?.[0]).toBe("/reels/golden%20%CE%BC%2F..%2Fx/verify");
   });
 });
