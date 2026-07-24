@@ -56,7 +56,8 @@ one click runs two independent checks in parallel. The browser re-fetches the
 manifest and recomputes its SHA-256 itself with WebCrypto, so the seal isn't
 taken on the server's word. At the same time, `GET /reels/{name}/verify`
 re-fetches every stored artifact server-side and re-runs each named check,
-returning a signed receipt. Two different trust boundaries, same answer.
+returning a content-addressed receipt (its own digest seals the result). Two
+different trust boundaries, same answer.
 
 ---
 
