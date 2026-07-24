@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { SAMPLE_PHOTO_COUNT, generateSamplePhotos } from "./sample-photos";
+import {
+  SAMPLE_PHOTO_COUNT,
+  generateSamplePhotos,
+  renderSampleSceneDataUrls,
+} from "./sample-photos";
 
 // jsdom ships no canvas backend, so getContext("2d") is null there and the
 // drawing code (every scene branch + the gradient/ridge/vignette/label
@@ -58,5 +62,33 @@ describe("generateSamplePhotos — full paint path", () => {
     await expect(generateSamplePhotos(fakeDoc(null))).rejects.toThrow(
       /could not encode/i,
     );
+  });
+});
+
+describe("renderSampleSceneDataUrls — landing preview frames", () => {
+  function dataUrlDoc(): Document {
+    return {
+      createElement: () =>
+        ({
+          width: 0,
+          height: 0,
+          getContext: () => fakeCtx(),
+          toDataURL: () => "data:image/jpeg;base64,ZmFrZQ==",
+        }) as unknown as HTMLCanvasElement,
+    } as unknown as Document;
+  }
+
+  it("paints every scene and returns one data URL per frame", () => {
+    const urls = renderSampleSceneDataUrls(dataUrlDoc());
+    expect(urls).toHaveLength(SAMPLE_PHOTO_COUNT);
+    urls.forEach((u) => expect(u).toMatch(/^data:image\/jpeg/));
+  });
+
+  it("throws (not silently empty) when Canvas 2D is unavailable", () => {
+    const noCanvas = {
+      createElement: () =>
+        ({ getContext: () => null }) as unknown as HTMLCanvasElement,
+    } as unknown as Document;
+    expect(() => renderSampleSceneDataUrls(noCanvas)).toThrow(/canvas 2d/i);
   });
 });

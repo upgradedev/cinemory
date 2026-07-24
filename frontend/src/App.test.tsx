@@ -58,4 +58,16 @@ describe("<App />", () => {
       screen.getByRole("navigation", { name: /progress/i }),
     ).toBeInTheDocument();
   });
+
+  it("enters the studio from the landing sample-photos CTA", async () => {
+    renderApp();
+    // jsdom has no canvas backend, so sample generation is skipped — but the
+    // demo entry must still drop the visitor into the studio.
+    await userEvent.click(
+      screen.getByRole("button", { name: /try with sample photos/i }),
+    );
+    expect(
+      await screen.findByRole("navigation", { name: /progress/i }),
+    ).toBeInTheDocument();
+  });
 });

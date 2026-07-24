@@ -135,3 +135,35 @@ for (const width of [375, 768, 1280] as const) {
     await walkJourney(page, { label: `${width}px`, checkTapTargets: width === 375 });
   });
 }
+
+// The landing's secondary CTA is its own entry path (per the demo-mode e2e
+// rule): it must generate the sample set and drop the visitor into the studio
+// already holding the storyboard, then reach a sealed, verifiable reel.
+test("landing 'Try with sample photos' loads the storyboard and reaches a sealed reel", async ({
+  page,
+}) => {
+  await mockCinemoryApi(page);
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { level: 1, name: /made into film/i }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: /try with sample photos/i }).click();
+
+  // Lands on step 1 with the sample storyboard already populated (descriptive
+  // alt, not a filename) and the next CTA unlocked.
+  await assertStepSettled(page, STEPS[0]);
+  await expect(page.getByAltText(/cinematic dawn/i)).toBeVisible();
+  const toOccasion = page.getByRole("button", { name: /choose an occasion/i });
+  await expect(toOccasion).toBeEnabled();
+  await toOccasion.click();
+
+  await assertStepSettled(page, STEPS[1]);
+  await page.getByRole("radio", { name: /wedding/i }).click();
+  await page.getByRole("button", { name: /generate my reel/i }).click();
+  await assertStepSettled(page, STEPS[2]);
+  await assertStepSettled(page, STEPS[3]);
+
+  await page.getByRole("button", { name: /verify provenance/i }).click();
+  await expect(page.getByText(/it matches the sealed manifest_hash/i)).toBeVisible();
+});
