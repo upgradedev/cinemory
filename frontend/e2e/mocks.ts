@@ -62,8 +62,11 @@ const REEL_RESPONSE = {
 // GET /reels/{name}/verify (src/cinemory/provenance.py::verify_all). All checks
 // pass, so the ProvenancePanel renders "N/N checks passed — all verified" — the
 // honest offline outcome for the byte-exact golden reel.
+// Evidence intentionally does NOT echo the label (the real backend evidence
+// never does), so a label like "Reel bytes match the sealed hash" resolves to a
+// single element under Playwright's strict-mode getByText.
 function check(id: string, label: string) {
-  return { id, label, passed: true, evidence: `${label} — re-verified from stored bytes` };
+  return { id, label, passed: true, evidence: "re-verified offline from the stored bytes" };
 }
 const VERIFY_RECEIPT = {
   success: true,
