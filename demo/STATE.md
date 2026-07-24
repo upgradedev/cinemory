@@ -1,6 +1,19 @@
 # Cinemory — submission state
 
-_Last updated: 2026-07-22. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+_Last updated: 2026-07-24. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+
+## 2026-07-24 — test counts reconciled to CI (canonical)
+
+> Authoritative current counts, from the green CI run on `main` (2026-07-24) —
+> now identical across `README.md`, `demo/SUBMISSION.md` and this file. They
+> supersede the interim per-date figures further down: the suite grew as features
+> landed (frontend 21 → 31 → **169**; backend up to **211**), so older entries
+> below show smaller numbers by date, not a regression.
+
+- **Backend: 211 passed + 4 skipped in CI** (`python` job — unit 90 ·
+  integration 62 · e2e 59); the 4 skips are environment-gated —
+  optional-dependency / live-credential tests that do not run without creds.
+- **Frontend: 169 vitest tests across 31 files** (`frontend` job).
 
 ## 2026-07-22 — REAL live generation PROVEN (funded run) + same-day P0 find-fix
 
@@ -154,6 +167,12 @@ _Last updated: 2026-07-22. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > The Firebase Hosting site https://upgradegr-cinemory.web.app also serves the
 > React product UI. `cinemory.ai` is **not yet mapped**; the judge URL is the
 > run.app / web.app link. See `deploy/DEPLOYED.md` + `demo/SUBMISSION.md`.
+>
+> **Superseded 2026-07-22:** the PutObject-entitlement gap is closed — a
+> write-entitled B2 key landed, the live box generated for real, and **133
+> objects + 174 `index.jsonl` rows** were written to real B2 with a real reel
+> produced (see the 2026-07-22 section at the top). The "offline-degrade because
+> the key isn't entitled" state described above is kept for history.
 
 The former 95-blocker — "Genblaze adapter untested vs the real SDK" — is **closed**:
 the adapter is verified against the real published Genblaze SDK and contract-tested
@@ -163,7 +182,7 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 226 backend tests (224 passed + 2 gmicloud-gated skips, measured 2026-07-21) + 31 frontend; credential-free live-degrade + real-photo ingest; playable reels via the stable `/reels/{name}/video` route; drift guarded |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 211 backend passed + 4 skipped + 169 frontend across 31 files (CI on `main`, 2026-07-24); credential-free live-degrade + real-photo ingest; playable reels via the stable `/reels/{name}/video` route + a `/reels/{name}/verify` re-verification receipt; drift guarded |
 | B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) + a real queryable `index.jsonl` run index on both fake and B2 adapters |
 | Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 
@@ -173,6 +192,9 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 > prefixed); it is **not yet exercised against real B2** — the live box currently
 > runs the offline-degrade path because the B2 key in the deploy env is not
 > entitled for `PutObject`. A write-entitled key closes that last gap.
+> **Superseded 2026-07-22:** that key landed — the run index is now exercised
+> against real B2 (133 objects / 174 `index.jsonl` rows; see the top section).
+> Kept for history.
 
 A demo video is now committed (`demo/cinemory-demo.mp4`, ~3 min, offline-honest).
 Ceiling to 95+ is gated on a write-entitled B2 key + a live-B2 run + hosting the

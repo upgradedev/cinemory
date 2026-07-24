@@ -54,8 +54,10 @@ Given a set of (synthetic) memories organised into *chapters*:
 5. **Store on B2** — every input, clip, the final reel, and the run manifest are
    written to Backblaze B2 under content-addressed keys.
 6. **Provenance** — a SHA-256-sealed manifest records provider, model, prompt,
-   params, timestamps and every asset hash; it is persisted to B2 *and* embedded
-   into the reel container, and can be re-verified at any time.
+   params, timestamps and every asset hash — and **cites each generated clip back
+   to its source photo's SHA-256** (`source_sha256s`), so every output traces to
+   the exact input it came from. It is persisted to B2 *and* embedded into the
+   reel container, and can be re-verified at any time.
 
 ```mermaid
 flowchart TD
@@ -105,7 +107,18 @@ demo) · `POST /reels/upload` (real photos, base64 JSON) ·
 `POST /reels/upload-multipart` (real photos, multipart) · `GET /reels/{name}`
 (sealed manifest) · `GET /reels/{name}/video` (playback: 302 to a fresh
 presigned B2 URL in live mode, streamed bytes offline — the stable
-`playback_url` every reel response carries).
+`playback_url` every reel response carries) · `GET /reels/{name}/verify`
+(re-verification receipt: re-fetches the manifest and every stored artifact and
+re-runs each named provenance check from those bytes — the seal, the reel /
+provenance-reel / per-clip hashes, embedded-manifest equality, source-photo
+citations, and provider/model — returning an aggregate `verify_all` receipt whose
+own digest content-addresses the receipt; the React ProvenancePanel renders it
+live in the browser).
+
+**Product UI.** The React client opens on a landing page built for first-time
+comprehension — a **How it works** walkthrough, a self-contained **example reel**,
+and a one-click *"Try with sample photos"* path — before the four-step wizard
+(Photos → Occasion → Generate → Result + Provenance).
 
 The orchestrator depends **only on ports** (`MediaProvider`, `StorageBackend`,
 `Stitcher`). The real adapters wrap Genblaze and B2; the fakes implement the
