@@ -127,6 +127,12 @@ async function walkJourney(page: Page, opts: WalkOpts): Promise<void> {
   await verifyBtn.click();
   await expect(page.getByText(/it matches the sealed manifest_hash/i)).toBeVisible();
   await expect(page.getByText(/verified/i).first()).toBeVisible();
+
+  // The server-side aggregate re-verification receipt also renders: a text
+  // summary (never colour alone) plus the individual named checks.
+  await expect(page.getByText(/checks passed — all verified/i)).toBeVisible();
+  await expect(page.getByText(/reel bytes match the sealed hash/i)).toBeVisible();
+  await assertNoHorizontalOverflow(page, `${opts.label} result (verified)`);
 }
 
 for (const width of [375, 768, 1280] as const) {

@@ -28,17 +28,47 @@ function renderWithQuery(ui: ReactElement) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
-function stubManifestFetch(body: string, status = 200) {
+// Route the mocked fetch by URL: `GET /reels/{name}` (react-query manifest +
+// the in-browser seal recompute) serves the manifest bytes; `GET
+// /reels/{name}/verify` serves the server-side receipt (or 404 when none is
+// configured, exercising the honest-degrade path).
+function stubApi(opts: {
+  manifest?: string;
+  manifestStatus?: number;
+  receipt?: unknown;
+  receiptReject?: boolean;
+} = {}) {
+  const { manifest = goldenRaw, manifestStatus = 200, receipt, receiptReject } = opts;
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({
-      ok: status >= 200 && status < 300,
-      status,
-      text: async () => body,
-      json: async () => JSON.parse(body),
-    } as Response),
+    vi.fn((input: RequestInfo | URL) => {
+      if (String(input).endsWith("/verify")) {
+        if (receiptReject) return Promise.reject(new TypeError("network down"));
+        if (receipt === undefined) return Promise.resolve({ ok: false, status: 404 } as Response);
+        return Promise.resolve({ ok: true, status: 200, json: async () => receipt } as Response);
+      }
+      return Promise.resolve({
+        ok: manifestStatus >= 200 && manifestStatus < 300,
+        status: manifestStatus,
+        text: async () => manifest,
+        json: async () => JSON.parse(manifest),
+      } as Response);
+    }),
   );
 }
+
+function stubManifestFetch(body: string, status = 200) {
+  stubApi({ manifest: body, manifestStatus: status });
+}
+
+const okReceipt = {
+  success: true,
+  digest: "a".repeat(64),
+  checks: [
+    { id: "seal.manifest_hash", label: "Manifest seal recomputes (SHA-256)", passed: true, evidence: "seal ok" },
+    { id: "artifact.reel", label: "Reel bytes match the sealed hash", passed: true, evidence: "matches" },
+  ],
+};
 
 beforeEach(() => stubManifestFetch(goldenRaw));
 afterEach(() => vi.unstubAllGlobals());
@@ -100,5 +130,57 @@ describe("<ProvenancePanel /> — in-browser provenance verification", () => {
 
     expect(await screen.findByText(/can't verify here/i)).toBeInTheDocument();
     expect(screen.queryByText(/verification failed/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("<ProvenancePanel /> — server-side aggregate re-verification", () => {
+  it("renders each named check with a text pass label after Verify", async () => {
+    stubApi({ receipt: okReceipt });
+    renderWithQuery(<ProvenancePanel reel={reel} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /verify provenance/i }));
+
+    expect(
+      await screen.findByText(/2\/2 checks passed — all verified/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/reel bytes match the sealed hash/i)).toBeInTheDocument();
+    // Non-colour-only: an explicit textual "Passed" label per check.
+    expect(screen.getAllByText(/^passed$/i).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows a tamper-detected summary + a Failed label when a server check fails", async () => {
+    stubApi({
+      receipt: {
+        ...okReceipt,
+        success: false,
+        checks: [
+          okReceipt.checks[0],
+          {
+            id: "artifact.reel",
+            label: "Reel bytes match the sealed hash",
+            passed: false,
+            evidence: "re-hashed stored reel does NOT match",
+          },
+        ],
+      },
+    });
+    renderWithQuery(<ProvenancePanel reel={reel} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /verify provenance/i }));
+
+    expect(await screen.findByText(/tamper detected/i)).toBeInTheDocument();
+    expect(screen.getByText(/^failed$/i)).toBeInTheDocument();
+  });
+
+  it("honestly degrades (no red failure) when no receipt is served", async () => {
+    stubApi({ receipt: undefined }); // GET /verify → 404
+    renderWithQuery(<ProvenancePanel reel={reel} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /verify provenance/i }));
+
+    expect(
+      await screen.findByText(/doesn't serve a re-verification receipt/i),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/tamper detected/i)).not.toBeInTheDocument();
   });
 });

@@ -28,6 +28,7 @@ import binascii
 import json
 import logging
 import os
+from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import quote
@@ -42,6 +43,7 @@ from .ingest import IngestError, build_spec_from_photos
 from .models import ReelResult, ReelSpec
 from .occasions import list_occasions
 from .pipeline import ReelPipeline
+from .provenance import verify_all
 from .stitch import FakeStitcher
 from .synthetic import synth_reel_spec
 
@@ -265,6 +267,89 @@ def get_reel_video(name: str) -> Response:
     except Exception as exc:  # pragma: no cover - index row without object
         raise HTTPException(404, f"reel object missing for {name!r}") from exc
     return Response(content=data, media_type=match.get("content_type") or "video/mp4")
+
+
+def _artifact_fetcher(name: str) -> Callable[[str], bytes | None]:
+    """A ``fetch_bytes(logical)`` closure over a reel's stored artifacts, for
+    :func:`~cinemory.provenance.verify_all`.
+
+    The durable index is reloaded ONCE (so a fresh scale-to-zero / multi-instance
+    worker that never saw the write still resolves the reel — B2Storage re-reads
+    ``index.jsonl``; FakeStorage has no remote index), then every artifact is
+    resolved from the in-memory catalogue. Never raises: an absent artifact or a
+    read error yields ``None`` so a single verification check degrades to
+    ``passed: false`` rather than 500-ing the whole receipt.
+
+    Logical names: ``reel``, ``provenance_reel``, ``clip:<sha256>`` (a per-step
+    clip) and ``photo:<sha256>`` (a cited source photo). The prefix applies the
+    same sanitisation used when the key was written, so a traversal-shaped name
+    can never probe outside its own sanitised prefix.
+    """
+    from .keys import safe_component
+
+    index: list[dict] = []
+    if hasattr(_storage, "index"):
+        reload_index = getattr(_storage, "reload_index", None)
+        if callable(reload_index):
+            reload_index()
+        index = list(_storage.index)
+    prefix = safe_component(name)
+
+    def _match(kind: str, *, suffix: str | None = None, sha: str | None = None) -> dict | None:
+        kpfx = f"{prefix}/{kind}/"
+        for row in index:
+            key = row["key"]
+            if not key.startswith(kpfx):
+                continue
+            if suffix is not None and not key.endswith(suffix):
+                continue
+            if sha is not None and f"/{sha}/" not in key:
+                continue
+            return row
+        return None
+
+    def fetch(logical: str) -> bytes | None:
+        if logical == "reel":
+            row = _match("reels", suffix="/reel.mp4")
+        elif logical == "provenance_reel":
+            row = _match("reels", suffix="/reel.provenance.mp4")
+        elif logical.startswith("clip:"):
+            row = _match("clips", sha=logical[len("clip:"):])
+        elif logical.startswith("photo:"):
+            row = _match("photos", sha=logical[len("photo:"):])
+        else:
+            return None
+        if not row:
+            return None
+        try:
+            return _storage.get(row["key"])
+        except Exception:  # pragma: no cover - index row without a live object
+            return None
+
+    return fetch
+
+
+@app.get("/reels/{name}/verify")
+def verify_reel(name: str) -> dict:
+    """Server-side re-verification of a sealed reel as a named-check receipt.
+
+    Re-fetches the manifest + every recorded artifact from the store and re-runs
+    each check from those bytes (:func:`~cinemory.provenance.verify_all`): the
+    seal, the reel / provenance-reel / per-step-clip hashes, the embedded-manifest
+    equality, and the structural invariants (every step asset present, every
+    source-photo citation resolvable, provider/model named). Honest-degrade: a
+    genuinely missing reel is a 404; unreadable manifest bytes still return a
+    fully-shaped FAILING receipt (never a 500), with failing checks doing the
+    talking.
+    """
+    match = _reel_index_match(name, kind="manifests", suffix="/manifest.json")
+    if not match:
+        raise HTTPException(404, f"no reel named {name!r}")
+    try:
+        manifest = json.loads(_storage.get(match["key"]))
+    except Exception:  # unreadable bytes → a fully-shaped failing receipt, not a 500
+        manifest = {}
+    return verify_all(manifest, _artifact_fetcher(name)).to_dict()
 
 
 # Serve the compiled web client from the same origin as the API, so a single

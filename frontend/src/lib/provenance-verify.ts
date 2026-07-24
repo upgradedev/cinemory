@@ -331,3 +331,112 @@ export async function verifyReelProvenance(
     computedHash,
   };
 }
+
+// ── aggregate named-check verification receipt (server-side) ──────────────────
+//
+// The backend's `GET /reels/{name}/verify` re-fetches the manifest + every
+// stored artifact and re-runs each provenance check from those bytes
+// (src/cinemory/provenance.py::verify_all), returning a named-check receipt.
+// This is complementary to the in-browser seal recompute above: the browser
+// proves the manifest hasn't changed; the server receipt proves the stored
+// artifacts still hash to the sealed values and the structural invariants hold.
+
+export interface VerificationCheck {
+  id: string;
+  label: string;
+  passed: boolean;
+  evidence: string;
+}
+
+export interface VerificationReceipt {
+  checks: VerificationCheck[];
+  /** AND of every check — the server's overall verdict. */
+  success: boolean;
+  /** SHA-256 that content-addresses the receipt itself. */
+  digest: string;
+}
+
+export type ReceiptState =
+  | { state: "verified" | "failed"; receipt: VerificationReceipt }
+  | { state: "unavailable"; detail: string };
+
+/** Defensively parse an untrusted `/verify` body into a `VerificationReceipt`,
+ *  or `null` if it isn't well-formed. Keeps a manifest (or any other shape a
+ *  degraded/legacy backend might return) from masquerading as a receipt — a
+ *  non-receipt shape is surfaced as `unavailable`, never a red `failed`. */
+export function parseVerificationReceipt(value: unknown): VerificationReceipt | null {
+  if (typeof value !== "object" || value === null) return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.success !== "boolean" || typeof v.digest !== "string" || !Array.isArray(v.checks)) {
+    return null;
+  }
+  const checks: VerificationCheck[] = [];
+  for (const raw of v.checks) {
+    if (typeof raw !== "object" || raw === null) return null;
+    const c = raw as Record<string, unknown>;
+    if (
+      typeof c.id !== "string" ||
+      typeof c.label !== "string" ||
+      typeof c.passed !== "boolean" ||
+      typeof c.evidence !== "string"
+    ) {
+      return null;
+    }
+    checks.push({ id: c.id, label: c.label, passed: c.passed, evidence: c.evidence });
+  }
+  return { checks, success: v.success, digest: v.digest };
+}
+
+/** Fetch `GET /reels/{name}/verify` and return the server-side named-check
+ *  receipt. Honest-degrade mirrors {@link verifyReelProvenance} exactly:
+ *
+ *  - `verified`    — a well-formed receipt whose `success` is true
+ *  - `failed`      — a well-formed receipt whose `success` is false (a real
+ *                    tamper signal from the server re-check)
+ *  - `unavailable` — a non-2xx / 404 / network error, or a body that isn't a
+ *                    well-formed receipt; an honest "couldn't re-check here",
+ *                    never presented as a failure
+ */
+export async function fetchReelReceipt(
+  reelName: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<ReceiptState> {
+  let res: Response;
+  try {
+    res = await fetchImpl(
+      `${API_BASE}/reels/${encodeURIComponent(reelName)}/verify`,
+      { headers: { Accept: "application/json" } },
+    );
+  } catch {
+    return {
+      state: "unavailable",
+      detail: "The verification receipt couldn't be fetched — check your connection and retry.",
+    };
+  }
+  if (!res.ok) {
+    return {
+      state: "unavailable",
+      detail:
+        res.status === 404
+          ? "This deployment doesn't serve a re-verification receipt for this reel."
+          : `The verification receipt couldn't be fetched (HTTP ${res.status}).`,
+    };
+  }
+  let body: unknown;
+  try {
+    body = await res.json();
+  } catch {
+    return {
+      state: "unavailable",
+      detail: "The verification receipt response was not valid JSON, so it can't be shown here.",
+    };
+  }
+  const receipt = parseVerificationReceipt(body);
+  if (!receipt) {
+    return {
+      state: "unavailable",
+      detail: "The verification receipt had an unexpected shape, so it can't be shown here.",
+    };
+  }
+  return { state: receipt.success ? "verified" : "failed", receipt };
+}

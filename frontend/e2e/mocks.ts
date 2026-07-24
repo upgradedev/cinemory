@@ -58,6 +58,31 @@ const REEL_RESPONSE = {
   degrade_reason: "Live AI generation is not wired in this preview build.",
 };
 
+// The server-side aggregate re-verification receipt returned by
+// GET /reels/{name}/verify (src/cinemory/provenance.py::verify_all). All checks
+// pass, so the ProvenancePanel renders "N/N checks passed — all verified" — the
+// honest offline outcome for the byte-exact golden reel.
+function check(id: string, label: string) {
+  return { id, label, passed: true, evidence: `${label} — re-verified from stored bytes` };
+}
+const VERIFY_RECEIPT = {
+  success: true,
+  digest: "b".repeat(64),
+  checks: [
+    check("seal.manifest_hash", "Manifest seal recomputes (SHA-256)"),
+    check("artifact.reel", "Reel bytes match the sealed hash"),
+    check("artifact.provenance_reel", "Provenance-reel wraps the sealed reel"),
+    check("artifact.clip.0", "Step 0 clip bytes match the sealed hash"),
+    check("artifact.clip.1", "Step 1 clip bytes match the sealed hash"),
+    check("artifact.clip.2", "Step 2 clip bytes match the sealed hash"),
+    check("artifact.clip.3", "Step 3 clip bytes match the sealed hash"),
+    check("structural.embedded_manifest", "Embedded manifest equals the standalone manifest"),
+    check("structural.step_assets_present", "Every step asset resolves in the store"),
+    check("structural.source_citation", "Every step cites resolvable source photos"),
+    check("structural.provider_model", "Every step names a provider and model"),
+  ],
+};
+
 /**
  * Intercept every Cinemory API route so the journey runs with no backend.
  * Covers /health, /occasions, POST /reels(+upload variants) and GET
@@ -73,11 +98,21 @@ export async function mockCinemoryApi(page: Page): Promise<void> {
 
   await page.route("**/occasions", (route) => route.fulfill({ json: OCCASIONS }));
 
-  // One handler for the whole /reels surface: POST (any create/upload variant)
-  // returns the sealed reel; GET /reels/{name} returns the byte-exact golden
-  // manifest so verification is real.
+  // The server-side re-verification receipt (GET /reels/{name}/verify). Declared
+  // BEFORE the /reels catch-all and also excluded from it, so the aggregate
+  // receipt is never masked by the manifest handler regardless of route order.
   await page.route(
-    (url) => url.pathname === "/reels" || url.pathname.startsWith("/reels/"),
+    (url) => url.pathname.startsWith("/reels/") && url.pathname.endsWith("/verify"),
+    (route) => route.fulfill({ json: VERIFY_RECEIPT }),
+  );
+
+  // One handler for the rest of the /reels surface: POST (any create/upload
+  // variant) returns the sealed reel; GET /reels/{name} returns the byte-exact
+  // golden manifest so the in-browser seal verification is real.
+  await page.route(
+    (url) =>
+      url.pathname === "/reels" ||
+      (url.pathname.startsWith("/reels/") && !url.pathname.endsWith("/verify")),
     async (route) => {
       if (route.request().method() === "POST") {
         // A delay so the transient "generate" step is stably observable (the

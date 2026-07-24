@@ -13,8 +13,10 @@ import { Button } from "./ui/button";
 import { HashChip } from "./HashChip";
 import { useManifest } from "@/lib/queries";
 import {
+  fetchReelReceipt,
   verifyReelProvenance,
   type ProvenanceVerification,
+  type ReceiptState,
 } from "@/lib/provenance-verify";
 import type { ReelResponse } from "@/lib/api";
 import { formatBytes } from "@/lib/utils";
@@ -27,15 +29,25 @@ const MODALITY_ICON: Record<string, string> = {
 };
 
 type VerifyUiState = { phase: "idle" | "verifying" } | (ProvenanceVerification & { phase: "done" });
+type ReceiptUiState = { phase: "idle" | "verifying" } | (ReceiptState & { phase: "done" });
 
 export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
   const { data: manifest, isLoading } = useManifest(reel.reel_name);
   const [verify, setVerify] = useState<VerifyUiState>({ phase: "idle" });
+  const [receipt, setReceipt] = useState<ReceiptUiState>({ phase: "idle" });
 
   const onVerify = async () => {
     setVerify({ phase: "verifying" });
-    const outcome = await verifyReelProvenance(reel.reel_name, reel.manifest_hash);
-    setVerify({ phase: "done", ...outcome });
+    setReceipt({ phase: "verifying" });
+    // Two independent, complementary checks run in parallel: the in-browser seal
+    // recompute (proves the manifest bytes are intact) and the server-side
+    // named-check receipt (re-hashes every stored artifact + structural checks).
+    const [seal, rec] = await Promise.all([
+      verifyReelProvenance(reel.reel_name, reel.manifest_hash),
+      fetchReelReceipt(reel.reel_name),
+    ]);
+    setVerify({ phase: "done", ...seal });
+    setReceipt({ phase: "done", ...rec });
   };
 
   return (
@@ -139,6 +151,10 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
         <HashChip hash={reel.reel_sha256} label="reel_sha256" />
         <Badge variant="neutral">{reel.steps} generative steps</Badge>
       </div>
+
+      {/* Server-side aggregate re-verification (named checks re-run from the
+          stored bytes), shown after the visitor clicks Verify. */}
+      <ServerRecheck receipt={receipt} />
 
       {/* Per-step provenance (from the sealed manifest) */}
       <div className="mt-5">
@@ -246,5 +262,89 @@ function SealBadge({ verify }: { verify: VerifyUiState }) {
       <FileCheck2 className="h-3.5 w-3.5" />
       Sealed
     </Badge>
+  );
+}
+
+/** The server-side aggregate re-verification: after Verify is clicked, the app
+ *  also calls `GET /reels/{name}/verify`, which re-hashes every stored artifact
+ *  and re-runs the structural checks, and renders each named check with a TEXT
+ *  pass/fail label (never colour alone) plus its evidence. Honest-degrade: when
+ *  the deployment doesn't serve a receipt (404) or the body isn't a well-formed
+ *  receipt, it shows a muted "can't re-check here" line, never a red failure. */
+function ServerRecheck({ receipt }: { receipt: ReceiptUiState }) {
+  if (receipt.phase !== "done") {
+    if (receipt.phase === "verifying") {
+      return (
+        <p role="status" aria-live="polite" className="mt-3 text-xs text-zinc-400">
+          Re-verifying every stored artifact on the server…
+        </p>
+      );
+    }
+    return null; // idle — nothing to show until Verify is clicked
+  }
+  if (receipt.state === "unavailable") {
+    return (
+      <p
+        role="status"
+        aria-live="polite"
+        className="mt-3 rounded-xl border border-white/[0.06] bg-ink-900/50 p-3 text-xs text-zinc-400"
+      >
+        {receipt.detail}
+      </p>
+    );
+  }
+  const { checks } = receipt.receipt;
+  const passed = checks.filter((c) => c.passed).length;
+  const allPassed = receipt.state === "verified";
+  return (
+    <div className="mt-4">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+        <p className="text-xs uppercase tracking-wide text-zinc-400">
+          Server re-verification
+        </p>
+        <span
+          role="status"
+          aria-live="polite"
+          className={
+            allPassed
+              ? "text-[11px] font-medium text-emerald-400"
+              : "text-[11px] font-medium text-red-400"
+          }
+        >
+          {passed}/{checks.length} checks passed
+          {allPassed ? " — all verified" : " — tamper detected"}
+        </span>
+      </div>
+      <ul className="space-y-2">
+        {checks.map((c) => (
+          <li
+            key={c.id}
+            className="flex items-start gap-3 rounded-lg border border-white/[0.06] bg-ink-900/50 p-3"
+          >
+            {c.passed ? (
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+            ) : (
+              <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-red-400" aria-hidden />
+            )}
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-zinc-200">
+                <span className="sr-only">{c.passed ? "Passed" : "Failed"}: </span>
+                {c.label}
+              </p>
+              <p className="mt-0.5 break-words text-xs text-zinc-400">{c.evidence}</p>
+            </div>
+            <span
+              className={
+                c.passed
+                  ? "shrink-0 text-[11px] font-medium text-emerald-400"
+                  : "shrink-0 text-[11px] font-medium text-red-400"
+              }
+            >
+              {c.passed ? "Passed" : "Failed"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
