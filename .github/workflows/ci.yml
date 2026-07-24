@@ -220,6 +220,25 @@ jobs:
           configPath: ./frontend/lighthouserc.json
           uploadArtifacts: true
 
+  # ── 4d. Demo video: A/V + caption-sync + segment-order gate ─────────────────
+  #  ffprobes the committed demo mp4 and cross-checks it against the beat script
+  #  (scripts/check_video.py): under the 180s hard cap, H.264/yuv420p 1280x720
+  #  ~30fps with a single AAC track, and SRT cues matching the beats one-for-one
+  #  in order, timing and text — so a desynced or over-length video fails the
+  #  build. Dependency-light: ffprobe + the standard library only.
+  demo-video:
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ffmpeg (provides ffprobe)
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Demo video sync gate
+        run: python scripts/check_video.py
+
   # ── 5. CodeQL SAST (python + javascript/typescript) ─────────────────────────
   codeql:
     runs-on: ubuntu-latest

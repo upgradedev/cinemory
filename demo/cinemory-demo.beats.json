@@ -1,0 +1,112 @@
+{
+  "video": "cinemory-demo.mp4",
+  "srt": "cinemory-demo.en.srt",
+  "fps": 30,
+  "width": 1280,
+  "height": 720,
+  "voice": {
+    "provider": "elevenlabs",
+    "voice_id": "pNInz6obpgDQGcFmaJgB",
+    "model_id": "eleven_multilingual_v2"
+  },
+  "total_seconds": 136.567,
+  "beats": [
+    {
+      "index": 1,
+      "id": "01-hook",
+      "assets": [
+        "video-assets/cards/cinemory-01-thumbnail.png"
+      ],
+      "caption": "Cinemory — memories, made into film",
+      "narration": "Your memories, made into film. And sealed, so anyone can prove it's real. This is Cinemory. It began as an anniversary gift, turning a folder of photos into a short film you could actually keep.",
+      "start": 0.0,
+      "end": 15.3,
+      "dur": 15.3
+    },
+    {
+      "index": 2,
+      "id": "02-trust",
+      "assets": [
+        "video-assets/frames/frame-clip1-kling.png"
+      ],
+      "caption": "Easy to make. Hard to trust.",
+      "narration": "Generative video like this is easy to make, and hard to trust. When an AI turns your photos into a highlight reel, three questions matter. Which model made it. From which photos. And can you prove that not one frame was changed?",
+      "start": 15.3,
+      "end": 32.333,
+      "dur": 17.033
+    },
+    {
+      "index": 3,
+      "id": "03-what",
+      "assets": [
+        "video-assets/cards/cinemory-02-pipeline.png"
+      ],
+      "caption": "Photos in. A scored reel out. Provenance sealed.",
+      "narration": "Cinemory answers all three. You give it photos, you pick an occasion, and it returns a scored, cinematic reel. Every clip is stored on Backblaze B2 at its own hash, and sealed with SHA-256 provenance, so the record of how it was made travels with the video.",
+      "start": 32.333,
+      "end": 52.3,
+      "dur": 19.967
+    },
+    {
+      "index": 4,
+      "id": "04-reel",
+      "assets": [
+        "video-assets/frames/frame-clip4-kling.png",
+        "video-assets/frames/frame-livebox-upload-kling.png"
+      ],
+      "caption": "Four steps: photos, occasion, generate, play",
+      "narration": "It runs in four steps. Add your photos, choose an occasion that sets the music and the pacing, hit generate, and the reel plays. Real clips, animated from each photo, bridged and graded into one film.",
+      "start": 52.3,
+      "end": 66.4,
+      "dur": 14.1
+    },
+    {
+      "index": 5,
+      "id": "05-verify",
+      "assets": [
+        "video-assets/cards/cinemory-05-provenance.png"
+      ],
+      "caption": "Press Verify — the seal recomputes to Verified",
+      "narration": "Then open the Provenance panel. It shows the model, the prompt, and a hash for every step. Press Verify, and your browser recomputes the SHA-256 itself. The seal flips to Verified. A server re-check then re-hashes every stored file and reports each check as passed.",
+      "start": 66.4,
+      "end": 86.433,
+      "dur": 20.033
+    },
+    {
+      "index": 6,
+      "id": "06-honest",
+      "assets": [
+        "video-assets/cards/cinemory-04-b2-objects.png"
+      ],
+      "caption": "Every clip cites its source photo, by hash",
+      "narration": "Two things keep it honest. Every clip cites the exact source photo it came from, by hash. Change a single byte, and the seal breaks. And when a live model is down, Cinemory degrades in the open, records the provider it actually used, and never fakes a result.",
+      "start": 86.433,
+      "end": 106.4,
+      "dur": 19.967
+    },
+    {
+      "index": 7,
+      "id": "07-stack",
+      "assets": [
+        "video-assets/cards/cinemory-06-architecture.png"
+      ],
+      "caption": "One core, three ports. Live adapters, offline fakes.",
+      "narration": "The design is one clean core with three ports. Genblaze drives Kling and seedance through GMI Cloud. Backblaze B2 holds every artifact behind a queryable index. FastAPI and React run on Cloud Run. And offline fakes run the whole pipeline in tests, with no credentials.",
+      "start": 106.4,
+      "end": 127.8,
+      "dur": 21.4
+    },
+    {
+      "index": 8,
+      "id": "08-close",
+      "assets": [
+        "video-assets/cards/cinemory-03-live-proof.png"
+      ],
+      "caption": "Live now · open source · github.com/upgradedev/cinemory",
+      "narration": "It's live on Cloud Run, mirrored on Firebase, and fully open source. Cinemory. Memories, made into film, that you can trust.",
+      "start": 127.8,
+      "end": 136.567,
+      "dur": 8.767
+    }
+  ]
+}
