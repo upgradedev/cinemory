@@ -7,17 +7,27 @@
 #   • deploys a public Cloud Run service on port 8000
 #
 # OFFLINE (default) needs ZERO credentials — the app runs the full pipeline with
-# fakes. Flip to the LIVE path by passing the creds below (see deploy/CLOUDRUN.md).
+# fakes. For a LIVE deploy the secret values (B2 application key + id, GMI key)
+# live in Google Secret Manager, NOT on the service spec — so
+# `gcloud run services describe` never prints them, and nobody with only
+# run.services.get IAM can read them. Stage them once (and on every rotation)
+# with deploy/stage-secrets.sh; this deploy references them by name only.
 #
 # Usage:
-#   bash deploy/deploy-cloudrun.sh                 # offline deploy (default)
-#   CINEMORY_MODE=live \
-#   B2_APPLICATION_KEY_ID=... B2_APPLICATION_KEY=... \
-#   B2_BUCKET_NAME=... B2_S3_ENDPOINT=... GMI_API_KEY=... \
-#     bash deploy/deploy-cloudrun.sh              # live deploy
+#   bash deploy/deploy-cloudrun.sh                              # offline (default)
 #
-# Every knob is an env var with a sane default:
+#   # live — stage the secrets first (that script handles the raw values), then:
+#   B2_APPLICATION_KEY_ID=... B2_APPLICATION_KEY=... GMI_API_KEY=... \
+#     bash deploy/stage-secrets.sh                              # one-time / on rotation
+#   CINEMORY_MODE=live B2_BUCKET_NAME=cinemory B2_S3_ENDPOINT=... \
+#     bash deploy/deploy-cloudrun.sh                            # live deploy — NO secret values here
+#
+# The deploy step needs only the NON-secret live config (bucket, endpoint); the
+# secret values are pulled from Secret Manager by Cloud Run at runtime.
+#
+# Knobs (env vars, sane defaults):
 #   PROJECT_ID REGION SERVICE AR_REPO IMAGE_TAG CINEMORY_MODE CINEMORY_STITCH
+#   RUNTIME_SA  B2_APPLICATION_KEY_SECRET  B2_APPLICATION_KEY_ID_SECRET  GMI_API_KEY_SECRET
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -31,6 +41,11 @@ IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${AR_REPO}/cinemory:${IMAGE_TAG}"
 CINEMORY_MODE="${CINEMORY_MODE:-offline}"
 CINEMORY_STITCH="${CINEMORY_STITCH:-fake}"
 
+# Secret Manager secret names (override only if you named them differently).
+B2_APPLICATION_KEY_SECRET="${B2_APPLICATION_KEY_SECRET:-cinemory-b2-application-key}"
+B2_APPLICATION_KEY_ID_SECRET="${B2_APPLICATION_KEY_ID_SECRET:-cinemory-b2-application-key-id}"
+GMI_API_KEY_SECRET="${GMI_API_KEY_SECRET:-cinemory-gmi-api-key}"
+
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "▶ project=${PROJECT_ID}  region=${REGION}  service=${SERVICE}  mode=${CINEMORY_MODE}"
@@ -40,6 +55,7 @@ echo "▶ image=${IMAGE}"
 gcloud config set project "${PROJECT_ID}" >/dev/null
 gcloud services enable \
   run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
+  secretmanager.googleapis.com \
   --project "${PROJECT_ID}"
 
 # ── 2. Artifact Registry repo (idempotent) ───────────────────────────────────
@@ -57,23 +73,41 @@ gcloud builds submit "${REPO_ROOT}" \
   --substitutions "_IMAGE=${IMAGE}" \
   --project "${PROJECT_ID}"
 
-# ── 4. Assemble runtime env vars for the chosen mode ─────────────────────────
+# ── 4. Runtime config: non-secrets as env vars, secrets from Secret Manager ──
 ENV_VARS="CINEMORY_MODE=${CINEMORY_MODE},CINEMORY_STITCH=${CINEMORY_STITCH}"
+SET_SECRETS_ARGS=()
 
 if [ "${CINEMORY_MODE}" = "live" ]; then
-  : "${B2_APPLICATION_KEY_ID:?live mode needs B2_APPLICATION_KEY_ID}"
-  : "${B2_APPLICATION_KEY:?live mode needs B2_APPLICATION_KEY}"
-  : "${B2_BUCKET_NAME:?live mode needs B2_BUCKET_NAME}"
-  : "${B2_S3_ENDPOINT:?live mode needs B2_S3_ENDPOINT}"
-  : "${GMI_API_KEY:?live mode needs GMI_API_KEY}"
-  ENV_VARS="${ENV_VARS}"
-  ENV_VARS="${ENV_VARS},B2_APPLICATION_KEY_ID=${B2_APPLICATION_KEY_ID}"
-  ENV_VARS="${ENV_VARS},B2_APPLICATION_KEY=${B2_APPLICATION_KEY}"
-  ENV_VARS="${ENV_VARS},B2_BUCKET_NAME=${B2_BUCKET_NAME}"
-  ENV_VARS="${ENV_VARS},B2_S3_ENDPOINT=${B2_S3_ENDPOINT}"
-  ENV_VARS="${ENV_VARS},GMI_API_KEY=${GMI_API_KEY}"
-  # Optional provider override (defaults to gmicloud in the app).
+  : "${B2_BUCKET_NAME:?live mode needs B2_BUCKET_NAME (non-secret)}"
+  : "${B2_S3_ENDPOINT:?live mode needs B2_S3_ENDPOINT (non-secret)}"
+  ENV_VARS="${ENV_VARS},B2_BUCKET_NAME=${B2_BUCKET_NAME},B2_S3_ENDPOINT=${B2_S3_ENDPOINT}"
   [ -n "${GENBLAZE_PROVIDER:-}" ] && ENV_VARS="${ENV_VARS},GENBLAZE_PROVIDER=${GENBLAZE_PROVIDER}"
+
+  # Cloud Run's runtime service account must be allowed to read each secret.
+  runtime_sa="${RUNTIME_SA:-$(gcloud projects describe "${PROJECT_ID}" \
+    --format='value(projectNumber)')-compute@developer.gserviceaccount.com}"
+
+  # env-var name → Secret Manager secret name
+  secret_map=(
+    "B2_APPLICATION_KEY=${B2_APPLICATION_KEY_SECRET}"
+    "B2_APPLICATION_KEY_ID=${B2_APPLICATION_KEY_ID_SECRET}"
+    "GMI_API_KEY=${GMI_API_KEY_SECRET}"
+  )
+  set_secrets=""
+  for pair in "${secret_map[@]}"; do
+    env_name="${pair%%=*}"; secret_name="${pair#*=}"
+    if ! gcloud secrets describe "${secret_name}" --project "${PROJECT_ID}" >/dev/null 2>&1; then
+      echo "✗ Secret Manager secret '${secret_name}' not found." >&2
+      echo "  Stage it first:  B2_APPLICATION_KEY_ID=... B2_APPLICATION_KEY=... GMI_API_KEY=... bash deploy/stage-secrets.sh" >&2
+      exit 1
+    fi
+    gcloud secrets add-iam-policy-binding "${secret_name}" \
+      --member="serviceAccount:${runtime_sa}" \
+      --role="roles/secretmanager.secretAccessor" \
+      --project "${PROJECT_ID}" >/dev/null
+    set_secrets="${set_secrets:+${set_secrets},}${env_name}=${secret_name}:latest"
+  done
+  SET_SECRETS_ARGS=(--set-secrets "${set_secrets}")
 fi
 
 # ── 5. Deploy to Cloud Run (public, port 8000, scales to zero) ───────────────
@@ -91,6 +125,7 @@ gcloud run deploy "${SERVICE}" \
   --cpu 1 --memory 512Mi \
   --min-instances 0 --max-instances 4 \
   --set-env-vars "${ENV_VARS}" \
+  ${SET_SECRETS_ARGS[@]+"${SET_SECRETS_ARGS[@]}"} \
   --project "${PROJECT_ID}"
 
 URL="$(gcloud run services describe "${SERVICE}" --region "${REGION}" \
