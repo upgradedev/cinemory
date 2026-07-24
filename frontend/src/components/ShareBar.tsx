@@ -18,7 +18,7 @@ const PLATFORMS = [
 ] as const;
 
 const PILL_CLASS =
-  "inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-ink-900/60 px-3.5 py-1.5 text-xs text-zinc-300 transition-colors hover:border-gold-400/40 hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/80";
+  "inline-flex min-h-11 items-center gap-2 rounded-full border border-white/[0.08] bg-ink-900/60 px-3.5 py-1.5 text-xs text-zinc-300 transition-colors hover:border-gold-400/40 hover:text-gold-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-400/80 sm:min-h-0";
 
 export function ShareBar({ reel }: { reel: ReelResponse }) {
   const [status, setStatus] = useState<string>("");
@@ -133,7 +133,7 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
       </div>
 
       {!fetchable && (
-        <p className="mt-4 text-xs text-zinc-500">
+        <p className="mt-4 text-xs text-zinc-400">
           This run was rendered by the built-in offline generator, so there is no
           playable video to share yet — the reel is still stored and sealed at{" "}
           <span className="font-mono text-zinc-400">{reel.reel_url ?? "(none)"}</span>.

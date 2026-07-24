@@ -3,6 +3,7 @@ import {
   SAMPLE_PHOTO_COUNT,
   generateSamplePhotos,
   mulberry32,
+  samplePhotoAlts,
   samplePhotoSpecs,
 } from "./sample-photos";
 
@@ -22,6 +23,19 @@ describe("samplePhotoSpecs", () => {
     });
     expect(new Set(specs.map((s) => s.filename)).size).toBe(specs.length);
     expect(new Set(specs.map((s) => s.seed)).size).toBe(specs.length);
+  });
+});
+
+describe("samplePhotoAlts", () => {
+  it("gives every frame descriptive alt text aligned to the specs — never the filename", () => {
+    const alts = samplePhotoAlts();
+    const specs = samplePhotoSpecs();
+    expect(alts).toHaveLength(specs.length);
+    alts.forEach((alt, i) => {
+      expect(alt).toBe(specs[i]!.description);
+      expect(alt.length).toBeGreaterThan(12); // a real phrase, not a slug
+      expect(alt).not.toMatch(/\.png$/i); // never the filename
+    });
   });
 });
 

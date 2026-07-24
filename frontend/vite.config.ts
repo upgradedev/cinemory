@@ -42,6 +42,10 @@ export default defineConfig(({ mode }) => {
       environment: "jsdom",
       setupFiles: ["./src/test/setup.ts"],
       css: true,
+      // Vitest owns the jsdom component tests under src/. The Playwright
+      // real-browser specs live in e2e/ and are run by `playwright test`, never
+      // vitest (their test() API is incompatible) — scope the runner to src.
+      include: ["src/**/*.{test,spec}.{ts,tsx}"],
       coverage: {
         provider: "v8",
         // Count EVERY source file, not only the ones a test imports — so the

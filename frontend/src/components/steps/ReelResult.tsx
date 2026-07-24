@@ -35,9 +35,9 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
         >
           <PartyPopper className="h-7 w-7" />
         </motion.span>
-        <h2 className="font-display text-3xl font-semibold text-zinc-50 md:text-4xl">
+        <h1 className="font-display text-3xl font-semibold text-zinc-50 md:text-4xl">
           Your reel is ready
-        </h2>
+        </h1>
         <p className="mx-auto mt-3 max-w-xl text-zinc-400">
           {occasion ? `A ${occasion.label} reel` : "A cinematic reel"}, scored and
           sealed with verifiable provenance.
@@ -100,7 +100,7 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
             )}
           </div>
           {degraded && (
-            <p className="mt-2 text-xs text-zinc-500">{DEGRADE_NOTE}</p>
+            <p className="mt-2 text-xs text-zinc-400">{DEGRADE_NOTE}</p>
           )}
 
           <div className="mt-6">

@@ -44,18 +44,21 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.1 }}
       aria-labelledby="provenance-heading"
-      className="rounded-2xl border border-white/[0.06] bg-ink-800/60 p-6 shadow-film"
+      // overflow-hidden contains long unbreakable hashes/URIs/model names: their
+      // truncated text boxes still extend past the panel and would otherwise add
+      // phantom horizontal page scroll on mobile.
+      className="overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-800/60 p-6 shadow-film"
     >
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-emerald-400" />
-            <h3
+            <h2
               id="provenance-heading"
               className="font-display text-xl font-semibold text-zinc-50"
             >
               Provenance
-            </h3>
+            </h2>
           </div>
           <p className="mt-1 text-sm text-zinc-400">
             Every asset is content-addressed by SHA-256 and the manifest is
@@ -67,15 +70,15 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
 
       {/* Manifest seal + storage */}
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">
+        <div className="min-w-0 rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-400">
             Manifest seal
           </p>
           <div className="mt-2">
             <HashChip hash={reel.manifest_hash} label="manifest_hash" />
           </div>
           {reel.manifest_uri && (
-            <p className="mt-2 truncate font-mono text-[11px] text-zinc-500">
+            <p className="mt-2 truncate font-mono text-[11px] text-zinc-400">
               {reel.manifest_uri}
             </p>
           )}
@@ -101,7 +104,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
               className={
                 verify.phase === "done" && verify.state === "failed"
                   ? "mt-2 text-xs text-red-400"
-                  : "mt-2 text-xs text-zinc-500"
+                  : "mt-2 text-xs text-zinc-400"
               }
             >
               {verify.phase === "done"
@@ -112,8 +115,8 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
             </p>
           </div>
         </div>
-        <div className="rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Storage</p>
+        <div className="min-w-0 rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
+          <p className="text-xs uppercase tracking-wide text-zinc-400">Storage</p>
           <div className="mt-2 flex items-center gap-2">
             <span className="grid h-6 w-6 place-items-center rounded-md bg-ember-500/15 text-ember-400">
               <Database className="h-3.5 w-3.5" />
@@ -122,7 +125,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
               Backblaze B2
             </span>
           </div>
-          <p className="mt-2 truncate font-mono text-[11px] text-zinc-500">
+          <p className="mt-2 truncate font-mono text-[11px] text-zinc-400">
             {reel.reel_url ?? "—"}
           </p>
         </div>
@@ -130,7 +133,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
 
       {/* Reel asset hash */}
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
-        <span className="text-xs uppercase tracking-wide text-zinc-500">
+        <span className="text-xs uppercase tracking-wide text-zinc-400">
           Reel asset
         </span>
         <HashChip hash={reel.reel_sha256} label="reel_sha256" />
@@ -139,7 +142,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
 
       {/* Per-step provenance (from the sealed manifest) */}
       <div className="mt-5">
-        <p className="mb-2 text-xs uppercase tracking-wide text-zinc-500">
+        <p className="mb-2 text-xs uppercase tracking-wide text-zinc-400">
           Genblaze pipeline steps
         </p>
 
@@ -167,12 +170,12 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-zinc-200">
                     <span className="font-medium">{step.provider}</span>
-                    <span className="text-zinc-500"> · {step.model}</span>
+                    <span className="text-zinc-400"> · {step.model}</span>
                   </p>
-                  <p className="truncate text-xs text-zinc-500">{step.prompt}</p>
+                  <p className="truncate text-xs text-zinc-400">{step.prompt}</p>
                 </div>
                 <div className="hidden text-right sm:block">
-                  <span className="text-[11px] text-zinc-600">
+                  <span className="text-[11px] text-zinc-400">
                     {formatBytes(step.asset.size_bytes)}
                   </span>
                 </div>
@@ -182,7 +185,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
           </ol>
         ) : (
           !isLoading && (
-            <p className="rounded-lg border border-white/[0.06] bg-ink-900/50 p-3 text-xs text-zinc-500">
+            <p className="rounded-lg border border-white/[0.06] bg-ink-900/50 p-3 text-xs text-zinc-400">
               Full step manifest is available on the offline/indexed store. On the
               live B2 path the {reel.steps}-step provenance is sealed inside the
               reel container and verified on download.

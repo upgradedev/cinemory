@@ -164,6 +164,38 @@ jobs:
       - name: Build
         run: npm run build
 
+  # ── 4b. E2E: real-browser journey + responsive + tap-targets + axe a11y ─────
+  #  Playwright drives the BUILT app in headless Chromium (vite preview) with
+  #  the API mocked at the network boundary — deterministic, no backend. Guards
+  #  what jsdom cannot see: every wizard step actually mounts and its animated
+  #  panel reaches opacity:1 (the AnimatePresence dead-end), no horizontal
+  #  overflow and >=44px tap targets at 375/768/1280, zero serious/critical axe
+  #  violations on the landing + each step, and a visible keyboard focus ring.
+  e2e:
+    runs-on: ubuntu-latest
+    needs: secret-scan
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium chromium-headless-shell
+      - name: E2E (journey + responsive + a11y)
+        run: npx playwright test
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
   # ── 5. CodeQL SAST (python + javascript/typescript) ─────────────────────────
   codeql:
     runs-on: ubuntu-latest

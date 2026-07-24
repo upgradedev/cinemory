@@ -7,7 +7,8 @@ import { generateSamplePhotos } from "@/lib/sample-photos";
 
 // The generator itself is covered in lib/sample-photos.test.ts; here we mock
 // it (jsdom has no canvas backend) and assert the UI wiring: one click must
-// push real File objects through the exact same store path as user uploads.
+// push real File objects through the exact same store path as user uploads,
+// carrying descriptive alt text (not the filename).
 vi.mock("@/lib/sample-photos", () => ({
   generateSamplePhotos: vi.fn(async () =>
     Array.from(
@@ -17,6 +18,9 @@ vi.mock("@/lib/sample-photos", () => ({
           type: "image/png",
         }),
     ),
+  ),
+  samplePhotoAlts: vi.fn(() =>
+    Array.from({ length: 5 }, (_, i) => `Sample scene ${i + 1} description`),
   ),
 }));
 
@@ -44,8 +48,9 @@ describe("<PhotoUpload /> — sample photos fast path", () => {
 
     expect(generateSamplePhotos).toHaveBeenCalledTimes(1);
     expect(useReelStore.getState().photos).toHaveLength(5);
-    // Thumbnails render like any user upload (same LocalPhoto shape).
-    expect(await screen.findByAltText("cinemory-sample-1.png")).toBeInTheDocument();
+    // Thumbnails render with descriptive alt text, NOT the raw filename.
+    expect(await screen.findByAltText("Sample scene 1 description")).toBeInTheDocument();
+    expect(screen.queryByAltText("cinemory-sample-1.png")).not.toBeInTheDocument();
     expect(
       screen.getByText((_, el) => el?.textContent === "5 photos · drag to reorder"),
     ).toBeInTheDocument();

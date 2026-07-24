@@ -12,9 +12,9 @@ describe("<Stepper />", () => {
 
   it("marks the current step with aria-current and numbers the pending ones", () => {
     render(<Stepper current="occasion" />);
-    // "Occasion" is index 1 → the active marker carries aria-current="step".
-    const active = screen.getByText("2");
-    expect(active).toHaveAttribute("aria-current", "step");
+    // "Occasion" is index 1 → its <li> carries aria-current="step".
+    const activeItem = screen.getByText("2").closest("li");
+    expect(activeItem).toHaveAttribute("aria-current", "step");
     // A later, not-yet-reached step still shows its ordinal number.
     expect(screen.getByText("3")).toBeInTheDocument();
   });
@@ -26,7 +26,10 @@ describe("<Stepper />", () => {
     expect(screen.queryByText("1")).not.toBeInTheDocument();
     expect(screen.queryByText("2")).not.toBeInTheDocument();
     expect(screen.queryByText("3")).not.toBeInTheDocument();
-    // The active (4th) step keeps its number.
-    expect(screen.getByText("4")).toHaveAttribute("aria-current", "step");
+    // The active (4th) step keeps its number; its <li> is the current step.
+    expect(screen.getByText("4").closest("li")).toHaveAttribute(
+      "aria-current",
+      "step",
+    );
   });
 });

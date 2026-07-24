@@ -10,7 +10,7 @@ const badgeVariants = cva(
         gold: "border-gold-400/30 bg-gold-400/10 text-gold-200",
         verified: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
         neutral: "border-white/10 bg-white/[0.04] text-zinc-300",
-        muted: "border-white/[0.06] bg-transparent text-zinc-500",
+        muted: "border-white/[0.06] bg-transparent text-zinc-400",
       },
     },
     defaultVariants: { variant: "neutral" },

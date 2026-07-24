@@ -62,7 +62,7 @@ describe("<Studio /> — step routing", () => {
       screen.getByRole("button", { name: /stub-finish-generate/i }),
     );
     expect(useReelStore.getState().step).toBe("result");
-    // AnimatePresence mode="wait" swaps children on the next tick, so await it.
+    // The keyed step subtree remounts on the next tick, so await the swap.
     expect(await screen.findByText(/stub-reel-result/i)).toHaveTextContent(
       "sealed-demo",
     );
