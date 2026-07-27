@@ -115,6 +115,11 @@ fi
 # (Kling render ~242s avg + hosting/stitch/provenance). Cloud Run's 300s default
 # 504'd those requests at the edge while the reel completed server-side
 # (proven live 2026-07-22), so the request deadline must sit above the real path.
+# --no-cpu-throttling: POST /reels/jobs runs the actual generation in a
+# background thread AFTER the request that submitted it has already returned
+# (see src/cinemory/jobs.py) — by default Cloud Run only allocates CPU while a
+# request is in flight, which would starve that thread between polls. See
+# deploy/CLOUDRUN.md for the full async-job note.
 gcloud run deploy "${SERVICE}" \
   --image "${IMAGE}" \
   --region "${REGION}" \
@@ -123,6 +128,7 @@ gcloud run deploy "${SERVICE}" \
   --port 8000 \
   --timeout 600 \
   --cpu 1 --memory 512Mi \
+  --no-cpu-throttling \
   --min-instances 0 --max-instances 4 \
   --set-env-vars "${ENV_VARS}" \
   ${SET_SECRETS_ARGS[@]+"${SET_SECRETS_ARGS[@]}"} \

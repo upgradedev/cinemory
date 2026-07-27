@@ -14,6 +14,7 @@ when idle.
 | Port | `8000` |
 | Auth | public (`--allow-unauthenticated`) |
 | Request timeout | `600s` (`--timeout 600` — see note below) |
+| CPU allocation | always-on (`--no-cpu-throttling` — see async-job note below) |
 
 > **Why 600s:** a real single-clip live generation measures **~330–350s**
 > end-to-end (Kling render ≈242s avg + input hosting, stitch, provenance,
@@ -21,6 +22,15 @@ when idle.
 > the reel completed server-side (observed live 2026-07-22). The deploy
 > script pins `--timeout 600` so synchronous `POST /reels*` requests outlive
 > the real generation path.
+
+> **Why `--no-cpu-throttling`:** by default Cloud Run only allocates CPU to an
+> instance while it has a request in flight — the moment a response is sent,
+> CPU is throttled to near-zero. `POST /reels/jobs` (async submit + poll —
+> see below) returns its `202` immediately and keeps generating in a
+> **background thread** after that response has already gone out. Without
+> `--no-cpu-throttling` that thread would barely progress between polls. This
+> only affects billing while a job is actually in flight — Cloud Run still
+> scales to zero (and bills nothing) when idle.
 
 ## Prerequisites (one-time)
 
@@ -109,6 +119,32 @@ the new values (adds a new secret version), re-run **step 2**, verify `/health`,
 then revoke the old keys. Cloud Run reads `:latest`, so the redeploy picks up
 the new version with no code change — and the old plaintext-env-var exposure is
 gone for good.
+
+## Async job submission (submit + poll)
+
+`POST /reels/jobs` / `GET /reels/jobs/{job_id}` exist alongside the
+synchronous `POST /reels*` routes for the same reason `--timeout 600` does:
+edge proxies in front of Cloud Run — Firebase Hosting's rewrite proxy in
+particular — cap a single request at **~60s**, well under a real generation's
+~330–350s. The async pair splits that into a fast submit (`202` + a job id)
+and a cheap poll (`GET /reels/jobs/{job_id}` → `queued` / `running` / `done` /
+`failed`), so no single HTTP request needs to stay open for the full render.
+See `src/cinemory/jobs.py` for the job-store design (status objects live in
+the same B2/fake storage backend the rest of the app already uses, under
+`jobs/<job_id>/status.json` — not a separate database).
+
+**Honest limitation:** the background worker runs **in-process, on the Cloud
+Run instance that accepted the submit** — there is no external queue and no
+separate worker fleet. A client that keeps polling keeps that instance warm
+(a request in flight resets Cloud Run's idle-scale-down clock), so in
+practice the job completes. But if that specific instance is scaled down
+mid-job, the in-flight generation is lost with no automatic retry — the
+stored status simply stops advancing. This is a deliberate, acceptable
+tradeoff for a demo, not a production job queue; a production version would
+hand the work to a durable queue (e.g. Cloud Tasks) consumed by a Cloud Run
+**Job** (not a request-serving instance), so the work outlives any one
+instance. `--no-cpu-throttling` (above) is required even for this demo
+version — without it, the worker thread barely progresses between polls.
 
 ## Domain mapping — cinemory.ai
 

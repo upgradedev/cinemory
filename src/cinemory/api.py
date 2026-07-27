@@ -7,6 +7,10 @@ Routes:
   POST /reels/upload     generate a reel from real uploaded photos (base64 JSON)
   POST /reels/upload-multipart
                          generate a reel from real uploaded photos (multipart)
+  POST /reels/jobs       submit a reel generation as a background job (202 +
+                         job_id) — does not block for the full generation
+  GET  /reels/jobs/{job_id}
+                         poll a submitted job's status (queued/running/done/failed)
   GET  /reels/{name}     fetch the stored provenance manifest for a reel
   GET  /reels/{name}/video
                          play back the stored reel (302 to a fresh presigned
@@ -20,6 +24,15 @@ The same contract holds per request: when the live provider fails mid-request,
 the reel is regenerated with the offline provider (storage unchanged) and the
 response says so honestly (``provider_degraded`` + the actual ``provider``,
 which the sealed manifest also records per step).
+
+Async submit + poll (``POST /reels/jobs`` / ``GET /reels/jobs/{job_id}``): the
+synchronous ``POST /reels*`` routes above can run for minutes (a real render
+averages ~242s — see ``deploy/CLOUDRUN.md``), longer than the Firebase Hosting
+proxy cap (~60s), so a caller that cannot hold one request open that long
+submits a job and polls it instead. The async routes run the exact same ingest
+validation and pipeline as the synchronous ones (see ``_run_job`` below and the
+``cinemory.jobs`` module for the job-store design and its honest limitation —
+the worker runs in-process on the instance that accepted the submit).
 """
 from __future__ import annotations
 
@@ -28,6 +41,7 @@ import binascii
 import json
 import logging
 import os
+import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated
@@ -37,12 +51,13 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
-from . import config
-from .adapters import FakeMediaProvider
+from . import config, jobs
+from .adapters import FakeMediaProvider, FakeStorage
 from .ingest import IngestError, build_spec_from_photos
 from .models import ReelResult, ReelSpec
 from .occasions import list_occasions
 from .pipeline import ReelPipeline
+from .ports import StorageBackend
 from .provenance import verify_all
 from .stitch import FakeStitcher
 from .synthetic import synth_reel_spec
@@ -93,7 +108,7 @@ def _reel_response(result: ReelResult) -> dict:
     }
 
 
-def _run_reel(spec: ReelSpec) -> dict:
+def _run_reel(spec: ReelSpec, pipeline: ReelPipeline | None = None) -> dict:
     """Run the pipeline; degrade THIS request honestly if the live provider fails.
 
     The core action must never 500 because a remote generation backend
@@ -103,28 +118,35 @@ def _run_reel(spec: ReelSpec) -> dict:
     plus the provider that actually generated, and the sealed manifest records
     that provider on every step. A failure of the offline provider itself is a
     genuine bug and propagates (500) rather than being masked.
+
+    ``pipeline`` defaults to the module-level synchronous pipeline. The async
+    job worker (``_run_job``) passes its own isolated pipeline instead (see
+    ``_job_pipeline``), so a background thread never shares mutable adapter
+    state with a request thread — the honest-degrade fallback below then also
+    writes to THAT pipeline's storage, not necessarily the module-level one.
     """
+    pipeline = pipeline or _pipeline
     try:
-        body = _reel_response(_pipeline.run(spec))
-        body["provider"] = _pipeline.provider.name
+        body = _reel_response(pipeline.run(spec))
+        body["provider"] = pipeline.provider.name
         body["provider_degraded"] = False
         return body
     except HTTPException:
         raise
     except Exception as exc:
-        if isinstance(_pipeline.provider, FakeMediaProvider):
+        if isinstance(pipeline.provider, FakeMediaProvider):
             raise
         _log.exception(
             "live media provider %r failed for reel %r; regenerating this "
             "request with the offline provider (storage unchanged)",
-            _pipeline.provider.name,
+            pipeline.provider.name,
             spec.name,
         )
         # The offline provider's deterministic clips are not decodable video,
         # so the regeneration pairs it with the offline stitcher (a real
         # ffmpeg stitcher would fail on them) — the exact offline generation
         # path, persisted to whatever storage the deployment actually uses.
-        fallback = ReelPipeline(FakeMediaProvider(), _storage, stitcher=FakeStitcher())
+        fallback = ReelPipeline(FakeMediaProvider(), pipeline.storage, stitcher=FakeStitcher())
         body = _reel_response(fallback.run(spec))
         body["provider"] = fallback.provider.name
         body["provider_degraded"] = True
@@ -134,16 +156,23 @@ def _run_reel(spec: ReelSpec) -> dict:
         return body
 
 
-def _generate_from_photos(
+def _build_spec(
     name: str, photos: list[tuple[str, bytes]], *, occasion: str, chapters: int, bridges: bool
-) -> dict:
-    """Shared ingest path for both upload endpoints (base64 + multipart)."""
+) -> ReelSpec:
+    """Ingest validation shared by every upload path — sync AND async."""
     try:
-        spec = build_spec_from_photos(
+        return build_spec_from_photos(
             name, photos, occasion=occasion, chapters=chapters, bridges=bridges
         )
     except IngestError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+def _generate_from_photos(
+    name: str, photos: list[tuple[str, bytes]], *, occasion: str, chapters: int, bridges: bool
+) -> dict:
+    """Shared ingest path for both SYNCHRONOUS upload endpoints (base64 + multipart)."""
+    spec = _build_spec(name, photos, occasion=occasion, chapters=chapters, bridges=bridges)
     return _run_reel(spec)
 
 
@@ -172,6 +201,20 @@ def create_reel(req: ReelRequest) -> dict:
     return _run_reel(spec)
 
 
+def _decode_photos(photos: list[UploadedPhoto]) -> list[tuple[str, bytes]]:
+    """Decode base64 photo payloads — shared by the base64 upload path, sync
+    (``/reels/upload``) AND async (``/reels/jobs``): same validation, same 400
+    message, same order."""
+    decoded: list[tuple[str, bytes]] = []
+    for i, p in enumerate(photos):
+        try:
+            data = base64.b64decode(p.content_base64, validate=True)
+        except (binascii.Error, ValueError) as exc:
+            raise HTTPException(400, f"photo {i} is not valid base64") from exc
+        decoded.append((p.filename or f"photo{i}.png", data))
+    return decoded
+
+
 @app.post("/reels/upload")
 def upload_reel(req: UploadReelRequest) -> dict:
     """Generate a reel from real photo bytes sent as base64 JSON.
@@ -180,13 +223,7 @@ def upload_reel(req: UploadReelRequest) -> dict:
     actual pixels; the decoded photos flow through the same storage + pipeline as
     the synthetic demo, sealing real SHA-256 provenance.
     """
-    photos: list[tuple[str, bytes]] = []
-    for i, p in enumerate(req.photos):
-        try:
-            data = base64.b64decode(p.content_base64, validate=True)
-        except (binascii.Error, ValueError) as exc:
-            raise HTTPException(400, f"photo {i} is not valid base64") from exc
-        photos.append((p.filename or f"photo{i}.png", data))
+    photos = _decode_photos(req.photos)
     return _generate_from_photos(
         req.name, photos, occasion=req.occasion, chapters=req.chapters, bridges=req.bridges
     )
@@ -209,6 +246,111 @@ async def upload_reel_multipart(
     return _generate_from_photos(
         name, photos, occasion=occasion, chapters=chapters, bridges=bridges
     )
+
+
+# ── Async job submission (submit + poll) ───────────────────────────────────────
+# See the ``cinemory.jobs`` module for the job-store design and its honest
+# limitation (the worker below runs in-process on the accepting instance).
+
+
+def _job_storage() -> StorageBackend:
+    """Storage instance a background job thread may safely read/write.
+
+    ``FakeStorage`` (offline/tests) is pure in-memory with no remote substrate
+    — a FRESH instance here would be invisible to request threads (including
+    this same process's own ``GET /reels/jobs/{job_id}`` reads), so the shared
+    module-level ``_storage`` is reused; its plain dict/list mutations are safe
+    to share across threads under the GIL (no read-modify-write cycle).
+
+    ``B2Storage`` (live) is different: it keeps a mutable local ``index`` list
+    plus a remote read-modify-write merge on every ``put`` (a small race
+    already documented and accepted in ``b2_storage.py`` for independent
+    writers). Sharing the SAME Python object — and its local ``index`` list —
+    between this background thread and request-serving threads would add an
+    avoidable extra race on top of that one (a shared list can be reassigned by
+    one thread while another thread is mid-iteration over the old reference —
+    a lost update, distinct from the already-accepted remote-merge race). So
+    live mode gets its own fresh ``B2Storage`` per job; its constructor
+    re-reads the bucket's ``index.jsonl``, so nothing is lost — the bucket, not
+    the Python object, is the source of truth, and this is the exact
+    multi-writer pattern the adapter's own test suite already proves safe
+    (independent ``B2Storage`` instances against one bucket merge by key
+    rather than clobbering each other).
+    """
+    if isinstance(_storage, FakeStorage):
+        return _storage
+    return config.build_storage()  # pragma: no cover - exercised only in live mode
+
+
+def _job_pipeline(storage: StorageBackend) -> ReelPipeline:
+    """The pipeline a background job thread runs its generation against.
+
+    Unlike storage, the provider/stitcher have no cross-request visibility
+    requirement (nothing else ever reads them back by reference), so a fresh
+    instance is always built — this keeps ``GenblazeMediaProvider.last_manifest``
+    and ``FakeMediaProvider.calls`` (both mutated per call, on the instance)
+    from ever being shared between this background thread and the module-level
+    synchronous pipeline's provider.
+    """
+    return ReelPipeline(config.build_provider(), storage, stitcher=config.build_stitcher())
+
+
+def _run_job(job_id: str, spec: ReelSpec) -> None:
+    """Background worker thread: run the generation, updating the stored status.
+
+    Runs the SAME honest-degrade path the synchronous endpoints use
+    (``_run_reel``), against an isolated pipeline/storage (see
+    ``_job_storage``/``_job_pipeline``) so this thread never mutates state a
+    request thread also touches. Never raises out of the thread and never
+    produces an HTTP 500 for a generation failure: caught here and recorded as
+    status ``failed`` with the exception CLASS NAME only (mirrors
+    ``_run_reel``'s ``degrade_reason``) — the full traceback goes to the log.
+    """
+    storage = _job_storage()
+    try:
+        jobs.mark_running(storage, job_id)
+        result = _run_reel(spec, _job_pipeline(storage))
+        jobs.mark_done(storage, job_id, result)
+    except Exception as exc:
+        _log.exception("background reel job %r failed", job_id)
+        jobs.mark_failed(storage, job_id, exc)
+
+
+@app.post("/reels/jobs", status_code=202)
+def create_reel_job(req: UploadReelRequest) -> dict:
+    """Submit a reel generation as a background job; poll ``GET /reels/jobs/{id}``.
+
+    Accepts the IDENTICAL body as ``POST /reels/upload`` — same decoding, same
+    ingest validation, same 400s for a bad request — but returns immediately
+    (202) with a job id instead of blocking for the full generation. See the
+    module docstring and ``cinemory.jobs`` for why (edge proxy timeouts) and
+    for the honest limitation of the in-process worker.
+    """
+    photos = _decode_photos(req.photos)
+    spec = _build_spec(
+        req.name, photos, occasion=req.occasion, chapters=req.chapters, bridges=req.bridges
+    )
+    job_id = jobs.new_job_id()
+    jobs.create(_job_storage(), job_id)
+    threading.Thread(
+        target=_run_job, args=(job_id, spec), daemon=True, name=f"cinemory-job-{job_id}"
+    ).start()
+    return {"job_id": job_id, "status": "queued"}
+
+
+@app.get("/reels/jobs/{job_id}")
+def get_reel_job(job_id: str) -> dict:
+    """Poll a submitted job's status.
+
+    404 for an unknown job id. A stored-but-unreadable status object degrades
+    to the identical 404 (see ``cinemory.jobs.read``) rather than a 500 — from
+    the caller's side an unreadable job and a nonexistent one are the same
+    "nothing to show" answer.
+    """
+    status = jobs.read(_storage, job_id)
+    if status is None:
+        raise HTTPException(404, f"no job {job_id!r}")
+    return status
 
 
 def _reel_index_match(name: str, *, kind: str, suffix: str) -> dict | None:
