@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GenerateReel } from "./GenerateReel";
 import { useReelStore } from "@/store/useReelStore";
+import { REEL_JOB_POLL_INTERVAL_MS } from "@/lib/queries";
 import { ApiError, cinemoryApi, type Occasion, type ReelResponse } from "@/lib/api";
 
 const REEL: ReelResponse = {
@@ -49,7 +50,10 @@ beforeEach(() => {
   vi.spyOn(cinemoryApi, "occasions").mockResolvedValue([ANNIVERSARY]);
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("<GenerateReel /> — synthetic (no photos) path", () => {
   it("auto-fires the synth reel and completes to the parent on success", async () => {
@@ -74,15 +78,21 @@ describe("<GenerateReel /> — synthetic (no photos) path", () => {
   });
 });
 
-describe("<GenerateReel /> — real-photo upload path", () => {
-  it("streams the selected files and completes on success", async () => {
+describe("<GenerateReel /> — real-photo async job path", () => {
+  it("submits a background job, polls it, and completes when the first poll is already done (offline/demo)", async () => {
     useReelStore.getState().setOccasion("anniversary");
     useReelStore
       .getState()
       .addPhotos([imageFile("a.png"), imageFile("b.png"), imageFile("c.png")]);
-    const uploadSpy = vi
-      .spyOn(cinemoryApi, "uploadReel")
-      .mockResolvedValue(REEL);
+    const submitSpy = vi
+      .spyOn(cinemoryApi, "submitReelJob")
+      .mockResolvedValue({ job_id: "job-1", status: "queued" });
+    const getJobSpy = vi
+      .spyOn(cinemoryApi, "getReelJob")
+      .mockResolvedValue({ job_id: "job-1", status: "done", result: REEL });
+    // The old sync client functions stay in place but must never be called
+    // from this flow.
+    const uploadSpy = vi.spyOn(cinemoryApi, "uploadReel");
     const createSpy = vi.spyOn(cinemoryApi, "createReel");
 
     const { onComplete } = renderGenerate();
@@ -92,12 +102,128 @@ describe("<GenerateReel /> — real-photo upload path", () => {
     await waitFor(() => expect(onComplete).toHaveBeenCalledWith(REEL), {
       timeout: 3000,
     });
-    expect(uploadSpy).toHaveBeenCalledWith(
+    expect(submitSpy).toHaveBeenCalledWith(
       expect.objectContaining({ occasion: "anniversary", chapters: 2 }),
     );
-    expect(uploadSpy.mock.calls[0]?.[0].files).toHaveLength(3);
-    // The synthetic path is never touched when real photos exist.
+    expect(submitSpy.mock.calls[0]?.[0].files).toHaveLength(3);
+    expect(getJobSpy).toHaveBeenCalledWith("job-1");
+    expect(uploadSpy).not.toHaveBeenCalled();
     expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps polling across queued → running → done before completing", async () => {
+    vi.useFakeTimers();
+    useReelStore.getState().setOccasion("anniversary");
+    useReelStore.getState().addPhotos([imageFile("only.png")]);
+    vi.spyOn(cinemoryApi, "submitReelJob").mockResolvedValue({
+      job_id: "job-1",
+      status: "queued",
+    });
+    const getJobSpy = vi
+      .spyOn(cinemoryApi, "getReelJob")
+      .mockResolvedValueOnce({ job_id: "job-1", status: "queued" })
+      .mockResolvedValueOnce({ job_id: "job-1", status: "running" })
+      .mockResolvedValueOnce({ job_id: "job-1", status: "done", result: REEL });
+
+    const { onComplete } = renderGenerate();
+
+    // Flush the submit and the poll's immediate first tick (queued).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByRole("heading", { name: /rolling/i })).toBeInTheDocument();
+    expect(getJobSpy).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+
+    // Second tick (running) — one interval later.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REEL_JOB_POLL_INTERVAL_MS);
+    });
+    expect(getJobSpy).toHaveBeenCalledTimes(2);
+    expect(onComplete).not.toHaveBeenCalled();
+
+    // Third tick (done) — another interval later.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REEL_JOB_POLL_INTERVAL_MS);
+    });
+    expect(getJobSpy).toHaveBeenCalledTimes(3);
+
+    // The ~650ms completion beat (all stages fill in, then onComplete fires).
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(700);
+    });
+    expect(onComplete).toHaveBeenCalledWith(REEL);
+  });
+
+  it("shows the friendly failure copy — never the raw exception class name — as the headline when the job fails", async () => {
+    useReelStore.getState().setOccasion("anniversary");
+    useReelStore.getState().addPhotos([imageFile("only.png")]);
+    vi.spyOn(cinemoryApi, "submitReelJob").mockResolvedValue({
+      job_id: "job-1",
+      status: "queued",
+    });
+    vi.spyOn(cinemoryApi, "getReelJob").mockResolvedValue({
+      job_id: "job-1",
+      status: "failed",
+      error: "RuntimeError",
+    });
+
+    renderGenerate();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /didn’t finish/i }),
+      ).toBeInTheDocument(),
+    );
+    // The friendly copy is the headline...
+    expect(screen.getByText(/we couldn’t finish this one/i)).toBeInTheDocument();
+    // ...the raw exception class name is kept only as the small technical
+    // detail underneath, never as the headline itself.
+    expect(screen.getByText("RuntimeError")).toBeInTheDocument();
+  });
+
+  it("surfaces a submit-level failure (e.g. a bad request) without ever polling", async () => {
+    useReelStore.getState().setOccasion("anniversary");
+    useReelStore.getState().addPhotos([imageFile("only.png")]);
+    vi.spyOn(cinemoryApi, "submitReelJob").mockRejectedValue(
+      new ApiError("Request to /reels/jobs failed (400).", 400),
+    );
+    const getJobSpy = vi.spyOn(cinemoryApi, "getReelJob");
+
+    renderGenerate();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /didn’t finish/i }),
+      ).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/failed \(400\)/i)).toBeInTheDocument();
+    // A submit that never even got a job id has nothing to poll.
+    expect(getJobSpy).not.toHaveBeenCalled();
+  });
+
+  it("retry re-submits a fresh job", async () => {
+    useReelStore.getState().setOccasion("anniversary");
+    useReelStore.getState().addPhotos([imageFile("only.png")]);
+    const submitSpy = vi
+      .spyOn(cinemoryApi, "submitReelJob")
+      .mockResolvedValue({ job_id: "job-1", status: "queued" });
+    vi.spyOn(cinemoryApi, "getReelJob").mockResolvedValue({
+      job_id: "job-1",
+      status: "failed",
+      error: "RuntimeError",
+    });
+
+    renderGenerate();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /didn’t finish/i }),
+      ).toBeInTheDocument(),
+    );
+
+    const before = submitSpy.mock.calls.length;
+    await userEvent.click(screen.getByRole("button", { name: /retry/i }));
+    await waitFor(() =>
+      expect(submitSpy.mock.calls.length).toBeGreaterThan(before),
+    );
   });
 });
 
@@ -155,8 +281,9 @@ describe("<GenerateReel /> — in-flight render", () => {
   it("shows the staged pipeline with a single photo (singular label)", () => {
     useReelStore.getState().setOccasion("anniversary");
     useReelStore.getState().addPhotos([imageFile("only.png")]);
-    // A request that never settles keeps the component in its pending render.
-    vi.spyOn(cinemoryApi, "uploadReel").mockReturnValue(new Promise(() => {}));
+    // A submit that never settles keeps the component in its pending render
+    // (jobId never gets set, so it never starts polling either).
+    vi.spyOn(cinemoryApi, "submitReelJob").mockReturnValue(new Promise(() => {}));
 
     renderGenerate();
 

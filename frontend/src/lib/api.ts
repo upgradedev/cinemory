@@ -77,6 +77,29 @@ export const ReelResponseSchema = z.object({
 });
 export type ReelResponse = z.infer<typeof ReelResponseSchema>;
 
+// Async submit + poll (POST /reels/jobs / GET /reels/jobs/{job_id}) — the
+// non-blocking counterpart to POST /reels/upload for a multi-minute live
+// render (see cinemory.jobs on the backend). A job's terminal `result` is the
+// IDENTICAL shape as ReelResponse above, so the success/render path is shared
+// with the synchronous flow unchanged.
+export const ReelJobSubmitResponseSchema = z.object({
+  job_id: z.string(),
+  status: z.string(),
+});
+export type ReelJobSubmitResponse = z.infer<typeof ReelJobSubmitResponseSchema>;
+
+export const ReelJobStatusSchema = z.object({
+  job_id: z.string(),
+  status: z.enum(["queued", "running", "done", "failed"]),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
+  result: ReelResponseSchema.optional(),
+  // Exception CLASS NAME only when status is "failed" (see cinemory.jobs) —
+  // never prose, never a stack trace. The UI keeps this out of the headline.
+  error: z.string().optional(),
+});
+export type ReelJobStatus = z.infer<typeof ReelJobStatusSchema>;
+
 // Full provenance manifest (GET /reels/{name}) — offline/indexed store only.
 export const AssetSchema = z.object({
   modality: z.string(),
@@ -159,6 +182,26 @@ async function request<S extends z.ZodTypeAny>(
   return parsed.data;
 }
 
+/** Read a File's bytes and resolve the RAW base64 payload — no leading
+ *  `data:<mime>;base64,` prefix. This is the shape the JSON job/upload routes
+ *  decode server-side via Python's `base64.b64decode` (see cinemory.api). */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error(`Failed to read ${file.name} as base64.`));
+        return;
+      }
+      const comma = result.indexOf(",");
+      resolve(comma === -1 ? result : result.slice(comma + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error(`Failed to read ${file.name}.`));
+    reader.readAsDataURL(file);
+  });
+}
+
 export const cinemoryApi = {
   health(): Promise<Health> {
     return request("/health", HealthSchema);
@@ -190,6 +233,41 @@ export const cinemoryApi = {
       method: "POST",
       body: form,
     });
+  },
+
+  /** Submit a reel generation as a background job (202 + job_id) instead of
+   *  blocking for the full render — the async counterpart to `uploadReel`,
+   *  for a caller that cannot hold one request open for a multi-minute live
+   *  render. Same conceptual payload (name/occasion/chapters/bridges/files),
+   *  but the backend's job-submit route only accepts the base64 JSON shape
+   *  (identical body to `POST /reels/upload`), not multipart — so files are
+   *  base64-encoded here rather than streamed as FormData. Poll the result
+   *  with `getReelJob`. */
+  async submitReelJob({
+    name,
+    occasion,
+    chapters,
+    bridges = false,
+    files,
+  }: UploadReelRequest): Promise<ReelJobSubmitResponse> {
+    const photos = await Promise.all(
+      files.map(async (file) => ({
+        filename: file.name,
+        content_base64: await fileToBase64(file),
+      })),
+    );
+    return request("/reels/jobs", ReelJobSubmitResponseSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, occasion, chapters, bridges, photos }),
+    });
+  },
+
+  /** Poll a submitted job's status (queued/running/done/failed). A 404
+   *  (unknown job id) surfaces as an ApiError like any other failed request —
+   *  the caller's poll loop tolerates that the same as a transient failure. */
+  getReelJob(jobId: string): Promise<ReelJobStatus> {
+    return request(`/reels/jobs/${encodeURIComponent(jobId)}`, ReelJobStatusSchema);
   },
 
   /** Fetch the full sealed manifest. Returns null when the store is not

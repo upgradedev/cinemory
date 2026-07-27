@@ -88,10 +88,11 @@ export const useReelStore = create<ReelState>((set, get) => ({
 /**
  * Derive the reel's chapter structure from the selected photo count.
  *
- * When photos are selected, their real bytes are streamed to
- * `POST /reels/upload-multipart` and only `chapters` shapes the edit (the server
- * groups the uploaded photos across chapters). With no photos selected we fall
- * back to the synthetic `POST /reels` path, which composes a reel from
+ * When photos are selected, their real bytes are submitted as a background
+ * job (`POST /reels/jobs`, polled via `GET /reels/jobs/{id}` — see
+ * usePollReelJob) and only `chapters` shapes the edit (the server groups the
+ * uploaded photos across chapters). With no photos selected we fall back to
+ * the synthetic `POST /reels` path, which composes a reel from
  * `chapters × per_chapter` scenes. Either way photos are grouped into 2–5
  * chapters, so a larger memory set yields a richer, longer reel.
  */

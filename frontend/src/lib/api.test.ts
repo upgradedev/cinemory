@@ -169,6 +169,108 @@ describe("cinemoryApi.uploadReel", () => {
   });
 });
 
+describe("cinemoryApi.submitReelJob", () => {
+  it("posts a base64 JSON job-submit body (identical shape to /reels/upload) and parses {job_id, status}", async () => {
+    const fetchMock = mockFetch(202, { job_id: "job-123", status: "queued" });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Bytes [1,2,3] have a known base64 encoding ("AQID") so the payload
+    // shape is asserted precisely, not just "some string".
+    const file = new File([new Uint8Array([1, 2, 3])], "memory.png", {
+      type: "image/png",
+    });
+    const r = await cinemoryApi.submitReelJob({
+      name: "cinemory-reel",
+      occasion: "wedding",
+      chapters: 3,
+      files: [file],
+    });
+    expect(r).toEqual({ job_id: "job-123", status: "queued" });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain("/reels/jobs");
+    expect(init.method).toBe("POST");
+    // JSON, never FormData/multipart — the job-submit route only decodes the
+    // base64 body (same Pydantic model as POST /reels/upload).
+    expect((init.headers as Record<string, string>)["Content-Type"]).toBe(
+      "application/json",
+    );
+    const body = JSON.parse(init.body as string);
+    expect(body.name).toBe("cinemory-reel");
+    expect(body.occasion).toBe("wedding");
+    expect(body.chapters).toBe(3);
+    expect(body.bridges).toBe(false);
+    expect(body.photos).toEqual([
+      { filename: "memory.png", content_base64: "AQID" },
+    ]);
+  });
+
+  it("surfaces a 4xx as ApiError, not a silent failure", async () => {
+    vi.stubGlobal("fetch", mockFetch(400, { detail: "at least one photo is required" }));
+    await expect(
+      cinemoryApi.submitReelJob({
+        name: "x",
+        occasion: "wedding",
+        chapters: 3,
+        files: [],
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("cinemoryApi.getReelJob", () => {
+  it("parses a queued/running status with no result yet", async () => {
+    vi.stubGlobal("fetch", mockFetch(200, { job_id: "job-123", status: "running" }));
+    const status = await cinemoryApi.getReelJob("job-123");
+    expect(status.status).toBe("running");
+    expect(status.result).toBeUndefined();
+
+    const [url, init] = (fetch as ReturnType<typeof mockFetch>).mock.calls[0] as [
+      string,
+      RequestInit,
+    ];
+    expect(url).toContain("/reels/jobs/job-123");
+    expect(init?.method ?? "GET").toBe("GET");
+  });
+
+  it("parses a done status carrying the sealed reel result", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(200, {
+        job_id: "job-123",
+        status: "done",
+        result: {
+          reel_name: "cinemory-reel",
+          reel_url: "b2://bucket/r.mp4",
+          reel_sha256: "abc",
+          manifest_uri: "b2://bucket/m.json",
+          manifest_hash: "def",
+          steps: 4,
+        },
+      }),
+    );
+    const status = await cinemoryApi.getReelJob("job-123");
+    expect(status.status).toBe("done");
+    expect(status.result?.reel_name).toBe("cinemory-reel");
+    expect(status.result?.steps).toBe(4);
+  });
+
+  it("parses a failed status carrying the exception class name, never prose", async () => {
+    vi.stubGlobal(
+      "fetch",
+      mockFetch(200, { job_id: "job-123", status: "failed", error: "RuntimeError" }),
+    );
+    const status = await cinemoryApi.getReelJob("job-123");
+    expect(status.status).toBe("failed");
+    expect(status.error).toBe("RuntimeError");
+  });
+
+  it("surfaces a 404 (unknown job id) as ApiError", async () => {
+    vi.stubGlobal("fetch", mockFetch(404, { detail: "no job 'nope'" }));
+    await expect(cinemoryApi.getReelJob("nope")).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
 describe("cinemoryApi.manifest", () => {
   it("returns null on 404 (live path)", async () => {
     vi.stubGlobal("fetch", mockFetch(404, { detail: "nope" }));
