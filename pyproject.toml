@@ -15,6 +15,11 @@ dependencies = [
     "pydantic>=2.6",
     "pillow>=10.2",
     "python-multipart>=0.0.18",
+    # Firebase ID-token verification (cinemory.auth) — RS256 JWT decode +
+    # Google's x509 signing certs. No Firebase Admin SDK, no service-account
+    # secret.
+    "pyjwt>=2.8",
+    "cryptography>=42",
 ]
 
 [project.optional-dependencies]
