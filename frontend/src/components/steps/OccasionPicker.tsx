@@ -18,7 +18,7 @@ export function OccasionPicker() {
     <div className="animate-fade-up">
       <StepHeading
         title="Set the mood"
-        subtitle="Each occasion has its own score, pacing and title style — the whole edit changes with your choice."
+        subtitle="Each occasion has its own score, pacing and title style. The whole edit changes with your choice."
       />
 
       {isLoading && (

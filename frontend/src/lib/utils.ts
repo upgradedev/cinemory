@@ -8,14 +8,14 @@ export function cn(...inputs: ClassValue[]): string {
 
 /** Truncate a hex hash for compact display: `a1b2c3…d4e5f6`. */
 export function shortHash(hash: string | null | undefined, edge = 8): string {
-  if (!hash) return "—";
+  if (!hash) return "N/A";
   if (hash.length <= edge * 2 + 1) return hash;
   return `${hash.slice(0, edge)}…${hash.slice(-edge)}`;
 }
 
 /** Human-readable byte size. */
 export function formatBytes(bytes: number | null | undefined): string {
-  if (bytes == null || Number.isNaN(bytes)) return "—";
+  if (bytes == null || Number.isNaN(bytes)) return "N/A";
   if (bytes < 1024) return `${bytes} B`;
   const units = ["KB", "MB", "GB"];
   let value = bytes / 1024;

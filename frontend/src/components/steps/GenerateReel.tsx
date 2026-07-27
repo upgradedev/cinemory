@@ -7,7 +7,7 @@ import { StepHeading } from "./PhotoUpload";
 import { useCreateReel, useOccasions, useUploadReel } from "@/lib/queries";
 import { deriveReelShape, useReelStore } from "@/store/useReelStore";
 import { generationProgressPct } from "@/lib/progress";
-import type { ReelResponse } from "@/lib/api";
+import { ApiError, type ReelResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const STAGES = [
@@ -115,21 +115,33 @@ export function GenerateReel({
   });
 
   if (mutation.isError) {
+    // Honest-degrade for the headline: a gateway timeout on a multi-minute
+    // live render is not a hard failure, so it gets its own reassuring copy.
+    // The raw ApiError message (path + HTTP status) stays visible as a small
+    // technical line underneath, never as the headline.
+    const err = mutation.error;
+    const status = err instanceof ApiError ? err.status : undefined;
+    const isTimeout =
+      status === 504 || status === 502 || status === 503 || status === 408;
+    const friendlyDetail = isTimeout
+      ? "This is taking longer than expected. Please try again in a moment."
+      : "We couldn’t finish this one. Please try again.";
+    const rawDetail = err instanceof Error ? err.message : null;
+
     return (
       <div className="animate-fade-up">
         <StepHeading
           title="The reel didn’t finish"
-          subtitle="Something interrupted the render. Your photos and occasion are safe — try again."
+          subtitle="Your photos and occasion are safe. Just try again."
         />
         <div className="glass mx-auto max-w-md rounded-2xl p-8 text-center">
           <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-ember-500/15 text-ember-400">
             <AlertTriangle className="h-6 w-6" />
           </span>
-          <p className="mt-4 text-sm text-zinc-400">
-            {mutation.error instanceof Error
-              ? mutation.error.message
-              : "Unknown error."}
-          </p>
+          <p className="mt-4 text-sm text-zinc-400">{friendlyDetail}</p>
+          {rawDetail && (
+            <p className="mt-2 text-[11px] text-zinc-400">{rawDetail}</p>
+          )}
           <div className="mt-6 flex justify-center gap-3">
             <Button variant="ghost" onClick={() => goTo("occasion")}>
               Back
@@ -150,10 +162,14 @@ export function GenerateReel({
         title="Rolling…"
         subtitle={
           occasion
-            ? `Editing a ${occasion.label.toLowerCase()} reel — ${occasion.music_style}.`
+            ? `Editing a ${occasion.label.toLowerCase()} reel: ${occasion.music_style}.`
             : "Your cinematic reel is being composed."
         }
       />
+      <p className="-mt-5 mb-8 text-center text-sm text-zinc-400">
+        A live reel can take a few minutes to render. No need to refresh,
+        this updates on its own.
+      </p>
 
       <div className="mx-auto max-w-lg">
         {/* Reel animation */}

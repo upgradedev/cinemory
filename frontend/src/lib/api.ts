@@ -137,7 +137,7 @@ async function request<S extends z.ZodTypeAny>(
       ...init,
     });
   } catch (err) {
-    throw new ApiError("Network unreachable — check your connection.", undefined, err);
+    throw new ApiError("Network unreachable. Check your connection and try again.", undefined, err);
   }
   if (!res.ok) {
     throw new ApiError(`Request to ${path} failed (${res.status}).`, res.status);

@@ -84,7 +84,7 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
                 )}
                 {photos.length > 0 && (
                   <p className="absolute inset-x-0 bottom-[11%] z-20 px-6 text-center text-xs text-white/70">
-                    Preview slideshow of your photos — the reel file plays here
+                    Preview slideshow of your photos. The reel file plays here
                     when it comes from live AI generation.
                   </p>
                 )}

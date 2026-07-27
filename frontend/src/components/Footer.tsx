@@ -4,7 +4,7 @@ export function Footer() {
   return (
     <footer className="border-t border-white/[0.05] py-10">
       <div className="container flex flex-col items-center gap-4 text-sm text-zinc-400 sm:flex-row sm:justify-between">
-        <p>© {new Date().getFullYear()} Cinemory — your memories, made into film.</p>
+        <p>© {new Date().getFullYear()} Cinemory. Your memories, made into film.</p>
         {/* The repo link is a standalone control (not buried mid-sentence) so it
             is a real >=44px tap target on touch, tightening on >=sm. */}
         <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-5">

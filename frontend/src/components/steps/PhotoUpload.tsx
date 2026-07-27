@@ -53,7 +53,7 @@ export function PhotoUpload() {
     <div className="animate-fade-up">
       <StepHeading
         title="Bring your memories"
-        subtitle="Drop the photos you want in the reel. Reorder them to set the story — the order becomes the edit."
+        subtitle="Drop the photos you want in the reel. Reorder them to set the story. The order becomes the edit."
       />
 
       {/* Dropzone */}
@@ -211,7 +211,7 @@ export function PhotoUpload() {
 
       <div className="mt-10 flex items-start justify-between gap-4">
         <span className="text-xs text-zinc-400">
-          Tip: 4–12 photos make the richest reel.
+          Tip: 4 to 12 photos make the richest reel.
         </span>
         <div className="flex flex-col items-end gap-1.5">
           <Button

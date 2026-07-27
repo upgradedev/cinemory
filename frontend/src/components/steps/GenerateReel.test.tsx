@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GenerateReel } from "./GenerateReel";
 import { useReelStore } from "@/store/useReelStore";
-import { cinemoryApi, type Occasion, type ReelResponse } from "@/lib/api";
+import { ApiError, cinemoryApi, type Occasion, type ReelResponse } from "@/lib/api";
 
 const REEL: ReelResponse = {
   reel_name: "cinemory-reel",
@@ -126,6 +126,28 @@ describe("<GenerateReel /> — failure handling", () => {
     // Back returns to the occasion step.
     await userEvent.click(screen.getByRole("button", { name: /back/i }));
     expect(useReelStore.getState().step).toBe("occasion");
+  });
+
+  it("reads a gateway timeout as an honest 'taking longer than expected', with the raw status kept as a secondary detail", async () => {
+    useReelStore.getState().setOccasion("anniversary");
+    vi.spyOn(cinemoryApi, "createReel").mockRejectedValue(
+      new ApiError("Request to /reels failed (504).", 504),
+    );
+
+    renderGenerate();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /didn’t finish/i }),
+      ).toBeInTheDocument(),
+    );
+
+    // The headline is the honest, reassuring copy. Never the raw error.
+    expect(
+      screen.getByText(/taking longer than expected/i),
+    ).toBeInTheDocument();
+    // The raw technical detail (path + status) stays available, just not
+    // as the headline.
+    expect(screen.getByText(/failed \(504\)/i)).toBeInTheDocument();
   });
 });
 

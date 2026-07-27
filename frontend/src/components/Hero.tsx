@@ -8,17 +8,17 @@ const features = [
   {
     icon: Film,
     title: "Cinematic by default",
-    body: "Music-driven cuts, chapter bridges and title cards — an editor’s eye, automated.",
+    body: "Music-driven cuts, chapter bridges and title cards: an editor’s eye, automated.",
   },
   {
     icon: Sparkles,
     title: "Occasion-aware",
-    body: "Anniversary, wedding, graduation, year-in-review — each with its own pacing and score.",
+    body: "Anniversary, wedding, graduation, year-in-review: each with its own pacing and score.",
   },
   {
     icon: ShieldCheck,
     title: "Provenance-sealed",
-    body: "Every asset is SHA-256 hashed and the manifest is sealed — verifiable, tamper-evident.",
+    body: "Every asset is SHA-256 hashed and the manifest is sealed: verifiable, tamper-evident.",
   },
 ];
 
@@ -83,7 +83,7 @@ export function Hero({
           className="mt-6 max-w-xl text-balance text-lg text-zinc-400"
         >
           Cinemory turns a handful of photos into a scored, stitched cinematic
-          reel — and seals it with cryptographic provenance you can verify.
+          reel, and seals it with cryptographic provenance you can verify.
         </motion.p>
 
         <motion.p
@@ -92,7 +92,7 @@ export function Hero({
           transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="mt-3 max-w-lg text-sm text-zinc-400"
         >
-          Made for families, couples and small teams — no video editor required.
+          Made for families, couples and small teams. No video editor required.
         </motion.p>
 
         <motion.div
@@ -123,7 +123,7 @@ export function Hero({
           )}
         </motion.div>
         <span className="mt-4 text-sm text-zinc-400">
-          No account · No watermark · ~30 seconds
+          No account · No watermark
         </span>
 
         {/* A live, muted, looping example of the generative output. */}

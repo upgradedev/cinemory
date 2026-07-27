@@ -50,13 +50,13 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
     try {
       const file = await fetchReelFile(playbackUrl, filename);
       const outcome = await shareReel(file, {
-        title: `Cinemory — ${reel.reel_name}`,
+        title: `Cinemory: ${reel.reel_name}`,
         text: "A cinematic memory reel, sealed with verifiable provenance.",
         pageUrl,
       });
       setStatus(
         outcome === "unsupported"
-          ? "Native share isn’t available here — use Download or Copy link."
+          ? "Native share isn’t available here. Use Download or Copy link instead."
           : `Share ${outcome}.`,
       );
     } catch (e) {
@@ -89,7 +89,7 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
       if (copiedTimer.current !== null) window.clearTimeout(copiedTimer.current);
       copiedTimer.current = window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      setStatus("Copy failed — copy the address from the address bar instead.");
+      setStatus("Copy failed. Copy the address from the address bar instead.");
     }
   };
 
@@ -135,7 +135,7 @@ export function ShareBar({ reel }: { reel: ReelResponse }) {
       {!fetchable && (
         <p className="mt-4 text-xs text-zinc-400">
           This run was rendered by the built-in offline generator, so there is no
-          playable video to share yet — the reel is still stored and sealed at{" "}
+          playable video to share yet. The reel is still stored and sealed at{" "}
           <span className="font-mono text-zinc-400">{reel.reel_url ?? "(none)"}</span>.
           Share &amp; Download activate on live AI-generated reels.
         </p>

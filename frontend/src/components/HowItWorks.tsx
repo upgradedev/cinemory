@@ -5,7 +5,7 @@ const STEPS = [
   {
     icon: ImagePlus,
     title: "Add your photos",
-    body: "Drop in a handful of moments — the order you choose becomes the edit.",
+    body: "Drop in a handful of moments. The order you choose becomes the edit.",
   },
   {
     icon: Sparkles,
@@ -15,7 +15,7 @@ const STEPS = [
   {
     icon: ShieldCheck,
     title: "Get a sealed reel",
-    body: "A cinematic reel you can play, share and cryptographically verify — in seconds.",
+    body: "A cinematic reel you can play, share and cryptographically verify in seconds.",
   },
 ];
 
