@@ -6,3 +6,7 @@ pillow>=10.2
 # Real photo ingest (POST /reels/upload-multipart). Pinned >=0.0.18 to stay
 # clear of the ReDoS advisory in older releases (keeps pip-audit --strict green).
 python-multipart>=0.0.18
+# Firebase ID-token verification (cinemory.auth) — RS256 JWT decode + Google's
+# x509 signing certs. No Firebase Admin SDK, no service-account secret.
+pyjwt>=2.8
+cryptography>=42
