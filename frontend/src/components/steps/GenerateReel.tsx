@@ -4,7 +4,12 @@ import { AlertTriangle, Check, Loader2, RotateCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
 import { StepHeading } from "./PhotoUpload";
-import { useCreateReel, useOccasions, useUploadReel } from "@/lib/queries";
+import {
+  useCreateReel,
+  useOccasions,
+  usePollReelJob,
+  useSubmitReelJob,
+} from "@/lib/queries";
 import { deriveReelShape, useReelStore } from "@/store/useReelStore";
 import { generationProgressPct } from "@/lib/progress";
 import { ApiError, type ReelResponse } from "@/lib/api";
@@ -29,37 +34,40 @@ export function GenerateReel({
   const occasionKey = useReelStore((s) => s.occasionKey);
   const goTo = useReelStore((s) => s.goTo);
   const { data: occasions } = useOccasions();
-  const uploadMutation = useUploadReel();
+  const submitMutation = useSubmitReelJob();
   const synthMutation = useCreateReel();
 
   const [stage, setStage] = useState(0);
+  const [jobId, setJobId] = useState<string | null>(null);
   const startedRef = useRef(false);
+  const poll = usePollReelJob(jobId);
 
   const occasion = occasions?.find((o) => o.key === occasionKey);
   const shape = deriveReelShape(photos.length);
 
-  // Real photos → send the actual bytes to /reels/upload-multipart. With no
-  // files selected we fall back to the synthetic count/order path (/reels).
+  // Real photos → submit an async job (POST /reels/jobs) and poll it, so a
+  // multi-minute live render never blocks one HTTP request past the edge
+  // proxy's timeout. With no files selected we fall back to the synthetic
+  // count/order path (POST /reels): it has no async counterpart (the
+  // job-submit route requires at least one photo — see
+  // cinemory.ingest.build_spec_from_photos — while the synthetic path takes
+  // none), so it stays a direct, blocking mutation.
   const hasPhotos = photos.length > 0;
-  const mutation = hasPhotos ? uploadMutation : synthMutation;
 
   const start = () => {
     setStage(0);
-    const onSettled = {
-      onSuccess: (reel: ReelResponse) => {
-        setStage(STAGES.length);
-        window.setTimeout(() => onComplete(reel), 650);
-      },
-    };
     if (hasPhotos) {
-      uploadMutation.mutate(
+      // Reset first so a retry's stale job id/result/error never lingers
+      // for even one render.
+      setJobId(null);
+      submitMutation.mutate(
         {
           name: "cinemory-reel",
           occasion: occasionKey ?? "anniversary",
           chapters: shape.chapters,
           files: photos.map((p) => p.file),
         },
-        onSettled,
+        { onSuccess: (data) => setJobId(data.job_id) },
       );
     } else {
       synthMutation.mutate(
@@ -69,7 +77,12 @@ export function GenerateReel({
           chapters: shape.chapters,
           per_chapter: shape.per_chapter,
         },
-        onSettled,
+        {
+          onSuccess: (reel) => {
+            setStage(STAGES.length);
+            window.setTimeout(() => onComplete(reel), 650);
+          },
+        },
       );
     }
   };
@@ -82,44 +95,78 @@ export function GenerateReel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Advance the visible pipeline stage while the request is in flight. This is
-  // an honest reflection of the fixed server pipeline (POST /reels is
-  // synchronous); we pace the stage list to feel like the work it represents.
+  // The polled job landed a sealed reel: same completion beat as the
+  // synthetic path's onSuccess above (fill the stage list, then hand off
+  // after a short beat so the checkmarks are visible before the parent
+  // advances to the result step).
   useEffect(() => {
-    if (!mutation.isPending) return;
+    if (!poll.result) return;
+    const result = poll.result;
+    setStage(STAGES.length);
+    const id = window.setTimeout(() => onComplete(result), 650);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [poll.result]);
+
+  // True while a request is genuinely in flight: submitting the job (or the
+  // single synchronous synthetic call), or a submitted job still being
+  // polled. jobId flips from null to the submitted id in the same render the
+  // submit mutation settles, so this stays continuous across that handoff.
+  const isPending = hasPhotos
+    ? jobId === null
+      ? submitMutation.isPending
+      : poll.isPolling
+    : synthMutation.isPending;
+  const isSuccess = hasPhotos ? poll.result !== null : synthMutation.isSuccess;
+  const error: Error | null = hasPhotos
+    ? submitMutation.isError
+      ? submitMutation.error
+      : poll.error
+    : synthMutation.isError
+      ? synthMutation.error
+      : null;
+
+  // Advance the visible pipeline stage while a request is in flight. This is
+  // an honest reflection of the fixed server pipeline (submit+poll or the
+  // single synchronous synthetic call); we pace the stage list to feel like
+  // the work it represents.
+  useEffect(() => {
+    if (!isPending) return;
     const id = window.setInterval(() => {
       setStage((s) => (s < STAGES.length - 1 ? s + 1 : s));
     }, 900);
     return () => window.clearInterval(id);
-  }, [mutation.isPending]);
+  }, [isPending]);
 
   // Once the staged front-load is exhausted (~86%), keep the bar crawling
   // asymptotically against real elapsed time instead of freezing — 100 still
   // only lands with the actual response (see lib/progress.ts).
   const [tailMs, setTailMs] = useState(0);
   useEffect(() => {
-    if (!mutation.isPending || stage < STAGES.length - 1) {
+    if (!isPending || stage < STAGES.length - 1) {
       setTailMs(0);
       return;
     }
     const startedAt = Date.now();
     const id = window.setInterval(() => setTailMs(Date.now() - startedAt), 300);
     return () => window.clearInterval(id);
-  }, [mutation.isPending, stage]);
+  }, [isPending, stage]);
 
   const pct = generationProgressPct({
     stage,
     totalStages: STAGES.length,
     tailElapsedMs: tailMs,
-    done: mutation.isSuccess,
+    done: isSuccess,
   });
 
-  if (mutation.isError) {
+  if (error) {
     // Honest-degrade for the headline: a gateway timeout on a multi-minute
-    // live render is not a hard failure, so it gets its own reassuring copy.
-    // The raw ApiError message (path + HTTP status) stays visible as a small
-    // technical line underneath, never as the headline.
-    const err = mutation.error;
+    // live render (sync or async — the bounded poll ceiling in usePollReelJob
+    // reuses this exact 504 branch) is not a hard failure, so it gets its own
+    // reassuring copy. The raw error message — path + HTTP status, or a
+    // failed job's exception class name — stays visible as a small technical
+    // line underneath, never as the headline.
+    const err = error;
     const status = err instanceof ApiError ? err.status : undefined;
     const isTimeout =
       status === 504 || status === 502 || status === 503 || status === 408;
@@ -189,14 +236,14 @@ export function GenerateReel({
         </div>
         <Progress
           value={pct}
-          indeterminate={mutation.isPending}
+          indeterminate={isPending}
           label="Reel generation progress"
         />
 
         <ol className="mt-8 space-y-3">
           {STAGES.map((label, i) => {
-            const done = i < stage || mutation.isSuccess;
-            const active = i === stage && mutation.isPending;
+            const done = i < stage || isSuccess;
+            const active = i === stage && isPending;
             return (
               <li
                 key={label}

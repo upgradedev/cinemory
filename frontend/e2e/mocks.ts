@@ -88,9 +88,9 @@ const VERIFY_RECEIPT = {
 
 /**
  * Intercept every Cinemory API route so the journey runs with no backend.
- * Covers /health, /occasions, POST /reels(+upload variants) and GET
- * /reels/{name}. Registered on the browser context so it also applies to any
- * pages the app opens.
+ * Covers /health, /occasions, POST /reels(+upload variants), the async
+ * submit+poll job routes, and GET /reels/{name}. Registered on the browser
+ * context so it also applies to any pages the app opens.
  */
 export async function mockCinemoryApi(page: Page): Promise<void> {
   await page.route("**/health", (route) =>
@@ -109,13 +109,39 @@ export async function mockCinemoryApi(page: Page): Promise<void> {
     (route) => route.fulfill({ json: VERIFY_RECEIPT }),
   );
 
+  // The async submit + poll job routes (POST /reels/jobs, GET
+  // /reels/jobs/{id}) — the real-photo path GenerateReel now drives (see
+  // usePollReelJob). Declared BEFORE the /reels catch-all and excluded from
+  // it, same pattern as /verify above. Offline generation is near-instant,
+  // so the job is already "done" on the very first poll here — exactly the
+  // case usePollReelJob's immediate first tick is built to handle.
+  await page.route(
+    (url) => url.pathname === "/reels/jobs" || url.pathname.startsWith("/reels/jobs/"),
+    async (route) => {
+      if (route.request().method() === "POST") {
+        // Same observability delay as the synchronous create/upload mock
+        // below (see its comment) — keeps the transient "generate" step
+        // visible before this journey's later steps land.
+        await new Promise((r) => setTimeout(r, 1500));
+        return route.fulfill({
+          status: 202,
+          json: { job_id: "e2e-job", status: "queued" },
+        });
+      }
+      return route.fulfill({
+        json: { job_id: "e2e-job", status: "done", result: REEL_RESPONSE },
+      });
+    },
+  );
+
   // One handler for the rest of the /reels surface: POST (any create/upload
   // variant) returns the sealed reel; GET /reels/{name} returns the byte-exact
   // golden manifest so the in-browser seal verification is real.
   await page.route(
     (url) =>
-      url.pathname === "/reels" ||
-      (url.pathname.startsWith("/reels/") && !url.pathname.endsWith("/verify")),
+      (url.pathname === "/reels" ||
+        (url.pathname.startsWith("/reels/") && !url.pathname.endsWith("/verify"))) &&
+      !url.pathname.startsWith("/reels/jobs"),
     async (route) => {
       if (route.request().method() === "POST") {
         // A delay so the transient "generate" step is stably observable (the
