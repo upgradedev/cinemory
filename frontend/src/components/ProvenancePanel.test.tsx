@@ -141,7 +141,7 @@ describe("<ProvenancePanel /> — server-side aggregate re-verification", () => 
     await userEvent.click(screen.getByRole("button", { name: /verify provenance/i }));
 
     expect(
-      await screen.findByText(/2\/2 checks passed — all verified/i),
+      await screen.findByText(/2\/2 checks passed\. all verified/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/reel bytes match the sealed hash/i)).toBeInTheDocument();
     // Non-colour-only: an explicit textual "Passed" label per check.

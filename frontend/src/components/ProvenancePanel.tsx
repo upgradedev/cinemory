@@ -74,7 +74,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
           </div>
           <p className="mt-1 text-sm text-zinc-400">
             Every asset is content-addressed by SHA-256 and the manifest is
-            sealed — tampering with any field breaks the hash.
+            sealed. Tampering with any field breaks the hash.
           </p>
         </div>
         <SealBadge verify={verify} />
@@ -138,7 +138,7 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
             </span>
           </div>
           <p className="mt-2 truncate font-mono text-[11px] text-zinc-400">
-            {reel.reel_url ?? "—"}
+            {reel.reel_url ?? "(none)"}
           </p>
         </div>
       </div>
@@ -312,7 +312,7 @@ function ServerRecheck({ receipt }: { receipt: ReceiptUiState }) {
           }
         >
           {passed}/{checks.length} checks passed
-          {allPassed ? " — all verified" : " — tamper detected"}
+          {allPassed ? ". All verified." : ". Tamper detected."}
         </span>
       </div>
       <ul className="space-y-2">

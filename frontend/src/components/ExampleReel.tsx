@@ -45,7 +45,7 @@ export function ExampleReel() {
   return (
     <div
       role="img"
-      aria-label="Example Cinemory reel — a cinematic sequence generated from photos"
+      aria-label="Example Cinemory reel: a cinematic sequence generated from photos"
       className="letterbox relative aspect-video w-full overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-900 shadow-film"
     >
       {frames.map((src, i) => (

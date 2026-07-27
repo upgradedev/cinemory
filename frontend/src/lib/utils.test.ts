@@ -8,8 +8,8 @@ describe("shortHash", () => {
     const h = "a".repeat(20) + "b".repeat(20);
     expect(shortHash(h)).toBe("aaaaaaaa…bbbbbbbb");
   });
-  it("returns em dash for empty", () => {
-    expect(shortHash(null)).toBe("—");
+  it("returns N/A for empty", () => {
+    expect(shortHash(null)).toBe("N/A");
   });
   it("leaves short hashes intact", () => {
     expect(shortHash("abcd")).toBe("abcd");
@@ -23,7 +23,7 @@ describe("formatBytes", () => {
     expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 MB");
   });
   it("handles nullish", () => {
-    expect(formatBytes(null)).toBe("—");
+    expect(formatBytes(null)).toBe("N/A");
   });
 });
 

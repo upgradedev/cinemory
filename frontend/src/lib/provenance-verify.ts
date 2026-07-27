@@ -283,7 +283,7 @@ export async function verifyReelProvenance(
   } catch {
     return {
       state: "unavailable",
-      detail: "The manifest couldn't be fetched — check your connection and retry.",
+      detail: "The manifest couldn't be fetched. Check your connection and retry.",
     };
   }
   if (!res.ok) {
@@ -309,7 +309,7 @@ export async function verifyReelProvenance(
     return {
       state: "failed",
       detail:
-        "Recomputed SHA-256 does NOT match the sealed manifest_hash — the manifest bytes have changed.",
+        "Recomputed SHA-256 does NOT match the sealed manifest_hash. The manifest bytes have changed.",
       claimedHash,
       computedHash,
     };
@@ -326,7 +326,7 @@ export async function verifyReelProvenance(
   return {
     state: "verified",
     detail:
-      "Recomputed the canonical SHA-256 in your browser from the re-fetched manifest — it matches the sealed manifest_hash.",
+      "Recomputed the canonical SHA-256 in your browser from the re-fetched manifest. It matches the sealed manifest_hash.",
     claimedHash,
     computedHash,
   };
@@ -410,7 +410,7 @@ export async function fetchReelReceipt(
   } catch {
     return {
       state: "unavailable",
-      detail: "The verification receipt couldn't be fetched — check your connection and retry.",
+      detail: "The verification receipt couldn't be fetched. Check your connection and retry.",
     };
   }
   if (!res.ok) {
