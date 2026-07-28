@@ -49,6 +49,17 @@ backend: `VITE_DEV_PROXY_TARGET=http://localhost:8000 npm run dev` alongside
 Config: copy `.env.example` → `.env.local`. Nothing here is secret (all `VITE_`
 vars are public/embedded).
 
+### Optional: Google sign-in, "My reels", delete my data
+
+Set the four `VITE_FIREBASE_*` vars in `.env.local` (all public Firebase
+web-config values, never secrets — see `.env.example`) to turn on an optional
+sign-in layer: a "Sign in with Google" button in the header, a "My reels"
+library for a signed-in visitor's own reels, and a "delete all my data"
+control. Leave them unset and the app is guest-only, exactly as it is today —
+no sign-in button renders and no extra code path runs. The backend also needs
+`FIREBASE_PROJECT_ID` set (repo-root `.env.example`) for sign-in to actually
+take effect end to end.
+
 ## Quality gates
 
 ```bash

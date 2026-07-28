@@ -17,6 +17,17 @@
 // surrogate pairs for astral characters). The golden-fixture test pins this
 // against a manifest produced by the real backend.
 import { API_BASE } from "./api";
+import { getIdToken } from "./auth";
+
+/** Merges a fresh `Authorization: Bearer <id token>` into `headers` when a
+ *  user is signed in — mirrors `withAuth` in lib/api.ts (see that function's
+ *  comment for why an unchanged reference matters). Signed out / auth
+ *  disabled returns `headers` completely UNCHANGED, so a guest's re-fetch and
+ *  re-verify calls are byte-identical to before this feature existed. */
+async function withAuth(headers: Record<string, string>): Promise<Record<string, string>> {
+  const token = await getIdToken();
+  return token ? { ...headers, Authorization: `Bearer ${token}` } : headers;
+}
 
 // ── lexeme-preserving JSON tree ──────────────────────────────────────────────
 
@@ -278,7 +289,7 @@ export async function verifyReelProvenance(
   let res: Response;
   try {
     res = await fetchImpl(`${API_BASE}/reels/${encodeURIComponent(reelName)}`, {
-      headers: { Accept: "application/json" },
+      headers: await withAuth({ Accept: "application/json" }),
     });
   } catch {
     return {
@@ -405,7 +416,7 @@ export async function fetchReelReceipt(
   try {
     res = await fetchImpl(
       `${API_BASE}/reels/${encodeURIComponent(reelName)}/verify`,
-      { headers: { Accept: "application/json" } },
+      { headers: await withAuth({ Accept: "application/json" }) },
     );
   } catch {
     return {

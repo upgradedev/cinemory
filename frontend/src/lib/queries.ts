@@ -9,6 +9,7 @@ import {
   ApiError,
   cinemoryApi,
   type Health,
+  type LibraryReel,
   type Manifest,
   type Occasion,
   type ReelJobSubmitResponse,
@@ -21,6 +22,7 @@ export const queryKeys = {
   health: ["health"] as const,
   occasions: ["occasions"] as const,
   manifest: (name: string) => ["manifest", name] as const,
+  myLibrary: ["myLibrary"] as const,
 };
 
 export function useHealth(): UseQueryResult<Health> {
@@ -46,6 +48,38 @@ export function useManifest(name: string | null): UseQueryResult<Manifest | null
     queryFn: () => cinemoryApi.manifest(name as string),
     enabled: !!name,
     staleTime: Infinity,
+  });
+}
+
+/** The signed-in tenant's own reel library (GET /me/library). `enabled` is
+ *  driven by the caller (MyReels passes `useAuthUser().user !== null`) — this
+ *  hook never fetches on its own just because it was rendered, since the
+ *  route 401s for anyone who isn't signed in.
+ *
+ *  `retry: false` overrides the app-wide default (`main.tsx` sets `retry: 1`):
+ *  a 401 here means "this deployment doesn't have multitenancy configured, or
+ *  I'm signed out" — neither improves by retrying, so MyReels can render its
+ *  honest degrade message immediately instead of after a pointless extra
+ *  round trip. */
+export function useMyLibrary(enabled: boolean): UseQueryResult<LibraryReel[]> {
+  return useQuery({
+    queryKey: queryKeys.myLibrary,
+    queryFn: () => cinemoryApi.myLibrary(),
+    enabled,
+    retry: false,
+  });
+}
+
+/** Erase every object under the signed-in tenant's storage prefix
+ *  (DELETE /me/data). On success, invalidates the library query so MyReels
+ *  refetches and renders the now-empty state. */
+export function useDeleteMyData() {
+  const qc = useQueryClient();
+  return useMutation<{ deleted: number }, Error, void>({
+    mutationFn: () => cinemoryApi.deleteMyData(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.myLibrary });
+    },
   });
 }
 
@@ -140,7 +174,10 @@ export function usePollReelJob(jobId: string | null): ReelJobPollState {
       return;
     }
     let cancelled = false;
-    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    // `number`, not ReturnType<typeof window.setTimeout>: with @types/node in
+    // scope that alias resolves to Node's `Timeout`, while the DOM
+    // `window.setTimeout` call below actually returns a `number`.
+    let timer: number | undefined;
     let consecutiveErrors = 0;
     const startedAt = Date.now();
     setState({ result: null, error: null, isPolling: true });

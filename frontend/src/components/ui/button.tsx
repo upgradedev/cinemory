@@ -15,6 +15,8 @@ const buttonVariants = cva(
         ghost: "text-zinc-300 hover:bg-white/[0.05] hover:text-zinc-100",
         outline:
           "border border-gold-400/40 text-gold-200 hover:bg-gold-400/10 hover:border-gold-400/70 active:scale-[0.98]",
+        destructive:
+          "border border-red-400/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-400/70 active:scale-[0.98]",
       },
       // Mobile-first tap targets: every control clears the 44px WCAG 2.5.5
       // minimum on touch viewports, then tightens to its compact desktop size

@@ -9,6 +9,7 @@
 //   • Escape hatch: if you set VITE_API_BASE to an absolute URL it is used
 //     directly (requires the backend to allow that origin).
 import { z } from "zod";
+import { getIdToken } from "./auth";
 
 export const API_BASE: string = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
 
@@ -133,6 +134,21 @@ export const ManifestSchema = z.object({
 });
 export type Manifest = z.infer<typeof ManifestSchema>;
 
+// Optional per-user multitenancy (GET /me/library, DELETE /me/data — see
+// cinemory.api and lib/auth.ts). Both routes 401 for a guest caller; the UI
+// only ever calls them when signed in (see MyReels.tsx).
+export const LibraryReelSchema = z.object({
+  reel_name: z.string(),
+  manifest_hash: z.string().nullable(),
+  created_at: z.string().nullable(),
+  updated_at: z.string().nullable(),
+});
+export type LibraryReel = z.infer<typeof LibraryReelSchema>;
+
+const MyLibraryResponseSchema = z.object({ reels: z.array(LibraryReelSchema) });
+
+const DeleteMyDataResponseSchema = z.object({ deleted: z.number().int() });
+
 // ── Errors ───────────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
@@ -202,6 +218,30 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+/** Merges a fresh `Authorization: Bearer <id token>` into `headers` when a
+ *  user is signed in (see lib/auth.ts::getIdToken). Signed out, or auth
+ *  disabled on this build — the overwhelmingly common case, and the ONLY
+ *  case any test before this feature existed ever exercised — returns
+ *  `headers` completely UNCHANGED (same reference when a base was given, or
+ *  `undefined` when it wasn't), so every reel call below is byte-identical
+ *  to its pre-multitenancy fetch for a guest. Never caches the token: a
+ *  fresh one is requested on every single call.
+ *
+ *  The `| undefined` overload matters, not just the empty-object case: the
+ *  shared `request()` helper spreads `...init` AFTER its own default
+ *  `headers`, so an explicit-but-empty `init.headers` key would still
+ *  clobber the default `Accept` header that a guest call relies on. Callers
+ *  with no base headers (uploadReel/getReelJob/manifest) must therefore omit
+ *  the `headers` key entirely when there's no token — see their `auth ? {...}
+ *  : undefined` pattern below — not pass an empty object. */
+async function withAuth(
+  headers?: Record<string, string>,
+): Promise<Record<string, string> | undefined> {
+  const token = await getIdToken();
+  if (!token) return headers;
+  return { ...(headers ?? {}), Authorization: `Bearer ${token}` };
+}
+
 export const cinemoryApi = {
   health(): Promise<Health> {
     return request("/health", HealthSchema);
@@ -212,26 +252,28 @@ export const cinemoryApi = {
     return occasions;
   },
 
-  createReel(body: ReelRequest): Promise<ReelResponse> {
+  async createReel(body: ReelRequest): Promise<ReelResponse> {
     return request("/reels", ReelResponseSchema, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withAuth({ "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
   },
 
   /** Generate a reel from real photo bytes via multipart/form-data. We do NOT
    *  set Content-Type — the browser adds the multipart boundary itself. */
-  uploadReel({ name, occasion, chapters, bridges = false, files }: UploadReelRequest): Promise<ReelResponse> {
+  async uploadReel({ name, occasion, chapters, bridges = false, files }: UploadReelRequest): Promise<ReelResponse> {
     const form = new FormData();
     form.append("name", name);
     form.append("occasion", occasion);
     form.append("chapters", String(chapters));
     form.append("bridges", String(bridges));
     for (const file of files) form.append("files", file, file.name);
+    const auth = await withAuth();
     return request("/reels/upload-multipart", ReelResponseSchema, {
       method: "POST",
       body: form,
+      ...(auth ? { headers: auth } : {}),
     });
   },
 
@@ -258,7 +300,7 @@ export const cinemoryApi = {
     );
     return request("/reels/jobs", ReelJobSubmitResponseSchema, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await withAuth({ "Content-Type": "application/json" }),
       body: JSON.stringify({ name, occasion, chapters, bridges, photos }),
     });
   },
@@ -266,18 +308,53 @@ export const cinemoryApi = {
   /** Poll a submitted job's status (queued/running/done/failed). A 404
    *  (unknown job id) surfaces as an ApiError like any other failed request —
    *  the caller's poll loop tolerates that the same as a transient failure. */
-  getReelJob(jobId: string): Promise<ReelJobStatus> {
-    return request(`/reels/jobs/${encodeURIComponent(jobId)}`, ReelJobStatusSchema);
+  async getReelJob(jobId: string): Promise<ReelJobStatus> {
+    const auth = await withAuth();
+    return request(
+      `/reels/jobs/${encodeURIComponent(jobId)}`,
+      ReelJobStatusSchema,
+      auth ? { headers: auth } : undefined,
+    );
   },
 
   /** Fetch the full sealed manifest. Returns null when the store is not
    *  indexed (the live B2 path returns 404 by design). */
   async manifest(name: string): Promise<Manifest | null> {
     try {
-      return await request(`/reels/${encodeURIComponent(name)}`, ManifestSchema);
+      const auth = await withAuth();
+      return await request(
+        `/reels/${encodeURIComponent(name)}`,
+        ManifestSchema,
+        auth ? { headers: auth } : undefined,
+      );
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) return null;
       throw err;
     }
+  },
+
+  /** The signed-in tenant's own reels (GET /me/library). Always attaches the
+   *  Authorization header — this route only makes sense for a signed-in
+   *  caller (401 for guest) and MyReels never calls it otherwise, but a
+   *  missing/expired token still surfaces as an honest ApiError(401) rather
+   *  than silently resolving as guest. */
+  async myLibrary(): Promise<LibraryReel[]> {
+    const auth = await withAuth();
+    const { reels } = await request(
+      "/me/library",
+      MyLibraryResponseSchema,
+      auth ? { headers: auth } : undefined,
+    );
+    return reels;
+  },
+
+  /** Erase every object under the signed-in tenant's own storage prefix
+   *  (DELETE /me/data). Returns the number of objects deleted. */
+  async deleteMyData(): Promise<{ deleted: number }> {
+    const auth = await withAuth();
+    return request("/me/data", DeleteMyDataResponseSchema, {
+      method: "DELETE",
+      ...(auth ? { headers: auth } : {}),
+    });
   },
 };
