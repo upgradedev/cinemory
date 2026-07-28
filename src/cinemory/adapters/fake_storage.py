@@ -28,6 +28,12 @@ class FakeStorage:
     def exists(self, key: str) -> bool:
         return key in self._objects
 
+    def delete(self, key: str) -> None:
+        """Remove ``key`` (and its index row). Deleting an absent key is a
+        no-op — DELETE is idempotent, matching real S3/B2 semantics."""
+        self._objects.pop(key, None)
+        self.index = [row for row in self.index if row["key"] != key]
+
     def index_jsonl(self) -> str:
         """Serialise the asset catalogue (Genblaze ParquetSink analogue)."""
         return "\n".join(json.dumps(row, sort_keys=True) for row in self.index)

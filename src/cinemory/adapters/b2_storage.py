@@ -149,7 +149,7 @@ class B2Storage:
                 rows.append(row)
         return rows
 
-    def _persist_index(self) -> None:
+    def _persist_index(self, *, removed: str | None = None) -> None:
         """Merge-on-write: union our rows with the current remote index.
 
         Concurrent writers (e.g. a local run and the live Cloud Run box) used
@@ -164,8 +164,19 @@ class B2Storage:
         that is accepted — losing it costs one index row until the next
         merge-on-write or manual reconcile, and building distributed locking
         over B2 is out of scope by design.
+
+        ``removed``: set by :meth:`delete` to the key just deleted. The union
+        above is correct for a PUT (a key can only ever gain/keep a row), but
+        is WRONG for a DELETE: the remote snapshot we just re-read still lists
+        the key we are trying to remove, so a plain union would silently
+        resurrect its row in the merged result. Dropping it from the remote
+        snapshot BEFORE the union closes that hole — our in-memory ``index``
+        (which no longer has the row either, see :meth:`delete`) can never add
+        it back.
         """
         merged: dict[str, dict] = {row["key"]: row for row in self._read_remote_index_rows()}
+        if removed is not None:
+            merged.pop(removed, None)
         merged.update((row["key"], row) for row in self.index)
         self.index = list(merged.values())
         self._client.put_object(
@@ -193,6 +204,33 @@ class B2Storage:
     def get(self, key: str) -> bytes:
         actual_key = f"{self.key_prefix}{key}"
         return self._client.get_object(Bucket=self.bucket, Key=actual_key)["Body"].read()
+
+    def delete(self, key: str) -> None:
+        """Delete the object at ``key`` and drop its durable index row.
+
+        Deleting an absent key is a no-op (S3/B2 ``DeleteObject`` is itself
+        idempotent — it does not error on a missing key), so callers never
+        need to check ``exists`` first. See :meth:`_persist_index`'s
+        ``removed`` parameter for why this needs its own merge path rather
+        than the plain union :meth:`put` uses.
+
+        Known limitation (same family as the accepted race documented in
+        :meth:`_persist_index`, not something ``removed`` fixes): a SECOND,
+        already-constructed ``B2Storage`` instance holding an in-memory
+        ``index`` snapshot taken BEFORE this delete still carries the
+        deleted row. If that instance later calls :meth:`put` for anything
+        at all — before ever calling :meth:`reload_index` — its own
+        merge-on-write union re-adds the deleted row to the durable index,
+        because ``self.index`` (not just the remote re-read) is part of that
+        union. Multi-instance deployments therefore have a window where a
+        stale writer can resurrect a just-deleted tenant's row; this mirrors
+        the codebase's existing accepted stance that distributed locking over
+        B2 is out of scope, so it is documented rather than solved here.
+        """
+        actual_key = f"{self.key_prefix}{key}"
+        self._client.delete_object(Bucket=self.bucket, Key=actual_key)
+        self.index = [row for row in self.index if row["key"] != key]
+        self._persist_index(removed=key)
 
     def get_url(self, key: str, *, expires_in: int = 3600) -> str:
         """Mint a FRESH time-limited presigned GET URL for ``key``.
