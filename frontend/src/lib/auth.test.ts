@@ -192,14 +192,22 @@ describe("enabled (Firebase config present)", () => {
     expect(cb).toHaveBeenLastCalledWith(null);
   });
 
-  it("onAuthChange's unsubscribe still disposes the real subscription when called before the lazy import settles", async () => {
+  it("onAuthChange leaves no live subscription when unsubscribed before the lazy import settles", async () => {
     const realUnsub = vi.fn();
     mocks.onAuthStateChanged.mockImplementation(() => realUnsub);
+    const cb = vi.fn();
     const { onAuthChange } = await import("./auth");
-    const unsub = onAuthChange(vi.fn());
+    const unsub = onAuthChange(cb);
     unsub(); // synchronously, before getFirebaseAuth()'s promise has resolved
-    await waitFor(() => expect(mocks.onAuthStateChanged).toHaveBeenCalled());
-    expect(realUnsub).toHaveBeenCalledTimes(1);
+    // Let the pending lazy import settle (a macrotask runs after every
+    // queued microtask, so the dynamic-import chain has finished by here).
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Having been cancelled first, it never subscribes at all: there is no
+    // subscription to leak, and the consumer's callback can never fire after
+    // it unsubscribed.
+    expect(mocks.onAuthStateChanged).not.toHaveBeenCalled();
+    expect(realUnsub).not.toHaveBeenCalled();
+    expect(cb).not.toHaveBeenCalled();
   });
 
   it("useAuthUser resolves to the signed-in user once onAuthStateChanged fires", async () => {

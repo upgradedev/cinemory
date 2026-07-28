@@ -42,20 +42,22 @@ describe("guest (getIdToken resolves null) — every reel call is byte-identical
     expect(init.headers).toEqual({ "Content-Type": "application/json" });
   });
 
-  it("uploadReel: no headers key at all is added to the request", async () => {
+  it("uploadReel: reaches fetch with only request()'s default header, no Authorization", async () => {
     const fetchMock = mockFetch(200, REEL_BODY);
     vi.stubGlobal("fetch", fetchMock);
     await cinemoryApi.uploadReel({ name: "r", occasion: "wedding", chapters: 1, files: [] });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.headers).toBeUndefined();
+    // The caller omits the `headers` key entirely for a guest, so request()'s
+    // own default survives untouched — byte-identical to the pre-auth call.
+    expect(init.headers).toEqual({ Accept: "application/json" });
   });
 
-  it("getReelJob: the third (init) argument passed through is undefined, matching pre-auth behavior exactly", async () => {
+  it("getReelJob: only request()'s default header reaches fetch, matching pre-auth behavior exactly", async () => {
     const fetchMock = mockFetch(200, { job_id: "j", status: "queued" });
     vi.stubGlobal("fetch", fetchMock);
     await cinemoryApi.getReelJob("j");
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
-    expect(init).toBeUndefined();
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ Accept: "application/json" });
   });
 
   it("manifest: the third (init) argument passed through is undefined", async () => {
@@ -71,8 +73,8 @@ describe("guest (getIdToken resolves null) — every reel call is byte-identical
     const fetchMock = mockFetch(200, manifestBody);
     vi.stubGlobal("fetch", fetchMock);
     await cinemoryApi.manifest("r");
-    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit | undefined];
-    expect(init).toBeUndefined();
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.headers).toEqual({ Accept: "application/json" });
   });
 
   it("submitReelJob: headers carry Content-Type only, no Authorization key", async () => {
@@ -190,13 +192,15 @@ describe("cinemoryApi.deleteMyData", () => {
     expect((init.headers as Record<string, string>).Authorization).toBe("Bearer del-token");
   });
 
-  it("omits the headers key entirely when there is no token", async () => {
+  it("sends no Authorization when there is no token", async () => {
     mocks.getIdToken.mockResolvedValue(null);
     const fetchMock = mockFetch(200, { deleted: 0 });
     vi.stubGlobal("fetch", fetchMock);
     await cinemoryApi.deleteMyData();
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(init.headers).toBeUndefined();
+    // No `headers` key is added by the caller, so only request()'s default
+    // remains and no Authorization is ever sent.
+    expect(init.headers).toEqual({ Accept: "application/json" });
     expect(init.method).toBe("DELETE");
   });
 });
