@@ -174,7 +174,10 @@ export function usePollReelJob(jobId: string | null): ReelJobPollState {
       return;
     }
     let cancelled = false;
-    let timer: ReturnType<typeof window.setTimeout> | undefined;
+    // `number`, not ReturnType<typeof window.setTimeout>: with @types/node in
+    // scope that alias resolves to Node's `Timeout`, while the DOM
+    // `window.setTimeout` call below actually returns a `number`.
+    let timer: number | undefined;
     let consecutiveErrors = 0;
     const startedAt = Date.now();
     setState({ result: null, error: null, isPolling: true });
