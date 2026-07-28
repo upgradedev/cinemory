@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Wordmark } from "./Wordmark";
 import { Badge } from "./ui/badge";
+import { AuthMenu } from "./AuthMenu";
 import { useHealth } from "@/lib/queries";
 
 /** Plain-English tooltip for the health badge — "live" is jargon otherwise. */
@@ -11,7 +12,11 @@ export function modeTooltip(mode: string): string {
   return `Backend health: mode "${mode}"`;
 }
 
-export function Header() {
+/** `onOpenLibrary` is only ever invoked from AuthMenu's signed-in "My reels"
+ *  item, which itself renders nothing when Firebase config is absent (see
+ *  lib/auth.ts::isAuthEnabled) — a build with no VITE_FIREBASE_* vars (every
+ *  build today) never shows the control that could call it. */
+export function Header({ onOpenLibrary }: { onOpenLibrary?: () => void }) {
   const health = useHealth();
 
   return (
@@ -29,7 +34,7 @@ export function Header() {
         >
           <Wordmark />
         </a>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3">
           {health.isSuccess && (
             <Badge variant="verified" title={modeTooltip(health.data.mode)}>
               <span className="relative flex h-1.5 w-1.5">
@@ -44,6 +49,7 @@ export function Header() {
               API offline
             </Badge>
           )}
+          <AuthMenu onOpenLibrary={onOpenLibrary ?? (() => {})} />
         </div>
       </div>
     </motion.header>

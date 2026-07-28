@@ -4,11 +4,17 @@ import { Footer } from "./components/Footer";
 import { Hero } from "./components/Hero";
 import { HowItWorks } from "./components/HowItWorks";
 import { Studio } from "./components/Studio";
+import { MyReels } from "./components/MyReels";
 import { useReelStore } from "./store/useReelStore";
 import { generateSamplePhotos, samplePhotoAlts } from "./lib/sample-photos";
 
 export default function App() {
   const [started, setStarted] = useState(false);
+  // Only ever set true from the header's signed-in "My reels" menu item,
+  // which itself renders nothing without Firebase config — so a guest build
+  // (every build today) never has any control that could flip this, and this
+  // branch of the render below is dead code for guest, not just untriggered.
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const reset = useReelStore((s) => s.reset);
   const addPhotos = useReelStore((s) => s.addPhotos);
 
@@ -49,9 +55,16 @@ export default function App() {
       >
         Skip to content
       </a>
-      <Header />
+      <Header
+        onOpenLibrary={() => {
+          setLibraryOpen(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
+      />
       <main id="main-content" className="flex-1">
-        {started ? (
+        {libraryOpen ? (
+          <MyReels onBack={() => setLibraryOpen(false)} />
+        ) : started ? (
           <Studio />
         ) : (
           <>
