@@ -1,9 +1,51 @@
 # Cinemory — submission state
 
-_Last updated: 2026-07-24. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+_Last updated: 2026-07-29. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+
+## 2026-07-29: async generation, optional accounts and per-user isolation shipped; counts reconciled (canonical)
+
+> Authoritative current counts, from the green CI run on `main` (commit
+> `a07c0a3`, run
+> [30448211424](https://github.com/upgradedev/cinemory/actions/runs/30448211424)),
+> now identical across `README.md`, `demo/SUBMISSION.md` and this file. Five
+> PRs landed this week (#33 through #38); this entry supersedes the
+> 2026-07-24 entry below.
+
+- **Async generation (submit + poll):** `POST /reels/jobs` returns 202 +
+  `job_id` and starts the render in a background thread; `GET
+  /reels/jobs/{job_id}` polls `queued` / `running` / `done` / `failed`.
+  Exists because a real live render (about 242s average) outlives the
+  Firebase Hosting proxy's timeout. The frontend now submits and polls for
+  every real-photo generation. Honest limitation: the worker still runs
+  in-process on the instance that accepted the submit, so this is not a
+  durable queue yet (see `src/cinemory/jobs.py`).
+- **Optional Google sign-in:** gated on four public `VITE_FIREBASE_*`
+  frontend vars plus a backend `FIREBASE_PROJECT_ID`. Unset, which is
+  today's live default, the app is guest-only, byte-identical to before,
+  and the Firebase SDK is never fetched. The backend verifies the ID token
+  itself against Google's public certs: no Admin SDK, no service-account
+  secret.
+- **Per-user isolation + data control:** a signed-in visitor's reels live
+  under their own `tenants/<uid>/` prefix, isolated by construction (a
+  tenant's index scan cannot enumerate another tenant's rows).
+  `GET /me/library` lists a tenant's own reels; `DELETE /me/data` erases
+  all of it. A new concurrency test drives several tenants plus guests
+  creating reels at once and asserts isolation holds under real load, not
+  only when requests happen to be sequential
+  (`tests/integration/test_load.py::test_concurrent_multitenant_isolation_under_load`).
+- **Backend: 314 passed + 4 skipped in CI** (`python` job, unit 156 ·
+  integration 99 · e2e 59); the 4 skips are environment-gated,
+  optional-dependency or live-credential tests that do not run without
+  creds. Pen-test suite (`tests/security/`, its own `pen-test` job): 62
+  passed.
+- **Frontend: 280 vitest tests across 39 files** (`frontend` job).
 
 ## 2026-07-24 — test counts reconciled to CI (canonical)
 
+> **Superseded 2026-07-29:** the suite grew again this week (backend 211 →
+> 314; frontend 169 → 280) and five features shipped; see the entry at the
+> top of this file. Kept for history.
+>
 > Authoritative current counts, from the green CI run on `main` (2026-07-24) —
 > now identical across `README.md`, `demo/SUBMISSION.md` and this file. They
 > supersede the interim per-date figures further down: the suite grew as features
@@ -182,7 +224,7 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 211 backend passed + 4 skipped + 169 frontend across 31 files (CI on `main`, 2026-07-24); credential-free live-degrade + real-photo ingest; playable reels via the stable `/reels/{name}/video` route + a `/reels/{name}/verify` re-verification receipt; drift guarded |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 314 backend passed + 4 skipped + 280 frontend across 39 files (CI on `main`, 2026-07-29); credential-free live-degrade + real-photo ingest; async job submission + optional per-user isolation shipped; playable reels via the stable `/reels/{name}/video` route + a `/reels/{name}/verify` re-verification receipt; drift guarded |
 | B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) + a real queryable `index.jsonl` run index on both fake and B2 adapters |
 | Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 

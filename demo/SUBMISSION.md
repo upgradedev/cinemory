@@ -42,7 +42,7 @@
 | About — how we built it | section "How we built it" below |
 | B2 usage | section "How Backblaze B2 is used" below |
 | Genblaze usage + AI models | section "How Genblaze is used" + models table below |
-| Built with | python · fastapi · react · typescript · genblaze · backblaze-b2 · gmi-cloud · ffmpeg · cloud-run · firebase-hosting |
+| Built with | python · fastapi · react · typescript · genblaze · backblaze-b2 · gmi-cloud · ffmpeg · cloud-run · firebase-hosting · firebase-auth |
 | Try it out links | repo + live app + mirror (top of this doc) |
 | Video URL | `TODO(owner): paste YouTube URL` |
 
@@ -176,11 +176,24 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   pen-test, plus the SDK-boundary Genblaze contract test — which drives a
   **real** Genblaze `Pipeline` + `ObjectStorageSink` (over an in-memory
   backend) so the live sink→store→readback→sha256-chain path is genuinely
-  exercised, not just the offline fakes. **Backend: 211 passed + 4 skipped in
-  CI** (unit 90 · integration 62 · e2e 59); the 4 skips are environment-gated —
-  optional-dependency / live-credential tests that do not run without creds.
-  **Frontend: 169 vitest tests across 31 files.** (Counts from the CI run on
-  `main`, 2026-07-24.)
+  exercised, not just the offline fakes. **Backend: 314 passed + 4 skipped in
+  CI** (unit 156 · integration 99 · e2e 59); the 4 skips are environment-gated,
+  optional-dependency or live-credential tests that do not run without creds.
+  Pen-test suite (its own `pen-test` CI job, `tests/security/`): **62
+  passed**. **Frontend: 280 vitest tests across 39 files.** (Counts from the
+  CI run on `main`, 2026-07-29, commit `a07c0a3`,
+  [run 30448211424](https://github.com/upgradedev/cinemory/actions/runs/30448211424).)
+- **Async job submission + optional per-user accounts (shipped 2026-07-27 to
+  2026-07-29, PRs #33 to #38):**
+  `POST /reels/jobs` submits a generation as a background job (202 + a job
+  id) so a multi-minute live render never blocks one request past the
+  Firebase Hosting proxy's timeout; `GET /reels/jobs/{job_id}` polls it to
+  completion. Google sign-in is optional and off by default; when enabled, a
+  signed-in visitor's reels live under their own storage prefix, isolated
+  from every other tenant and from guest data by construction, with a
+  self-service library (`GET /me/library`) and one-action delete (`DELETE
+  /me/data`). A concurrency test proves the isolation holds under real
+  load, not only when requests happen to be sequential.
 - **Readiness gate:** `python scripts/readiness.py` scores the repo against the
   judging criteria with real-evidence checks. As of 2026-07-22: automatable
   completeness **100.0% (17/17) PASS**; full completeness **85.6%** with 3
