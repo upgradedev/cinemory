@@ -16,7 +16,8 @@ from cinemory.adapters import FakeMediaProvider, FakeStorage
 from cinemory.models import Bridge
 from cinemory.pipeline import ReelPipeline
 from cinemory.synthetic import synth_reel_spec
-from test_api_multitenancy import bearer_for  # noqa: F401 (pytest fixture, used by name)
+
+# ``bearer_for`` is supplied by tests/integration/conftest.py.
 
 
 def run_single_pipeline(worker_id):

@@ -115,9 +115,16 @@ test("occasion cards go from a single column on mobile to multiple columns on ta
     await toOccasion.click();
     await expect(page.getByRole("heading", { name: /set the mood/i })).toBeVisible();
 
-    const cards = page.getByRole("radio");
+    // Scope to the picker's own radiogroup, and POLL the count: the cards
+    // mount with an entrance animation, so a single count() can land while
+    // only some of them are attached. Polling waits for the real number
+    // instead of weakening the assertion.
+    const cards = page.getByRole("radiogroup").getByRole("radio");
+    await expect(cards.first()).toBeVisible();
+    await expect
+      .poll(() => cards.count(), { message: `occasion cards render at ${width}px` })
+      .toBeGreaterThan(3);
     const count = await cards.count();
-    expect(count, `occasion cards render at ${width}px`).toBeGreaterThan(3);
 
     const lefts: number[] = [];
     for (let i = 0; i < count; i++) {
