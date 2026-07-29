@@ -150,7 +150,12 @@ re-runs each named provenance check from those bytes — the seal, the reel /
 provenance-reel / per-clip hashes, embedded-manifest equality, source-photo
 citations, and provider/model — returning an aggregate `verify_all` receipt whose
 own digest content-addresses the receipt; the React ProvenancePanel renders it
-live in the browser).
+live in the browser) · `POST /reels/jobs` (submit a generation as a
+background job, 202 + `job_id`, see "Async generation" below) ·
+`GET /reels/jobs/{job_id}` (poll a submitted job's status) ·
+`GET /me/library` (a signed-in tenant's own reels, 401 for guest) ·
+`DELETE /me/data` (erase a signed-in tenant's own data, 401 for guest; see
+"Optional accounts" below).
 
 **Product UI.** The React client opens on a landing page built for first-time
 comprehension — a **How it works** walkthrough, a self-contained **example reel**,
@@ -164,6 +169,81 @@ hashing and provenance — runs in both modes, so CI is green with zero
 credentials while the live path is a one-line adapter swap. In `live` mode the
 real backends are used only when their credentials are present; otherwise the
 API degrades transparently to the offline path, so `POST /reels` never 500s.
+
+---
+
+## Async generation (submit + poll)
+
+A real live render takes minutes (Kling I2V averages about 242 seconds per
+clip), longer than the Firebase Hosting proxy allows and close to Cloud
+Run's own request ceiling. Holding one HTTP request open that long is
+fragile, so the API also exposes a non-blocking pair:
+
+- `POST /reels/jobs` runs the same ingest validation as `POST
+  /reels/upload`, writes a `queued` status object, starts the real
+  generation in a background thread, and returns **202** with a `job_id`
+  right away.
+- `GET /reels/jobs/{job_id}` polls that status until it reaches a terminal
+  value: `queued`, `running`, `done`, or `failed`. A `done` job carries the
+  finished, sealed reel in its `result` field, the exact same shape the
+  synchronous routes return.
+
+Status lives in the same storage backend as everything else (B2 in live
+mode, the in-memory fake offline), under `jobs/<job_id>/status.json`, so a
+poll can be answered by any instance, not just the one that took the
+submission. The frontend now submits and polls: every real-photo generation
+goes through this pair (see [`src/cinemory/jobs.py`](src/cinemory/jobs.py)
+and [`frontend/src/lib/queries.ts`](frontend/src/lib/queries.ts)). The
+synthetic demo path (`POST /reels`, no uploaded photos) has no async
+counterpart and stays a single blocking call.
+
+**Honest limitation.** Polling can be answered from anywhere, but the
+generation itself still runs in-process, on the one instance that accepted
+the submit. There is no external queue and no separate worker fleet. A
+client that keeps polling keeps that instance warm, so in practice the job
+finishes, but if that specific instance were ever scaled down mid-job, the
+in-flight generation would stop advancing with no automatic retry. This is
+an accepted tradeoff for a demo, not a production job queue. A production
+version would hand the work to a durable queue consumed by a Cloud Run
+*Job* instead of a request-serving instance, so the work outlives any one
+instance.
+
+---
+
+## Optional accounts (Google sign-in)
+
+Sign-in is off by default and entirely opt-in. It turns on only when four
+public build-time variables are set on the frontend (`VITE_FIREBASE_API_KEY`,
+`VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`,
+`VITE_FIREBASE_APP_ID`) and `FIREBASE_PROJECT_ID` is set on the backend.
+Leave them unset, which is the current default for the live deployment, and
+the app behaves exactly as it always has: no sign-in button renders, no "My
+reels" library exists, and the Firebase SDK is never even fetched by the
+browser (see [`frontend/src/lib/auth.ts`](frontend/src/lib/auth.ts)). Both
+sets of variables are public configuration, the same values already visible
+in any Firebase client bundle or browser network tab, never secrets.
+
+When enabled, a visitor can sign in with Google. The backend verifies the
+resulting Firebase ID token itself, against Google's public signing
+certificates, with no Firebase Admin SDK and no service-account secret to
+manage (see [`src/cinemory/auth.py`](src/cinemory/auth.py)). Every reel
+route accepts an optional `Authorization: Bearer <token>` header; a verified
+token scopes that request to a `tenants/<uid>/` storage prefix, so a
+signed-in visitor's uploads and reels are isolated from every other visitor
+and from guest data. The isolation is structural, not a check that could be
+forgotten: a tenant's own index can only ever contain rows under its own
+prefix, so a cross-tenant lookup finds nothing to return rather than being
+rejected after the fact (see `_TenantScopedStorage` in
+[`src/cinemory/api.py`](src/cinemory/api.py)). The tenant id itself always
+comes from the verified token, never from anything the caller supplies.
+
+Two routes give a signed-in visitor control over their own data:
+`GET /me/library` lists everything they have generated, and `DELETE
+/me/data` erases all of it in one call. Both return 401 for a guest. A
+concurrency test drives several tenants (and guests) creating reels at the
+same time and asserts the isolation still holds afterward, not just when
+requests happen to be sequential
+([`tests/integration/test_load.py`](tests/integration/test_load.py)).
 
 ---
 
@@ -327,6 +407,15 @@ A full testing pyramid runs offline (fakes for Genblaze + B2, no creds):
 | **E2E** | `tests/e2e/` | synthetic memories → reel → B2 → reload manifest → **assert on real SHA-256 the provenance layer recomputes** |
 | **Pen-test** | `tests/security/` | app-security suite driving the real app: authZ/abuse (bounds → 4xx, never 5xx), injection/path-traversal into B2 keys, provenance forgery/tamper-evidence, sensitive-data exposure (incl. the offline-degrade path), SSRF/upload magic-byte validation |
 
+Measured on the latest green CI run on `main` (commit `a07c0a3`, 2026-07-29,
+[run 30448211424](https://github.com/upgradedev/cinemory/actions/runs/30448211424)):
+backend **314 passed + 4 skipped** across the `python` job's three tiers
+(unit 156 passed + 1 skipped, integration 99 passed + 3 skipped, e2e 59
+passed; the skips are environment-gated, optional-dependency or
+live-credential tests that do not run without creds), pen-test suite (its
+own `pen-test` CI job) **62 passed**, frontend **280 vitest tests across 39
+files**.
+
 ```bash
 pytest                 # whole pyramid
 pytest tests/unit      # or a single layer
@@ -385,6 +474,44 @@ This is a hard rule of the project:
   anniversary content that inspired Cinemory is **not** in this repo.
 - `.gitignore` blocks common photo formats, a `private/` directory, and `.env`.
 - CI runs a gitleaks secret scan on every push/PR.
+
+---
+
+## Your photos and your data
+
+The rule above covers this repo's own demo. A judge or user running the
+live app for real, with their own photos, is a different question worth
+answering plainly.
+
+**What leaves the browser.** Uploaded photos are stored in the project's
+private Backblaze B2 bucket, not public, and nothing is fetchable without a
+signed URL. When the app is running in live mode (the deployed app is:
+`GET /health` reports `storage:"B2Storage"`), the generation provider does
+not receive raw photo bytes over the wire. Each source photo is persisted to
+B2 first, and the provider fetches it itself through a presigned URL that
+expires in an hour (`_external_inputs` in
+[`src/cinemory/adapters/genblaze_provider.py`](src/cinemory/adapters/genblaze_provider.py)).
+Running the offline quickstart, which is the default and needs no
+credentials, never talks to B2 or any external provider at all: every
+adapter is an in-memory fake.
+
+**What does not happen.** No vision or text model looks at a photo to
+describe it, and there is no captioning or image-understanding step
+anywhere in the pipeline. The prompt behind each clip comes entirely from
+the chosen occasion preset: a fixed rotation of camera-movement phrases
+blended with that occasion's style
+([`src/cinemory/ingest.py`](src/cinemory/ingest.py) and
+[`occasions.py`](src/cinemory/occasions.py)), never from anything the
+picture shows.
+
+**Control.** A signed-in visitor can list everything they have generated
+(`GET /me/library`) and delete all of it in one action (`DELETE /me/data`);
+see "Optional accounts" above. Guests get the identical generation with no
+account and nothing to sign into.
+
+**Retention.** What the generation provider keeps afterward is governed by
+that provider's own policy, not by this app. This project does not control
+that and makes no guarantee about it.
 
 ---
 

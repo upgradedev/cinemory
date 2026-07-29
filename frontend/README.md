@@ -11,19 +11,21 @@ serves; the FastAPI backend on Cloud Run provides the API.
 
 A four-step cinematic wizard (landing → studio):
 
-1. **Hero** — dark filmic identity (grain, letterbox, gold-on-black), one CTA.
-2. **Photos** — drag-drop + file picker, reorderable thumbnail storyboard, remove,
+1. **Hero**: dark filmic identity (grain, letterbox, gold-on-black), one CTA.
+2. **Photos**: drag-drop + file picker, reorderable thumbnail storyboard, remove,
    tasteful empty state. The selected photos' **actual bytes** are the input to
    the reel; the count shapes how many chapters it spans.
-3. **Occasion** — presets from `GET /occasions` as evocative, keyboard-navigable
+3. **Occasion**: presets from `GET /occasions` as evocative, keyboard-navigable
    cards (music style, pacing, aspect ratio) with per-occasion gradients.
-4. **Generate** — the real photo bytes are streamed to
-   `POST /reels/upload-multipart` (multipart/form-data) so the pipeline animates,
-   stitches, stores and seals *your* pixels; if no photos were selected it falls
-   back to the synthetic `POST /reels` path. Either way the UI shows a rich,
-   honest pipeline progress (photos → clips → bridges → music-cuts → stitch → B2
-   → provenance) with full error/retry handling.
-5. **Result** — video player (graceful cinematic poster when the offline/degrade
+4. **Generate**: real photos are submitted as a background job
+   (`POST /reels/jobs`, base64 JSON) and polled (`GET /reels/jobs/{job_id}`)
+   until the render finishes, so a multi-minute live render never blocks one
+   request past the edge proxy's timeout; if no photos were selected it
+   falls back to the synthetic `POST /reels` path instead, which has no
+   async counterpart and stays a single blocking call. Either way the UI
+   shows a rich, honest pipeline progress (photos → clips → bridges →
+   music-cuts → stitch → B2 → provenance) with full error/retry handling.
+5. **Result**: video player (graceful cinematic poster when the offline/degrade
    path returns a `b2://` URL), a **Provenance** panel (SHA-256 manifest seal,
    storage badge, per-step Genblaze hashes from `GET /reels/{name}`), and
    Share/Download + platform deep-links.
@@ -70,10 +72,17 @@ npm run build        # tsc + vite build -> dist/
 
 ## How the API is wired
 
-- Typed client in `src/lib/api.ts` — every response is validated at runtime with
-  **Zod**; `POST /reels` is synchronous (no polling), `GET /reels/{name}` returns
-  the sealed manifest (both the offline fake and the live B2 adapter keep a
-  queryable run index), and any lookup miss is treated as `null`.
+- Typed client in `src/lib/api.ts`, every response validated at runtime with
+  **Zod**. Real-photo generation goes through the async submit-and-poll pair
+  (`POST /reels/jobs` + `GET /reels/jobs/{job_id}`, see `usePollReelJob` in
+  `src/lib/queries.ts`); the synthetic demo path (`POST /reels`) stays a
+  single blocking call. `GET /reels/{name}` returns the sealed manifest
+  (both the offline fake and the live B2 adapter keep a queryable run
+  index), and any lookup miss is treated as `null`.
+- A signed-in request attaches a fresh `Authorization: Bearer <Firebase ID
+  token>` header (see `withAuth()` in `src/lib/api.ts` and `getIdToken()` in
+  `src/lib/auth.ts`). A guest request, or any build with sign-in disabled,
+  sends the exact same request it always did, with no extra header.
 - Data fetching via **React Query** hooks (`src/lib/queries.ts`).
 - Base URL = `import.meta.env.VITE_API_BASE ?? ""`. Empty in production →
   relative paths → Firebase rewrites to Cloud Run (see repo-root `firebase.json`).
