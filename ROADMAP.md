@@ -136,17 +136,30 @@ pip install 'cinemory[connectors]'   # adds `requests` for the live transport
 
 ## 🔭 Strategic direction
 
-### B2B business-events wedge
-The `business-event/award-ceremony` occasion is more than another theme — it is
-a **go-to-market wedge**. Conferences, award ceremonies, sales kick-offs and
-company milestones generate large volumes of photos that a marketing/comms team
-needs turned into a branded highlight reel **fast, repeatably, and with clear
-rights/provenance**. That audience:
-- has budget and a recurring need (every event),
-- values the **LinkedIn share** and **branded occasion styling** paths directly,
-- and cares about **provenance** for brand-safety and rights tracking.
-This is a cleaner initial monetization path than pure consumer virality, and it
-reuses the same pipeline.
+### What is actually proven today
+One thing here is built, shipped and checkable rather than argued: **every clip
+cites the SHA-256 of the exact source photo it was generated from**
+(`source_sha256s` in each `StepRecord`), sealed into the reel's manifest and
+re-verifiable offline or in the browser. Most photos-to-video tools can tell you
+*that* a reel was generated. This one can tell you *what each beat was made
+from*, and prove it. That is the differentiator to judge Cinemory on, because it
+is the one you can verify yourself in about a minute (see the README's
+"Verify it yourself").
+
+### B2B business-events wedge — a hypothesis, not a finding
+The `business-event/award-ceremony` occasion may also be a go-to-market wedge:
+conferences, award ceremonies, sales kick-offs and company milestones generate
+large volumes of photos that a marketing team needs turned into a branded
+highlight reel quickly, repeatably, and with clear rights and provenance. The
+reasoning is that such a buyer has a recurring need, values branded occasion
+styling and the LinkedIn share path, and cares about provenance for
+brand-safety and rights tracking.
+
+**We have not tested this.** There are no customer interviews, no pilot and no
+revenue behind it, so treat it as a hypothesis worth validating rather than a
+established route to monetization. It is recorded here because it is what the
+existing pipeline could serve without rework, and it is stated as an assumption
+so that it cannot be mistaken for evidence.
 
 ### C2PA provenance — standardizing what Cinemory already does
 Cinemory already seals every reel with a **SHA-256 content-addressed manifest**
@@ -159,4 +172,4 @@ and edited media. The roadmap is to express the existing manifest as a **C2PA
 manifest** (signed claim + assertions) so provenance is interoperable with the
 broader ecosystem (Adobe, camera makers, platforms) rather than a bespoke
 format — a natural upgrade, not a rebuild, and a strong differentiator for the
-B2B/brand-safety wedge above.
+B2B/brand-safety hypothesis above (still untested).
