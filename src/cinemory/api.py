@@ -335,6 +335,25 @@ def _tenant_storage(uid: str | None) -> StorageBackend:
     return _TenantScopedStorage(_storage, _tenant_prefix(uid))
 
 
+def _build_info() -> dict:
+    """Which commit the running image was built from, and when.
+
+    Baked into the image at build time (see ``Dockerfile`` and
+    ``deploy/cloudbuild.yaml``), so anyone can check that a deployment really
+    is the commit they are reading on GitHub, without access to the project:
+
+        curl -s <url>/health | jq -r .build.commit
+
+    Both values are ``None`` when the app was not built through that path (a
+    local run, or CI), which is the honest answer rather than a fabricated one.
+    A commit hash is public information, so exposing it leaks nothing.
+    """
+    return {
+        "commit": os.environ.get("CINEMORY_BUILD_SHA") or None,
+        "built_at": os.environ.get("CINEMORY_BUILD_TIME") or None,
+    }
+
+
 @app.get("/health")
 def health() -> dict:
     return {
@@ -345,6 +364,7 @@ def health() -> dict:
         # running without creds is visibly degraded (not silently mislabelled).
         "provider": _pipeline.provider.name,
         "storage": type(_storage).__name__,
+        "build": _build_info(),
     }
 
 

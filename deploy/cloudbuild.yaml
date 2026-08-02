@@ -6,10 +6,24 @@
 #     --substitutions=_IMAGE=europe-west1-docker.pkg.dev/PROJECT/REPO/cinemory:TAG
 substitutions:
   _IMAGE: "europe-west1-docker.pkg.dev/upgradegr-cinemory/cinemory/cinemory:latest"
+  # Stamped into the image so GET /health reports the commit actually running.
+  # deploy/deploy-cloudrun.sh fills these from git; empty is reported as null.
+  _BUILD_SHA: ""
+  _BUILD_TIME: ""
 
 steps:
   - name: gcr.io/cloud-builders/docker
-    args: ["build", "-t", "${_IMAGE}", "-f", "Dockerfile", "."]
+    args:
+      - "build"
+      - "-t"
+      - "${_IMAGE}"
+      - "--build-arg"
+      - "CINEMORY_BUILD_SHA=${_BUILD_SHA}"
+      - "--build-arg"
+      - "CINEMORY_BUILD_TIME=${_BUILD_TIME}"
+      - "-f"
+      - "Dockerfile"
+      - "."
 
 images:
   - "${_IMAGE}"

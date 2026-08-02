@@ -26,6 +26,19 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:17).
   YouTube link: *TODO(owner): paste the URL after upload.*
 
+**Check that the live app really is this commit.** The image is stamped at
+build time, so you can confirm the deployment matches what you are reading
+here, without any access to the project:
+
+```bash
+curl -s https://cinemory-595784992266.europe-west1.run.app/health | jq .build
+# {"commit": "<full sha>", "built_at": "<utc timestamp>"}
+```
+
+Compare `commit` against this repository's history. It is `null` for a build
+that did not go through the deploy pipeline (a local run, or CI), which is the
+honest answer rather than a guess.
+
 ---
 
 ## Verify it yourself

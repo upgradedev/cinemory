@@ -34,8 +34,16 @@ RUN pip install --no-cache-dir ".[live]" "uvicorn>=0.29"
 # Static web client (Vite React SPA: index.html is inside dist/)
 COPY --from=web /web/dist ./web
 
+# Stamped by the build so GET /health can report which commit is actually
+# running (see api._build_info). Empty by default, which /health reports as
+# null rather than guessing.
+ARG CINEMORY_BUILD_SHA=""
+ARG CINEMORY_BUILD_TIME=""
+
 ENV CINEMORY_MODE=offline \
     CINEMORY_WEB_DIR=/app/web \
+    CINEMORY_BUILD_SHA=${CINEMORY_BUILD_SHA} \
+    CINEMORY_BUILD_TIME=${CINEMORY_BUILD_TIME} \
     PORT=8000
 EXPOSE 8000
 
