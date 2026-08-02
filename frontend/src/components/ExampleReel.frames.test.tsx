@@ -13,13 +13,16 @@ beforeEach(() => mockRender.mockReset());
 afterEach(() => vi.unstubAllGlobals());
 
 describe("<ExampleReel /> — frames render", () => {
-  it("renders the animated preview with an accessible label and play badge", () => {
+  it("renders the animated preview with an honest accessible label and badge", () => {
     mockRender.mockReturnValue(["data:image/jpeg;base64,a", "data:image/jpeg;base64,b"]);
     render(<ExampleReel />);
     expect(
-      screen.getByRole("img", { name: /example cinemory reel/i }),
+      screen.getByRole("img", { name: /sample source photos/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/example reel/i)).toBeInTheDocument();
+    // Must never claim to be a finished reel — it previews sample INPUT
+    // photos, the same synthetic set "Try with sample photos" generates.
+    expect(screen.getByText(/sample photos/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^example reel$/i)).not.toBeInTheDocument();
   });
 
   it("holds a single frame under prefers-reduced-motion", () => {
@@ -27,7 +30,7 @@ describe("<ExampleReel /> — frames render", () => {
     mockRender.mockReturnValue(["data:image/jpeg;base64,a", "data:image/jpeg;base64,b"]);
     render(<ExampleReel />);
     expect(
-      screen.getByRole("img", { name: /example cinemory reel/i }),
+      screen.getByRole("img", { name: /sample source photos/i }),
     ).toBeInTheDocument();
   });
 

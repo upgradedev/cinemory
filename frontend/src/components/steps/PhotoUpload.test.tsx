@@ -76,6 +76,33 @@ describe("<PhotoUpload /> — sample photos fast path", () => {
   });
 });
 
+describe("<PhotoUpload /> — privacy note", () => {
+  it("tells a visitor where their photos go before they upload anything", () => {
+    render(<PhotoUpload />);
+    expect(
+      screen.getByText(/private Backblaze B2 bucket/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/no model captions or describes them/i)).toBeInTheDocument();
+    // Must not overclaim that no AI ever touches the photo — the generation
+    // provider does process it (to animate it); only captioning/description
+    // is ruled out.
+    expect(
+      screen.getByText(/animated by our generation provider/i),
+    ).toBeInTheDocument();
+  });
+
+  it("links to the fuller privacy section in the README", () => {
+    render(<PhotoUpload />);
+    const link = screen.getByRole("link", { name: /full privacy details/i });
+    expect(link).toHaveAttribute(
+      "href",
+      "https://github.com/upgradedev/cinemory#your-photos-and-your-data",
+    );
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+});
+
 describe("<PhotoUpload /> — disabled-CTA guidance", () => {
   it("explains WHY the step CTA is disabled and wires it via aria-describedby", () => {
     render(<PhotoUpload />);

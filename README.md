@@ -158,9 +158,10 @@ background job, 202 + `job_id`, see "Async generation" below) ·
 "Optional accounts" below).
 
 **Product UI.** The React client opens on a landing page built for first-time
-comprehension — a **How it works** walkthrough, a self-contained **example reel**,
-and a one-click *"Try with sample photos"* path — before the four-step wizard
-(Photos → Occasion → Generate → Result + Provenance).
+comprehension — a **How it works** walkthrough, a preview of sample source
+photos (the kind you would upload, honestly labelled as input, not a
+finished reel), and a one-click *"Try with sample photos"* path — before the
+four-step wizard (Photos → Occasion → Generate → Result + Provenance).
 
 The orchestrator depends **only on ports** (`MediaProvider`, `StorageBackend`,
 `Stitcher`). The real adapters wrap Genblaze and B2; the fakes implement the

@@ -1,17 +1,17 @@
 import { useEffect, useState } from "react";
-import { Play } from "lucide-react";
+import { ImagePlus } from "lucide-react";
 import { renderSampleSceneDataUrls } from "@/lib/sample-photos";
 import { cn } from "@/lib/utils";
 
-// Evocative captions that rotate with the frames — conveys "occasion-aware".
-const CAPTIONS = ["Anniversary", "Wedding", "Graduation", "Year in Review", "Birthday"];
-
 /**
- * Autoplaying, muted, looping preview of the generative output: the very same
- * deterministic synthetic scenes the app can produce, crossfading with a slow
- * Ken Burns pan so a judge sees what Cinemory makes within the first seconds.
- * Client-rendered (no bundled assets); falls back to a static filmstrip where
- * Canvas 2D is unavailable (jsdom, ancient browsers). Honors reduced motion.
+ * Looping preview of sample SOURCE photos, the exact same synthetic images
+ * the "Try with sample photos" shortcut generates, crossfading with a slow
+ * Ken Burns pan so a first-time visitor sees the kind of photos Cinemory
+ * expects. This is deliberately NOT a finished reel: there is no committed
+ * example output video to embed here, so this previews input, not output
+ * (see Hero.tsx for the honest caption shown underneath). Client-rendered
+ * (no bundled assets); falls back to a static filmstrip where Canvas 2D is
+ * unavailable (jsdom, ancient browsers). Honors reduced motion.
  */
 export function ExampleReel() {
   const [frames, setFrames] = useState<string[]>([]);
@@ -45,7 +45,7 @@ export function ExampleReel() {
   return (
     <div
       role="img"
-      aria-label="Example Cinemory reel: a cinematic sequence generated from photos"
+      aria-label="Sample source photos: the kind of images Cinemory turns into a reel"
       className="letterbox relative aspect-video w-full overflow-hidden rounded-2xl border border-white/[0.06] bg-ink-900 shadow-film"
     >
       {frames.map((src, i) => (
@@ -69,15 +69,9 @@ export function ExampleReel() {
         aria-hidden
         className="absolute left-4 top-[12%] z-20 inline-flex items-center gap-1.5 rounded-full bg-ink-950/70 px-3 py-1 text-xs font-medium text-gold-200 backdrop-blur-sm"
       >
-        <Play className="h-3 w-3 fill-current" />
-        Example reel
+        <ImagePlus className="h-3 w-3" />
+        Sample photos
       </span>
-      <p
-        aria-hidden
-        className="absolute inset-x-0 bottom-[16%] z-20 text-center font-display text-xl font-semibold text-white drop-shadow-lg"
-      >
-        {CAPTIONS[active % CAPTIONS.length]}
-      </p>
       <div
         aria-hidden
         className="absolute inset-x-0 bottom-[9%] z-20 flex justify-center gap-1.5"

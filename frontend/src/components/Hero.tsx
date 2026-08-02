@@ -126,7 +126,10 @@ export function Hero({
           No account · No watermark
         </span>
 
-        {/* A live, muted, looping example of the generative output. */}
+        {/* A looping preview of sample SOURCE photos (same generator as "Try
+            with sample photos"), not a finished reel. There is no committed
+            example output video to embed here, so the caption below says so
+            plainly instead of letting the frame imply it is one. */}
         <motion.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -134,6 +137,10 @@ export function Hero({
           className="mt-16 w-full max-w-3xl"
         >
           <ExampleReel />
+          <p className="mt-3 text-center text-sm text-zinc-400">
+            Sample photos, the kind you would upload. Your finished reel adds
+            motion, music and title cards.
+          </p>
         </motion.div>
       </div>
 
