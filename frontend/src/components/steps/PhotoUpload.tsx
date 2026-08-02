@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowRight,
   ImagePlus,
+  Lock,
   Loader2,
   Sparkles,
   Trash2,
@@ -110,6 +111,38 @@ export function PhotoUpload() {
             e.target.value = "";
           }}
         />
+      </div>
+
+      {/* Privacy note, shown at the exact moment someone decides whether to
+          hand over real family photos. Short and calm, not a legal wall —
+          every claim here maps to a sentence in the README's fuller "Your
+          photos and your data" section, linked below. Deliberately does NOT
+          claim no AI ever processes the photo (the generation provider does,
+          to animate it); it only states what's actually true: storage is
+          private, no model captions/describes the photo, and provider
+          retention afterward is that provider's own policy, not ours. The
+          link is its own row (not inline in the sentence) with a min-h-11
+          tap target on mobile, matching Footer.tsx's link pattern — journey
+          e2e scans every a[href] on this step for a >=44px box. */}
+      <div className="mx-auto mt-4 max-w-md">
+        <p className="flex items-start gap-2 text-xs leading-relaxed text-zinc-400">
+          <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" aria-hidden />
+          <span>
+            Your photos go to a private Backblaze B2 bucket, never made
+            public. No model captions or describes them. The occasion you
+            pick shapes the reel's style, not what the photo shows. Each
+            photo is still animated by our generation provider, and what
+            that provider keeps afterward follows its own policy, not ours.
+          </span>
+        </p>
+        <a
+          href="https://github.com/upgradedev/cinemory#your-photos-and-your-data"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 inline-flex min-h-11 items-center text-xs text-zinc-400 underline decoration-white/20 underline-offset-2 hover:text-zinc-200 sm:min-h-0"
+        >
+          Full privacy details
+        </a>
       </div>
 
       {/* Zero-friction demo path: a judge with no photos on hand reaches the

@@ -24,6 +24,13 @@ describe("<Hero />", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("labels the landing preview honestly as sample photos, not a finished reel", () => {
+    render(<Hero onStart={() => {}} />);
+    expect(
+      screen.getByText(/sample photos, the kind you would upload/i),
+    ).toBeInTheDocument();
+  });
+
   it("fires onTrySamples from the secondary CTA when provided", async () => {
     const onTrySamples = vi.fn().mockResolvedValue(undefined);
     render(<Hero onStart={() => {}} onTrySamples={onTrySamples} />);
