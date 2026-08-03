@@ -131,6 +131,54 @@ def _flf2v_video_registry(provider_cls: Any) -> Any:
     return registry
 
 
+#: The music-bed model. GMI's audio surface is reachable through the same
+#: request queue as video and image, and this slug answers the SDK's
+#: empty-payload liveness probe with ``400 lyrics (Required parameter is
+#: missing)`` — i.e. LIVE — where a made-up slug answers ``404 does not exist``.
+MINIMAX_MUSIC_MODEL = "minimax-music-2.5"
+#: The model's own payload parameters, none of which survive the SDK's default
+#: audio allowlist. ``lyrics`` is REQUIRED by the model; the rest set the
+#: encode. See :func:`minimax_music_spec` for why that matters.
+_MUSIC_PARAMS = ("lyrics", "sample_rate", "bitrate", "format")
+
+
+def minimax_music_spec() -> Any:
+    """A genblaze ``ModelSpec`` for the MiniMax music bed.
+
+    The SDK ships a ``gmi-audio-music`` family for this slug, but its param
+    surface is ``ParamSurface.for_modality(AUDIO)`` extended with
+    ``style_weight`` / ``duration_seconds`` / ``tempo`` — and **not**
+    ``lyrics``, which the model requires. Left alone, the SDK would drop
+    ``lyrics`` as a junk param (with its standard warning) and GMI would
+    answer ``400 lyrics (Required parameter is missing)``. Nor are the
+    upstream extras harmless guesses: ``duration_seconds`` and ``tempo`` are
+    not parameters this model accepts, so passing them is a silent no-op.
+
+    So the slug gets an explicit user spec that allows exactly the four
+    payload parameters GMI documents, registered per-instance through the
+    SDK's documented registry-override extension point — the same shape
+    :func:`seedance_flf2v_spec` uses for the FLF2V bridge model.
+    """
+    from genblaze_core import Modality as GbModality  # type: ignore
+    from genblaze_core.providers import ModelSpec, ParamSurface  # type: ignore
+
+    surface = ParamSurface.for_modality(GbModality.AUDIO).extend(*_MUSIC_PARAMS)
+    return ModelSpec(
+        model_id=MINIMAX_MUSIC_MODEL,
+        modality=GbModality.AUDIO,
+        # ``is_music`` makes the provider seal stereo AudioMetadata on the asset.
+        extras={"envelope_key": "payload", "is_music": True},
+        **surface.build(),
+    )
+
+
+def _music_audio_registry(provider_cls: Any) -> Any:
+    """The audio provider's default registry + the MiniMax music user spec."""
+    registry = provider_cls.create_registry()
+    registry.register(minimax_music_spec())
+    return registry
+
+
 def _https_download(url: str, *, timeout: float = 120.0) -> bytes:  # pragma: no cover - network
     """Fetch an asset's hosted bytes. HTTPS-only (credentials never in URLs)."""
     if not url.lower().startswith("https://"):
@@ -212,10 +260,13 @@ class GenblazeMediaProvider:
                 # extension point) so the FLF2V bridge model routes both
                 # frames — see ``seedance_flf2v_spec``.
                 return GMICloudVideoProvider(models=_flf2v_video_registry(GMICloudVideoProvider))
-            return {
-                Modality.IMAGE: GMICloudImageProvider,
-                Modality.AUDIO: GMICloudAudioProvider,
-            }[modality]()
+            if modality is Modality.AUDIO:
+                # Same extension point, so the music bed's required ``lyrics``
+                # param is not dropped — see ``minimax_music_spec``.
+                return GMICloudAudioProvider(models=_music_audio_registry(GMICloudAudioProvider))
+            # Keyed, not defaulted: an unhandled modality (e.g. TEXT) must raise
+            # rather than quietly get an image provider.
+            return {Modality.IMAGE: GMICloudImageProvider}[modality]()
         raise NotImplementedError(f"provider {self.provider_name!r} not wired yet")
 
     def _resolve_backend(self) -> Any | None:

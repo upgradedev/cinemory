@@ -31,7 +31,8 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 - **Firebase mirror:** https://upgradegr-cinemory.web.app, the identical app.
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:50, of
   which 95.9s, 56.5%, is live screen capture of this deployed app doing the
-  real thing, shot as one unbroken five-photo run).
+  real thing, shot as one unbroken five-photo run). The voice-over and the
+  music bed under it are both generated, so no third-party track is used.
   Watch it on YouTube: **https://youtu.be/mqBw1hc8TxY**
 
 **Check that the live app really is this commit.** The image is stamped at

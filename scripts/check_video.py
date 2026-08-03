@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """CI gate for the committed demo video — A/V + caption-sync + segment order.
 
-Dependency-light on purpose: it needs only ``ffprobe`` (on PATH, or ``FFPROBE``)
-and the standard library, so it can run as its own small CI job. It fails the
-build when the shipped ``demo/cinemory-demo.mp4`` drifts out of spec:
+Dependency-light on purpose: it needs only ``ffprobe`` and ``ffmpeg`` (on PATH,
+or ``FFPROBE``/``FFMPEG``) and the standard library, so it can run as its own
+small CI job. It fails the build when the shipped ``demo/cinemory-demo.mp4``
+drifts out of spec:
 
   * the video is missing, over the 180s hard cap, or implausibly short;
   * it is not H.264/yuv420p 1280x720 ~30fps with a single AAC audio track;
+  * the one audio track is narration only, or narration under a music bed that
+    is mixed too loud (see ``check_music`` below);
   * the beat script, the SRT sidecar and the video disagree on length;
   * the SRT cues do not match the beats one-for-one, in order, by timing and
     by text (so a desynced or re-ordered caption track fails the build); or
@@ -32,11 +35,21 @@ REPO = Path(__file__).resolve().parent.parent
 DEMO = REPO / "demo"
 BEATS_JSON = DEMO / "cinemory-demo.beats.json"
 FFPROBE = os.environ.get("FFPROBE", "ffprobe")
+FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
 
 HARD_CAP_S = 180.0        # never ship a demo at/over three minutes
 MIN_S = 60.0              # a real narrated demo is not this short
 DUR_TOL_S = 0.5           # container vs. beat-sum slack
 CUE_TOL_S = 0.05          # per-cue timing slack vs. the beat windows
+
+# ---------------------------------------------------------------------------
+# Music-bed bounds, see ``check_music``. The film carries ONE audio track that
+# is narration mixed over a generated music bed, so "how many streams" can no
+# longer tell those two apart. These bounds can.
+GAP_FLOOR_DB = -50.0      # a window under this is treated as dead air
+GAP_MIN_S = 0.30          # ... for at least this long
+MAX_DEAD_GAPS = 3         # narration-only measures 44 of them; the mix, 1
+LOUDNESS_TOL_LU = 1.0     # mixed film vs. the narration it was built from
 
 # ---------------------------------------------------------------------------
 # Content-drift guard — see ``check_content`` for what this does and does not
@@ -85,6 +98,18 @@ def ffprobe_json(path: Path) -> dict:
     if out.returncode != 0:
         raise RuntimeError(f"ffprobe failed on {path.name}: {out.stderr.strip()[:200]}")
     return json.loads(out.stdout)
+
+
+def ffmpeg_filter_log(path: Path, afilter: str) -> str:
+    """Run one audio filter over ``path`` to null and return what it logged."""
+    out = subprocess.run(
+        [FFMPEG, "-hide_banner", "-nostats", "-i", str(path), "-vn",
+         "-af", afilter, "-f", "null", os.devnull],
+        capture_output=True, text=True,
+    )
+    if out.returncode != 0:
+        raise RuntimeError(f"ffmpeg failed on {path.name}: {out.stderr.strip()[-300:]}")
+    return out.stderr + out.stdout
 
 
 def parse_srt(text: str) -> list[dict]:
@@ -165,6 +190,64 @@ def check_content(c: Checks, beats: list[dict]) -> None:
                      "binary — identity-checked only, see check_content docstring")
 
 
+def check_music(c: Checks, mp4: Path, music: dict) -> None:
+    """Fail the build if the music bed is missing, swapped, or mixed too loud.
+
+    The bed is generated, not licensed, so it is recorded in the beat script
+    with its provider, model and prompt exactly like every other generated
+    asset, and pinned here by content hash.
+
+    The mix is a single AAC track: narration and music are summed, not carried
+    as separate streams. So ``len(astreams) == 1`` above still catches an
+    unexpected stream, but it can no longer tell narration-only from
+    narration-plus-music. These two bounds do, and they are two-sided on
+    purpose. A one-sided "not silent" check would happily pass a mix that
+    drowns the voice.
+
+      * FLOOR (the bed is actually there). The narration track is built by
+        padding each beat with digital silence, so a narration-only film has
+        long stretches of true dead air between lines: 44 windows at or under
+        -50 dBFS for 0.30s or more, measured on the pre-music cut. With the bed
+        under it, that count collapses to 1 (the closing fade). If someone
+        rebuilds the film without the music step, the count jumps back and this
+        fails.
+
+      * CEILING (the voice still wins). The bed is mixed ``duck_lu`` below the
+        narration by EBU R128 integrated loudness, which is far enough down
+        that summing it moves the whole film's integrated loudness by
+        hundredths of a LU. So the mixed film has to still measure within
+        ``LOUDNESS_TOL_LU`` of the narration it was built from. A bed mixed
+        anywhere near the voice would drag that number up and fail here.
+    """
+    print("music:")
+    bed = DEMO / music["asset"]
+    c.ok(bed.exists(), "music bed present", music["asset"])
+    if bed.exists():
+        digest = hashlib.sha256(bed.read_bytes()).hexdigest()
+        c.ok(digest == music["sha256"], "music bed matches its recorded hash",
+             f"{digest[:16]}...")
+    for field in ("provider", "model", "prompt", "licence"):
+        c.ok(bool(str(music.get(field, "")).strip()),
+             f"music bed records its {field}")
+
+    log = ffmpeg_filter_log(mp4, f"silencedetect=noise={GAP_FLOOR_DB}dB:d={GAP_MIN_S}")
+    gaps = log.count("silence_start")
+    c.ok(gaps <= MAX_DEAD_GAPS, "quiet gaps carry the music bed, not dead air",
+         f"{gaps} gap(s) under {GAP_FLOOR_DB}dB, max {MAX_DEAD_GAPS}")
+
+    log = ffmpeg_filter_log(mp4, "ebur128=framelog=quiet")
+    hits = re.findall(r"^\s*I:\s*(-?\d+(?:\.\d+)?)\s*LUFS", log, re.MULTILINE)
+    if not hits:
+        c.ok(False, "film loudness is measurable")
+        return
+    mixed = float(hits[-1])
+    target = float(music["narration_lufs"])
+    c.ok(abs(mixed - target) <= LOUDNESS_TOL_LU,
+         "narration still dominates the mix",
+         f"film {mixed:.1f} LUFS vs narration {target:.1f} LUFS, "
+         f"bed ducked {music['duck_lu']} LU")
+
+
 def main() -> int:
     if not BEATS_JSON.exists():
         print(f"[STOP] missing beat script: {BEATS_JSON}")
@@ -241,6 +324,9 @@ def main() -> int:
                 aligned = False
                 print(f"    - cue {i + 1} disagrees with beat {beat['id']}")
         c.ok(aligned, "every cue matches its beat (order, timing, text)")
+
+    # ---- music bed (present, pinned, and mixed under the narration) ---------
+    check_music(c, mp4, beats_doc["music"])
 
     # ---- content drift guard (no known-false marker in any shipped asset) ----
     check_content(c, beats)

@@ -16,7 +16,8 @@
   use the run.app URL.)*
 - **Demo video:** recorded + committed —
   [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:50, inside Devpost's 3-min
-  cap; ElevenLabs voice-over, no music, A/V-sync-gated in CI via the
+  cap; ElevenLabs voice-over over a generated music bed, A/V-sync-gated in CI
+  via the
   `demo-video` job). Six of its ten beats are **live screen capture of the
   deployed app** (95.9s, 56.5% of the runtime), cut from one unbroken take of a
   full five-photo run: photos in, occasion picked, all five model calls rolling

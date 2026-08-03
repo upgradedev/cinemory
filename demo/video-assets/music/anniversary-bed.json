@@ -1,0 +1,23 @@
+{
+  "asset": "video-assets/music/anniversary-bed.mp3",
+  "generated": true,
+  "licence": "generated for this project; no third-party track is used",
+  "provider": "genblaze",
+  "platform": "gmicloud",
+  "model": "minimax-music-2.5",
+  "prompt": "Instrumental only, no vocals, no voice, no singing, no lyrics. warm romantic strings, 96 beats per minute. Gentle cinematic underscore for a short memory film: soft, warm, unhurried, low dynamic range, nothing percussive or sudden, designed to sit quietly beneath a spoken voice-over.",
+  "lyrics": "[Intro]\n[Inst]\n[Inst]\n[Outro]",
+  "params": {
+    "format": "mp3",
+    "sample_rate": 44100,
+    "bitrate": 256000
+  },
+  "occasion": {
+    "key": "anniversary",
+    "music_style": "warm romantic strings",
+    "tempo": 96.0
+  },
+  "sha256": "095d5c271924360e393cad78a31e639a71267db61a8e7753b3726613ae1eca6a",
+  "size_bytes": 2894682,
+  "seconds": 90.26
+}
