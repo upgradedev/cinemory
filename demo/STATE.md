@@ -8,7 +8,7 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > were true on that date and are very likely superseded. If two entries
 > disagree, the higher one wins.
 
-## 2026-08-03 — health card no longer pins a build commit; plain-language e2e guard added (canonical)
+## 2026-08-03: health card no longer pins a build commit; plain-language e2e guard added (canonical)
 
 > The previous entry below (same day) replaced two cards that showed a stale
 > `"provider": "fake-genblaze"`. One of its replacements,
@@ -16,28 +16,28 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > different reason: it pinned the exact `build.commit` hash `/health` returned
 > at capture time (`2bc1b190…f6d83a`, PR #41's commit). The very next redeploy
 > stamped a new commit (`99c9fdd…`), and a judge comparing the video to a live
-> `curl` saw two different hashes — honestly dated on the card's face, but
+> `curl` saw two different hashes, honestly dated on the card's face, but
 > disagreeing all the same. This is structurally unfixable by recapturing:
 > the video is committed to the repo, so shipping a new capture changes HEAD,
 > which is exactly the commit the next redeploy stamps into `/health`.
 >
 > The fix stops pinning the volatile field instead of chasing it.
-> `demo/render-health-card.py` (new — the card was previously composited by
+> `demo/render-health-card.py` (new; the card was previously composited by
 > hand, with nothing in the repo backing that claim) renders the card
 > programmatically from a fresh, saved capture (`video-assets/health.txt`,
 > recaptured 2026-08-03, both origins re-verified byte-identical). It shows
-> `status`, `service`, `mode`, `provider` and `storage` verbatim — stable
-> across every deploy — and proves the `build` block is real by rendering its
+> `status`, `service`, `mode`, `provider` and `storage` verbatim, stable
+> across every deploy, and proves the `build` block is real by rendering its
 > actual key names, but elides `commit`/`built_at` with a literal ellipsis
 > rather than a value that would already be wrong by the next deploy. Nothing
 > inside either response panel is text the live server did not send; the
-> explanation ("elided below because they change on every deploy — compare it
+> explanation ("elided below because they change on every deploy, compare it
 > live") lives in the card's own caption, above the panels, never inside them.
 > Verified against the actual shipped `cinemory-demo.mp4`: the caption band
 > `build-video.py` burns over the bottom of every card beat does not cover the
-> new annotation or either panel — only the pre-existing footer line, same as
+> new annotation or either panel, only the pre-existing footer line, same as
 > before. The video was rebuilt end to end (all 8 beats re-synthesized,
-> narration text unchanged) to **2:05** (125.0s, was 2:06/126.2s — ElevenLabs
+> narration text unchanged) to **2:05** (125.0s, was 2:06/126.2s; ElevenLabs
 > synthesis timing is not byte-deterministic run to run) and passes
 > `scripts/check_video.py`. `check_video.py` itself is unchanged: the old
 > card's content is dated-honest, not false, so it is deliberately not added
@@ -49,9 +49,9 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > visible text, adapted to Cinemory's own journey and vocabulary (no VLM;
 > instead GMI/Kling/seedance, the models and cloud behind Genblaze, plus
 > backend/endpoint/localhost/API/pipeline/B2Storage). Writing it surfaced one
-> live, state-conditional leak — the header's offline badge, reachable only
+> live, state-conditional leak: the header's offline badge, reachable only
 > when `/health` errors, rendered "API offline" (visible text) with tooltip
-> "Backend unreachable" — invisible to every other e2e spec because they all
+> "Backend unreachable", invisible to every other e2e spec because they all
 > mock a healthy `/health`. Fixed in `Header.tsx` (now "Offline" / "Can't
 > reach Cinemory right now") alongside `Header.test.tsx`.
 

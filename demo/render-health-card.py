@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """Render the "Live on Cloud Run" gallery card from a real, saved GET /health
-capture (demo/video-assets/health.txt) — never hand-typed.
+capture (demo/video-assets/health.txt). Never hand-typed.
 
 Why this script exists: the first version of this card was composited once,
 by hand, and baked in the exact "build.commit" hash /health returned at
-capture time. Every redeploy changes that hash — including a redeploy
-triggered by merging the very commit that fixes this — so a card that pins
+capture time. Every redeploy changes that hash, including a redeploy
+triggered by merging the very commit that fixes this, so a card that pins
 it always drifts from a live curl within one deploy of being made. That is
 structurally unfixable by recapturing (see demo/STATE.md, 2026-08-03 entry).
 
 The fix is to stop pinning the volatile field instead of chasing it. This
 script renders the STABLE part of the response verbatim, sliced straight out
-of the saved capture (status, service, mode, provider, storage — unchanged
+of the saved capture (status, service, mode, provider, storage: unchanged
 across deploys), and proves the "build" block is real by showing its actual
 key names, but elides every value inside "build" with an ellipsis rather
 than a value that would already be wrong by the next deploy. Nothing in the
@@ -47,7 +47,7 @@ FIREBASE_URL = "https://upgradegr-cinemory.web.app"
 
 W, H = 1200, 800
 
-# Brand palette — matches demo/build-video.py.
+# Brand palette, matches demo/build-video.py.
 INK = (11, 13, 20)
 PANEL = (17, 20, 29)
 WHITE = (244, 244, 246)
@@ -101,9 +101,9 @@ def load_health() -> dict:
         return json.loads(fh.read())
 
 
-# A line is a list of (text, color) segments drawn left-to-right on one row —
-# lets a single line mix plain structural JSON (white) with an emphasised or
-# elided value, with no marker-string parsing.
+# A line is a list of (text, color) segments drawn left-to-right on one row.
+# This lets a single line mix plain structural JSON (white) with an
+# emphasised or elided value, with no marker-string parsing.
 Segment = tuple[str, tuple[int, int, int]]
 
 
@@ -112,7 +112,7 @@ def kv_line(key: str, value: str, value_color: tuple[int, int, int], trailing: s
 
 
 def elided_kv_line(key: str, trailing: str) -> list[Segment]:
-    # The value is a literal ellipsis, dimmed — never a string shaped like a
+    # The value is a literal ellipsis, dimmed. Never a string shaped like a
     # real (and soon-stale) commit hash or timestamp.
     return [(f'    "{key}": "', WHITE), ("…", ZINC), (f'"{trailing}', WHITE)]
 
@@ -193,13 +193,13 @@ def main() -> None:
     y += 30
     d.text((margin, y), "Live on Cloud Run", font=title_f, fill=WHITE)
     y += 54
-    d.text((margin, y), "Two origins, one health contract \u2014 GET /health, captured moments apart",
+    d.text((margin, y), "Two origins, one health contract: GET /health, captured moments apart",
             font=sub_f, fill=ZINC)
     y += 30
 
     if build_keys:
         note = (
-            f"/health also stamps a build {' + '.join(build_keys)} \u2014 elided below "
+            f"/health also stamps a build {' + '.join(build_keys)}, elided below "
             "because they change on every deploy. Compare it live: check /health on "
             "main yourself, not a screenshot."
         )
@@ -230,7 +230,7 @@ def main() -> None:
     d.text((right_x, panel_bottom + 14), FIREBASE_URL, font=url_f, fill=DIM)
 
     foot_f = font(FONT, 14)
-    d.text((margin, 745), f"GET /health on both origins, byte-identical \u2014 captured {CAPTURED_ON}",
+    d.text((margin, 745), f"GET /health on both origins, byte-identical (captured {CAPTURED_ON})",
             font=foot_f, fill=DIM)
     d.text((margin, 771), "Built with Genblaze \u00b7 Stored on Backblaze B2", font=foot_f, fill=DIM)
 

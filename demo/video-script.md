@@ -35,7 +35,7 @@ by `demo/render-health-card.py` from a real, saved `GET /health` capture
 (`video-assets/health.txt`), not composited by hand. It shows the response
 fields that hold across every deploy (`status`, `service`, `mode`, `provider`,
 `storage`, both origins byte-identical) verbatim, and proves the `build` block
-is real by showing its key names — but elides `commit`/`built_at` with an
+is real by showing its key names, but elides `commit`/`built_at` with an
 ellipsis rather than a value that goes stale on the very next deploy. See
 `demo/STATE.md` (2026-08-03 entry, "card no longer pins a build commit") for
 why: committing a video that pins a commit hash changes the commit a redeploy
