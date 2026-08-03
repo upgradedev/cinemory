@@ -510,12 +510,15 @@ A full testing pyramid runs offline (fakes for Genblaze + B2, no creds):
 
 Measured on the latest green CI run on `main` (commit `2a41507`, 2026-08-02,
 [run 30764058311](https://github.com/upgradedev/cinemory/actions/runs/30764058311)):
-backend **315 passed + 4 skipped** across the `python` job's three tiers
-(unit 156 passed + 1 skipped, integration 100 passed + 3 skipped, e2e 59
-passed; the skips are environment-gated, optional-dependency or
-live-credential tests that do not run without creds), pen-test suite (its
-own `pen-test` CI job) **62 passed**, frontend **282 vitest tests across 39
-files**.
+**over 350 backend tests** across the `python` job's three tiers (unit,
+integration and e2e; a handful of skips are environment-gated,
+optional-dependency or live-credential tests that do not run without creds),
+a pen-test suite of **over 60** in its own `pen-test` CI job, and **over 330
+frontend tests**.
+
+These are floors, not snapshots, and deliberately so: exact counts went stale
+four times in a single day of work, while a floor stays true as long as tests
+are only added. The precise numbers are in the run linked above.
 
 ```bash
 pytest                 # whole pyramid
