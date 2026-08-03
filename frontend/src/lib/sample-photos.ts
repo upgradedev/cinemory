@@ -9,6 +9,8 @@
 // licensing: every pixel is generated here, deterministically (seeded PRNG),
 // and each frame is labelled "Sample n" so screenshots stay honest.
 
+import { MAX_REEL_PHOTOS } from "./reel-budget";
+
 type Scene = "dawn" | "ridge" | "coast" | "lanterns" | "bokeh";
 
 export interface SamplePhotoSpec {
@@ -21,8 +23,19 @@ export interface SamplePhotoSpec {
   description: string;
 }
 
-export const SAMPLE_PHOTO_COUNT = 5;
+/**
+ * How many sample photos the one-click storyboard paints.
+ *
+ * Tied to the reel cap rather than fixed at the number of scenes below: the
+ * demo path must produce a reel that actually FINISHES inside the app's
+ * waiting window (see lib/reel-budget.ts). Handing over more than the cap
+ * would immediately trip the "some were left out" notice on the very path
+ * built to be frictionless.
+ */
+export const SAMPLE_PHOTO_COUNT = MAX_REEL_PHOTOS;
 
+/** The full scene vocabulary. The storyboard takes the first
+ *  SAMPLE_PHOTO_COUNT of these, in order. */
 const SCENES: ReadonlyArray<Scene> = ["dawn", "ridge", "coast", "lanterns", "bokeh"];
 
 /** Content-describing alt text per scene — what the picture actually depicts. */
@@ -36,7 +49,7 @@ const SCENE_DESCRIPTION: Record<Scene, string> = {
 
 /** The deterministic storyboard: same specs (order, seeds, scenes) every call. */
 export function samplePhotoSpecs(): SamplePhotoSpec[] {
-  return SCENES.map((scene, i) => ({
+  return SCENES.slice(0, SAMPLE_PHOTO_COUNT).map((scene, i) => ({
     label: `Sample ${i + 1}`,
     filename: `cinemory-sample-${i + 1}.png`,
     // Fixed per-frame seeds → byte-stable art across clicks and sessions.

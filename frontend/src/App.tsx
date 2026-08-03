@@ -5,11 +5,19 @@ import { Hero } from "./components/Hero";
 import { HowItWorks } from "./components/HowItWorks";
 import { Studio } from "./components/Studio";
 import { MyReels } from "./components/MyReels";
+import { ReelLinkNotFound } from "./components/ReelLinkNotFound";
 import { useReelStore } from "./store/useReelStore";
 import { generateSamplePhotos, samplePhotoAlts } from "./lib/sample-photos";
+import { parseHashRoute } from "./lib/hash-route";
 
 export default function App() {
   const [started, setStarted] = useState(false);
+  /** A reel named by the address bar that we should reopen instead of
+   *  starting blank. Null on every ordinary visit. */
+  const [resumeJobId, setResumeJobId] = useState<string | null>(null);
+  /** The address bar names a reel whose id cannot be real. Answered on the
+   *  spot, with no request. */
+  const [brokenLink, setBrokenLink] = useState(false);
   // Only ever set true from the header's signed-in "My reels" menu item,
   // which itself renders nothing without Firebase config — so a guest build
   // (every build today) never has any control that could flip this, and this
@@ -17,9 +25,12 @@ export default function App() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const reset = useReelStore((s) => s.reset);
   const addPhotos = useReelStore((s) => s.addPhotos);
+  const goTo = useReelStore((s) => s.goTo);
 
   const start = () => {
     reset();
+    setResumeJobId(null);
+    setBrokenLink(false);
     setStarted(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -35,15 +46,34 @@ export default function App() {
       /* fall through — enter empty */
     }
     reset();
+    setResumeJobId(null);
+    setBrokenLink(false);
     if (files.length > 0) addPhotos(files, samplePhotoAlts());
     setStarted(true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Deep-link: /#create jumps straight into the studio.
+  // The address bar decides what this visit opens (see lib/hash-route.ts):
+  //   #create      -> straight into the studio, as it always did
+  //   #reel/<id>   -> reopen that reel, whether it is still being made or was
+  //                   finished days ago. This is what makes a refresh, an
+  //                   accidental close, or coming back tomorrow safe.
+  //   #reel/<junk> -> say so at once, without asking the server about an id
+  //                   that cannot exist
+  // Anything else, including the skip link's own #main-content, is not a route
+  // and lands on the normal landing page.
   useEffect(() => {
-    if (window.location.hash === "#create") setStarted(true);
-  }, []);
+    const route = parseHashRoute(window.location.hash);
+    if (route.kind === "create") {
+      setStarted(true);
+    } else if (route.kind === "reel") {
+      setResumeJobId(route.jobId);
+      goTo("generate");
+      setStarted(true);
+    } else if (route.kind === "broken") {
+      setBrokenLink(true);
+    }
+  }, [goTo]);
 
   return (
     <div className="film-grain flex min-h-dvh flex-col">
@@ -64,8 +94,10 @@ export default function App() {
       <main id="main-content" className="flex-1">
         {libraryOpen ? (
           <MyReels onBack={() => setLibraryOpen(false)} />
+        ) : brokenLink ? (
+          <ReelLinkNotFound onStartNew={start} />
         ) : started ? (
-          <Studio />
+          <Studio resumeJobId={resumeJobId} onStartNew={start} />
         ) : (
           <>
             <Hero onStart={start} onTrySamples={startWithSamples} />

@@ -13,10 +13,12 @@ import {
 import { Button } from "../ui/button";
 import { useReelStore } from "@/store/useReelStore";
 import { generateSamplePhotos, samplePhotoAlts } from "@/lib/sample-photos";
+import { MAX_REEL_PHOTOS, photoCountLabel } from "@/lib/reel-budget";
 import { cn } from "@/lib/utils";
 
 export function PhotoUpload() {
   const photos = useReelStore((s) => s.photos);
+  const overflow = useReelStore((s) => s.overflow);
   const addPhotos = useReelStore((s) => s.addPhotos);
   const removePhoto = useReelStore((s) => s.removePhoto);
   const reorderPhotos = useReelStore((s) => s.reorderPhotos);
@@ -99,6 +101,11 @@ export function PhotoUpload() {
         <p className="mt-4 text-xs text-zinc-400">
           JPG, PNG, HEIC, WebP · uploaded securely to seal verifiable provenance
         </p>
+        <p className="mt-2 max-w-sm text-xs text-zinc-400">
+          Up to {photoCountLabel(MAX_REEL_PHOTOS)} per reel here, so a reel
+          finishes while you watch it. That is a limit of this demo, not of the
+          reel maker.
+        </p>
         <input
           ref={inputRef}
           type="file"
@@ -173,6 +180,22 @@ export function PhotoUpload() {
         )}
       </div>
 
+      {/* A selection that is quietly shortened is only discovered in the
+          finished reel, so say it out loud, the moment it happens. role=alert
+          so it is announced, not just drawn. */}
+      {overflow > 0 && (
+        <p
+          role="alert"
+          className="mx-auto mt-4 max-w-md text-center text-xs text-amber-300"
+        >
+          A reel holds {photoCountLabel(MAX_REEL_PHOTOS)} here, so{" "}
+          {overflow === 1
+            ? "1 of the photos you picked was"
+            : `${overflow} of the photos you picked were`}{" "}
+          left out. Remove one to swap in a different photo.
+        </p>
+      )}
+
       {/* Thumbnail grid */}
       {photos.length > 0 ? (
         <div className="mt-8">
@@ -244,7 +267,7 @@ export function PhotoUpload() {
 
       <div className="mt-10 flex items-start justify-between gap-4">
         <span className="text-xs text-zinc-400">
-          Tip: 4 to 12 photos make the richest reel.
+          Tip: order them the way the story went. The order becomes the edit.
         </span>
         <div className="flex flex-col items-end gap-1.5">
           <Button

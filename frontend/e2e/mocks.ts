@@ -17,6 +17,12 @@ const GOLDEN_MANIFEST_BYTES = readFileSync(
 export const GOLDEN_MANIFEST_HASH =
   "06a6f25193bd5c05e4b64059793c03bda8400bc35f42eada29a7673ccf819060";
 
+/** Shaped like a real job id (`secrets.token_urlsafe(18)` server-side: 24
+ *  chars of the url-safe alphabet), so the specs exercise the id shape the app
+ *  actually has to route on rather than a short fixture that would not survive
+ *  contact with production. */
+export const E2E_JOB_ID = "e2eJobIdAaBbCcDdEeFfGgHh";
+
 const OCCASIONS = {
   occasions: [
     { key: "anniversary", label: "Anniversary", music_style: "warm acoustic",
@@ -125,11 +131,11 @@ export async function mockCinemoryApi(page: Page): Promise<void> {
         await new Promise((r) => setTimeout(r, 1500));
         return route.fulfill({
           status: 202,
-          json: { job_id: "e2e-job", status: "queued" },
+          json: { job_id: E2E_JOB_ID, status: "queued" },
         });
       }
       return route.fulfill({
-        json: { job_id: "e2e-job", status: "done", result: REEL_RESPONSE },
+        json: { job_id: E2E_JOB_ID, status: "done", result: REEL_RESPONSE },
       });
     },
   );

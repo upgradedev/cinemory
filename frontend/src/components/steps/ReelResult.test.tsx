@@ -57,7 +57,7 @@ describe("<ReelResult /> — honest degrade surfacing", () => {
     ).toBeInTheDocument();
     expect(
       screen.getAllByText(
-        /live ai generation was unavailable for this run; storage and provenance are real/i,
+        /the live model was unavailable\. this reel was made with the built-in fallback/i,
       ).length,
     ).toBeGreaterThan(0);
   });
@@ -138,5 +138,39 @@ describe("<ReelResult /> — Ken Burns slideshow fallback", () => {
     const columns = container.querySelectorAll(".lg\\:col-span-3, .lg\\:col-span-2");
     expect(columns.length).toBe(2);
     columns.forEach((c) => expect((c as HTMLElement).className).toContain("min-w-0"));
+  });
+});
+
+describe("<ReelResult /> — saying WHY the live model was not used", () => {
+  it("names the billing case in plain words, so nobody has to read a server log", () => {
+    // The exact incident this exists for: the account ran out of credit, the
+    // app degraded correctly, and the visitor was told nothing.
+    renderWithQuery(
+      <ReelResult reel={{ ...degradedReel, degrade_kind: "credit" }} />,
+    );
+    expect(screen.getAllByText(/our generation credit ran out/i).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/built-in fallback instead, and it is labelled as such/i).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("never puts the raw failure detail on screen", () => {
+    renderWithQuery(
+      <ReelResult reel={{ ...degradedReel, degrade_kind: "credit" }} />,
+    );
+    // degrade_reason is an exception class name. It rides along in the
+    // response for the record, and is never rendered.
+    expect(screen.queryByText(/RuntimeError/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/402/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/GMI/i)).not.toBeInTheDocument();
+  });
+
+  it("still explains itself when the backend sends no category at all", () => {
+    // An older backend, or a failure nobody has classified yet: a complete
+    // sentence either way, never a blank.
+    renderWithQuery(<ReelResult reel={degradedReel} />);
+    expect(
+      screen.getAllByText(/the live model was unavailable/i).length,
+    ).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { deriveReelShape, useReelStore } from "./useReelStore";
+import { MAX_REEL_PHOTOS } from "@/lib/reel-budget";
+import { rememberReel } from "@/lib/hash-route";
 
 function imageFile(name: string): File {
   return new File([new Uint8Array([1, 2, 3])], name, { type: "image/png" });
@@ -52,16 +54,15 @@ describe("useReelStore — photos", () => {
 
 describe("useReelStore — reorderPhotos", () => {
   it("moves a photo from one position to another", () => {
-    useReelStore
-      .getState()
-      .addPhotos([imageFile("a.png"), imageFile("b.png"), imageFile("c.png")]);
+    // A reel holds MAX_REEL_PHOTOS photos, so a reorder is exercised at that
+    // size rather than with a selection the store would refuse to hold.
+    useReelStore.getState().addPhotos([imageFile("a.png"), imageFile("b.png")]);
     const { photos } = useReelStore.getState();
     const firstId = photos[0]!.id;
-    const lastId = photos[2]!.id;
+    const lastId = photos[photos.length - 1]!.id;
     useReelStore.getState().reorderPhotos(firstId, lastId);
     expect(useReelStore.getState().photos.map((p) => p.name)).toEqual([
       "b.png",
-      "c.png",
       "a.png",
     ]);
   });
@@ -103,5 +104,71 @@ describe("deriveReelShape", () => {
     expect(deriveReelShape(9)).toEqual({ chapters: 3, per_chapter: 3 });
     // A large set saturates both clamps (chapters=5, per_chapter capped at 4).
     expect(deriveReelShape(100)).toEqual({ chapters: 5, per_chapter: 4 });
+  });
+});
+
+describe("useReelStore — the photo cap", () => {
+  it("holds at most a full reel and reports what it had to leave out", () => {
+    const picked = Array.from({ length: MAX_REEL_PHOTOS + 3 }, (_, i) =>
+      imageFile(`p${i}.png`),
+    );
+    useReelStore.getState().addPhotos(picked);
+
+    const { photos, overflow } = useReelStore.getState();
+    expect(photos).toHaveLength(MAX_REEL_PHOTOS);
+    // Never silently: the count that was dropped is recorded so the upload
+    // step can say it out loud.
+    expect(overflow).toBe(3);
+    // It keeps the FIRST ones, in order, so the storyboard someone arranged
+    // is not scrambled by the cap.
+    expect(photos.map((p) => p.name)).toEqual(
+      picked.slice(0, MAX_REEL_PHOTOS).map((f) => f.name),
+    );
+  });
+
+  it("counts remaining room across separate adds", () => {
+    useReelStore.getState().addPhotos([imageFile("a.png")]);
+    expect(useReelStore.getState().overflow).toBe(0);
+    useReelStore.getState().addPhotos(
+      Array.from({ length: MAX_REEL_PHOTOS + 1 }, (_, i) => imageFile(`b${i}.png`)),
+    );
+    expect(useReelStore.getState().photos).toHaveLength(MAX_REEL_PHOTOS);
+    expect(useReelStore.getState().overflow).toBe(2);
+  });
+
+  it("does not count a dropped non-image as 'left out because the reel is full'", () => {
+    // A .txt was never a candidate photo. Blaming the cap for it would be a
+    // lie, and would send someone deleting photos to make room.
+    useReelStore
+      .getState()
+      .addPhotos([imageFile("a.png"), new File(["x"], "notes.txt", { type: "text/plain" })]);
+    expect(useReelStore.getState().photos).toHaveLength(1);
+    expect(useReelStore.getState().overflow).toBe(0);
+  });
+
+  it("retires the notice once room is made again", () => {
+    useReelStore
+      .getState()
+      .addPhotos(Array.from({ length: MAX_REEL_PHOTOS + 1 }, (_, i) => imageFile(`p${i}.png`)));
+    expect(useReelStore.getState().overflow).toBeGreaterThan(0);
+
+    useReelStore.getState().removePhoto(useReelStore.getState().photos[0]!.id);
+    expect(useReelStore.getState().overflow).toBe(0);
+
+    useReelStore
+      .getState()
+      .addPhotos(Array.from({ length: MAX_REEL_PHOTOS + 1 }, (_, i) => imageFile(`q${i}.png`)));
+    useReelStore.getState().clearPhotos();
+    expect(useReelStore.getState().overflow).toBe(0);
+  });
+});
+
+describe("useReelStore — reset clears the reel's link", () => {
+  it("drops the reel from the address bar, so a refresh starts clean", () => {
+    rememberReel("abcdefgh12");
+    expect(window.location.hash).toBe("#reel/abcdefgh12");
+    useReelStore.getState().reset();
+    expect(window.location.hash).toBe("");
+    expect(useReelStore.getState().overflow).toBe(0);
   });
 });

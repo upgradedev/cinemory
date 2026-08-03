@@ -212,6 +212,30 @@ and [`frontend/src/lib/queries.ts`](frontend/src/lib/queries.ts)). The
 synthetic demo path (`POST /reels`, no uploaded photos) has no async
 counterpart and stays a single blocking call.
 
+**The job id is in the address bar.** As soon as a generation is submitted
+the page rewrites its URL to `#reel/<job_id>` (`history.replaceState`, so
+Back still means "leave"). Refreshing, closing the tab by accident, or coming
+back tomorrow reopens the same run: still rendering, or finished, because the
+job's stored status keeps its sealed result. A link whose id is malformed is
+answered on the spot with no request; one that is simply unknown or expired
+404s, which the poll treats as a final answer rather than a blip to retry.
+Both land on the same plain "we couldn't find that reel" screen with a way
+forward. No router library: the app already routed on
+`window.location.hash`, so this stays dependency-free (see
+[`frontend/src/lib/hash-route.ts`](frontend/src/lib/hash-route.ts)).
+
+**How many photos, and how long.** Live generation is one image-to-video call
+per photo, run sequentially, measured at **~314s per photo** on the deployed
+service. The app polls a submitted job for at most **12 minutes**
+(`REEL_JOB_MAX_POLL_MS`). Holding back 45s for sending the photos up,
+stitching, storing and sealing, that leaves 675s of generation, so
+`floor(675 / 314)` = **2 photos** per reel here. The cap is derived from those
+numbers rather than typed in
+([`frontend/src/lib/reel-budget.ts`](frontend/src/lib/reel-budget.ts)), the
+UI shows the resulting estimate before and during the run, and a larger
+selection is never silently shortened. It is a limit of this demo's waiting
+window, not of the pipeline, which accepts up to 60 photos server-side.
+
 **Honest limitation.** Polling can be answered from anywhere, but the
 generation itself still runs in-process, on the one instance that accepted
 the submit. There is no external queue and no separate worker fleet. A

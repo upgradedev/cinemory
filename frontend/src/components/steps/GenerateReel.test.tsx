@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GenerateReel, newReelName } from "./GenerateReel";
 import { useReelStore } from "@/store/useReelStore";
+import { MAX_REEL_PHOTOS } from "@/lib/reel-budget";
 import { REEL_JOB_POLL_INTERVAL_MS } from "@/lib/queries";
 import { ApiError, cinemoryApi, type Occasion, type ReelResponse } from "@/lib/api";
 
@@ -32,13 +33,16 @@ function imageFile(name: string): File {
   return new File([new Uint8Array([1, 2, 3])], name, { type: "image/png" });
 }
 
-function renderGenerate(onComplete = vi.fn()) {
+function renderGenerate(
+  onComplete = vi.fn(),
+  props: { resumeJobId?: string | null; onStartNew?: () => void } = {},
+) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   const utils = render(
     <QueryClientProvider client={qc}>
-      <GenerateReel onComplete={onComplete} />
+      <GenerateReel onComplete={onComplete} {...props} />
     </QueryClientProvider>,
   );
   return { ...utils, onComplete };
@@ -96,7 +100,7 @@ describe("<GenerateReel /> — real-photo async job path", () => {
     useReelStore.getState().setOccasion("anniversary");
     useReelStore
       .getState()
-      .addPhotos([imageFile("a.png"), imageFile("b.png"), imageFile("c.png")]);
+      .addPhotos([imageFile("a.png"), imageFile("b.png")]);
     const submitSpy = vi
       .spyOn(cinemoryApi, "submitReelJob")
       .mockResolvedValue({ job_id: "job-1", status: "queued" });
@@ -109,8 +113,12 @@ describe("<GenerateReel /> — real-photo async job path", () => {
     const createSpy = vi.spyOn(cinemoryApi, "createReel");
 
     const { onComplete } = renderGenerate();
-    // Plural photo count is shown in the summary line.
-    expect(screen.getByText(/3 photos/i)).toBeInTheDocument();
+    // Plural photo count is shown in the summary line. Matched on the whole
+    // line, not a loose /2 photos/, because the estimate above it names the
+    // same count and a loose matcher would find both.
+    expect(
+      screen.getByText((_, el) => el?.textContent === "2 chapters · 2 photos"),
+    ).toBeInTheDocument();
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledWith(REEL), {
       timeout: 3000,
@@ -118,7 +126,7 @@ describe("<GenerateReel /> — real-photo async job path", () => {
     expect(submitSpy).toHaveBeenCalledWith(
       expect.objectContaining({ occasion: "anniversary", chapters: 2 }),
     );
-    expect(submitSpy.mock.calls[0]?.[0].files).toHaveLength(3);
+    expect(submitSpy.mock.calls[0]?.[0].files).toHaveLength(MAX_REEL_PHOTOS);
     expect(getJobSpy).toHaveBeenCalledWith("job-1");
     expect(uploadSpy).not.toHaveBeenCalled();
     expect(createSpy).not.toHaveBeenCalled();
@@ -302,11 +310,107 @@ describe("<GenerateReel /> — in-flight render", () => {
 
     expect(screen.getByRole("heading", { name: /rolling/i })).toBeInTheDocument();
     expect(screen.getByRole("progressbar")).toBeInTheDocument();
-    expect(screen.getByText(/1 photo(?!s)/i)).toBeInTheDocument();
+    expect(
+      screen.getByText((_, el) => el?.textContent === "2 chapters · 1 photo"),
+    ).toBeInTheDocument();
+    // The wait is estimated from the photo count, never a fixed phrase.
+    expect(
+      screen.getByText(/1 photo usually takes about 6 minutes/i),
+    ).toBeInTheDocument();
     // The full seven-stage pipeline is listed.
     expect(screen.getByText(/reading your photos/i)).toBeInTheDocument();
     expect(
       screen.getByText(/sealing cryptographic provenance/i),
     ).toBeInTheDocument();
+  });
+});
+
+describe("<GenerateReel /> — resuming a reel from its link", () => {
+  it("polls the reel the link names and submits NOTHING", async () => {
+    // The whole point: the tab that submitted this is gone. There are no
+    // photos and no occasion left in memory, only the link.
+    const submitSpy = vi.spyOn(cinemoryApi, "submitReelJob");
+    const createSpy = vi.spyOn(cinemoryApi, "createReel");
+    const getJobSpy = vi
+      .spyOn(cinemoryApi, "getReelJob")
+      .mockResolvedValue({ job_id: "abcdefgh12", status: "done", result: REEL });
+
+    const { onComplete } = renderGenerate(vi.fn(), { resumeJobId: "abcdefgh12" });
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith(REEL), {
+      timeout: 3000,
+    });
+    expect(getJobSpy).toHaveBeenCalledWith("abcdefgh12");
+    // No photos in this tab must NOT fall through to the synthetic path.
+    expect(submitSpy).not.toHaveBeenCalled();
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it("says it is picking the reel back up, and does not claim 0 photos", () => {
+    vi.spyOn(cinemoryApi, "getReelJob").mockReturnValue(new Promise(() => {}));
+
+    renderGenerate(vi.fn(), { resumeJobId: "abcdefgh12" });
+
+    expect(screen.getByRole("heading", { name: /rolling/i })).toBeInTheDocument();
+    expect(screen.getByText(/picking this reel back up/i)).toBeInTheDocument();
+    expect(screen.getByText(/already in progress/i)).toBeInTheDocument();
+    expect(screen.queryByText(/0 photos/i)).not.toBeInTheDocument();
+  });
+
+  it("says plainly when the link leads to no reel, instead of spinning", async () => {
+    // An unknown or expired id answers 404. That is a final answer, so it must
+    // land at once rather than burning the transient-error budget first.
+    vi.spyOn(cinemoryApi, "getReelJob").mockRejectedValue(
+      new ApiError("Request to /reels/jobs/gone failed (404).", 404),
+    );
+    const onStartNew = vi.fn();
+
+    renderGenerate(vi.fn(), { resumeJobId: "abcdefgh12", onStartNew });
+
+    expect(
+      await screen.findByRole("heading", { name: /couldn.t find that reel/i }),
+    ).toBeInTheDocument();
+    const startNew = screen.getByRole("button", { name: /start a new reel/i });
+    await userEvent.click(startNew);
+    expect(onStartNew).toHaveBeenCalled();
+  });
+
+  it("offers only a fresh start when a resumed reel fails for another reason", async () => {
+    // Retry and Back both lead somewhere empty after a refresh: there are no
+    // photos to resubmit and no occasion to go back to.
+    vi.spyOn(cinemoryApi, "getReelJob").mockResolvedValue({
+      job_id: "abcdefgh12",
+      status: "failed",
+      error: "RuntimeError",
+    });
+    const onStartNew = vi.fn();
+
+    renderGenerate(vi.fn(), { resumeJobId: "abcdefgh12", onStartNew });
+
+    expect(
+      await screen.findByRole("heading", { name: /didn.t finish/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^retry$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^back$/i })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /start a new reel/i }));
+    expect(onStartNew).toHaveBeenCalled();
+  });
+});
+
+describe("<GenerateReel /> — the link that makes a refresh safe", () => {
+  it("puts the reel in the address bar as soon as it is submitted, not when it finishes", async () => {
+    useReelStore.getState().setOccasion("anniversary");
+    useReelStore.getState().addPhotos([imageFile("a.png")]);
+    vi.spyOn(cinemoryApi, "submitReelJob").mockResolvedValue({
+      job_id: "abcdefgh12",
+      status: "queued",
+    });
+    // Never settles: the reel is still being made, which is exactly when
+    // someone refreshes and used to lose it.
+    vi.spyOn(cinemoryApi, "getReelJob").mockReturnValue(new Promise(() => {}));
+
+    renderGenerate();
+
+    await waitFor(() => expect(window.location.hash).toBe("#reel/abcdefgh12"));
   });
 });

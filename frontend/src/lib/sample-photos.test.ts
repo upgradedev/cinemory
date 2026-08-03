@@ -6,17 +6,20 @@ import {
   samplePhotoAlts,
   samplePhotoSpecs,
 } from "./sample-photos";
+import { MAX_REEL_PHOTOS } from "./reel-budget";
 
 describe("samplePhotoSpecs", () => {
   it("is deterministic: identical storyboard on every call", () => {
     expect(samplePhotoSpecs()).toEqual(samplePhotoSpecs());
   });
 
-  it("ships 4–6 honestly-labelled, uniquely-named frames", () => {
+  it("ships exactly one full reel of honestly-labelled, uniquely-named frames", () => {
     const specs = samplePhotoSpecs();
     expect(specs).toHaveLength(SAMPLE_PHOTO_COUNT);
-    expect(SAMPLE_PHOTO_COUNT).toBeGreaterThanOrEqual(4);
-    expect(SAMPLE_PHOTO_COUNT).toBeLessThanOrEqual(6);
+    // The demo path exists to FINISH. Handing over more photos than one reel
+    // can hold would trip the "some were left out" notice on the very path
+    // built to be frictionless, so the sample set is exactly a full reel.
+    expect(SAMPLE_PHOTO_COUNT).toBe(MAX_REEL_PHOTOS);
     specs.forEach((s, i) => {
       expect(s.label).toBe(`Sample ${i + 1}`);
       expect(s.filename).toMatch(/^cinemory-sample-\d+\.png$/);

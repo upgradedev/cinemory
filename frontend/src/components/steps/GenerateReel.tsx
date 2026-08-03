@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, Check, Loader2, RotateCw } from "lucide-react";
 import { Button } from "../ui/button";
 import { Progress } from "../ui/progress";
+import { ReelLinkNotFound } from "../ReelLinkNotFound";
 import { StepHeading } from "./PhotoUpload";
 import {
   useCreateReel,
@@ -12,6 +13,8 @@ import {
 } from "@/lib/queries";
 import { deriveReelShape, useReelStore } from "@/store/useReelStore";
 import { generationProgressPct } from "@/lib/progress";
+import { estimateSentence, photoCountLabel } from "@/lib/reel-budget";
+import { rememberReel } from "@/lib/hash-route";
 import { ApiError, type ReelResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -56,20 +59,36 @@ export function newReelName(): string {
 
 export function GenerateReel({
   onComplete,
+  resumeJobId = null,
+  onStartNew,
 }: {
   onComplete: (reel: ReelResponse) => void;
+  /** A reel the address bar already names (see lib/hash-route.ts). When set,
+   *  this step submits NOTHING: it picks up polling that reel, which is what
+   *  makes a refresh, an accidental close, or coming back tomorrow safe. */
+  resumeJobId?: string | null;
+  /** Abandon the reel this link pointed at and start a new one. */
+  onStartNew?: () => void;
 }) {
   const photos = useReelStore((s) => s.photos);
   const occasionKey = useReelStore((s) => s.occasionKey);
   const goTo = useReelStore((s) => s.goTo);
+  const reset = useReelStore((s) => s.reset);
   const { data: occasions } = useOccasions();
   const submitMutation = useSubmitReelJob();
   const synthMutation = useCreateReel();
 
   const [stage, setStage] = useState(0);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(resumeJobId);
   const startedRef = useRef(false);
   const poll = usePollReelJob(jobId);
+
+  /** Reopening an existing reel rather than making a new one. The photos and
+   *  the occasion are gone after a refresh (they only ever lived in this
+   *  tab's memory), so every place below that reads them has to cope with
+   *  having none. */
+  const resuming = resumeJobId !== null;
+  const startNew = onStartNew ?? (() => { reset(); goTo("upload"); });
 
   const occasion = occasions?.find((o) => o.key === occasionKey);
   const shape = deriveReelShape(photos.length);
@@ -96,7 +115,15 @@ export function GenerateReel({
           chapters: shape.chapters,
           files: photos.map((p) => p.file),
         },
-        { onSuccess: (data) => setJobId(data.job_id) },
+        {
+          onSuccess: (data) => {
+            setJobId(data.job_id);
+            // Put it in the address bar the moment there is something to come
+            // back to, not when it finishes: the whole point is surviving a
+            // refresh or a closed tab DURING the minutes it takes.
+            rememberReel(data.job_id);
+          },
+        },
       );
     } else {
       synthMutation.mutate(
@@ -116,10 +143,13 @@ export function GenerateReel({
     }
   };
 
-  // Kick off exactly once on mount.
+  // Kick off exactly once on mount — unless we are reopening a reel that was
+  // already submitted, in which case there is nothing to start and `jobId` is
+  // already seeded, so the poll below is already running against it.
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
+    if (resuming) return;
     start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -141,13 +171,18 @@ export function GenerateReel({
   // single synchronous synthetic call), or a submitted job still being
   // polled. jobId flips from null to the submitted id in the same render the
   // submit mutation settles, so this stays continuous across that handoff.
-  const isPending = hasPhotos
+  //
+  // A resumed reel is on the job path too even though it holds no photos: the
+  // photos went with the old tab, but the job they were submitted as is still
+  // there and is the only thing worth watching.
+  const usesJob = resuming || hasPhotos;
+  const isPending = usesJob
     ? jobId === null
       ? submitMutation.isPending
       : poll.isPolling
     : synthMutation.isPending;
-  const isSuccess = hasPhotos ? poll.result !== null : synthMutation.isSuccess;
-  const error: Error | null = hasPhotos
+  const isSuccess = usesJob ? poll.result !== null : synthMutation.isSuccess;
+  const error: Error | null = usesJob
     ? submitMutation.isError
       ? submitMutation.error
       : poll.error
@@ -197,6 +232,13 @@ export function GenerateReel({
     // line underneath, never as the headline.
     const err = error;
     const status = err instanceof ApiError ? err.status : undefined;
+
+    // The reel this link named does not exist: unknown id, or one whose reel
+    // is no longer kept. Both answer 404, and the poll now treats that as a
+    // final answer rather than a blip (see usePollReelJob), so this lands in
+    // seconds instead of after a pointless retry budget.
+    if (status === 404) return <ReelLinkNotFound onStartNew={startNew} />;
+
     const isTimeout =
       status === 504 || status === 502 || status === 503 || status === 408;
     const friendlyDetail = isTimeout
@@ -218,14 +260,25 @@ export function GenerateReel({
           {rawDetail && (
             <p className="mt-2 text-[11px] text-zinc-400">{rawDetail}</p>
           )}
+          {/* A resumed reel has no photos and no occasion left in this tab, so
+              "Back" and "Retry" would both lead somewhere empty. It gets the
+              one action that actually works instead. */}
           <div className="mt-6 flex justify-center gap-3">
-            <Button variant="ghost" onClick={() => goTo("occasion")}>
-              Back
-            </Button>
-            <Button onClick={start}>
-              <RotateCw className="h-4 w-4" />
-              Retry
-            </Button>
+            {resuming ? (
+              <Button className="min-h-11" onClick={startNew}>
+                Start a new reel
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" onClick={() => goTo("occasion")}>
+                  Back
+                </Button>
+                <Button onClick={start}>
+                  <RotateCw className="h-4 w-4" />
+                  Retry
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -242,9 +295,16 @@ export function GenerateReel({
             : "Your cinematic reel is being composed."
         }
       />
+      {/* The honest wait, worked out from the number of photos rather than a
+          fixed "a few minutes" that was true for one photo and a fiction for
+          five. Plus the thing nobody was told before: the link is safe to
+          leave. */}
       <p className="-mt-5 mb-8 text-center text-sm text-zinc-400">
-        A live reel can take a few minutes to render. No need to refresh,
-        this updates on its own.
+        {resuming
+          ? "Picking this reel back up. It carried on without the page open."
+          : estimateSentence(photos.length)}{" "}
+        This page updates on its own, and you can close it and come back to
+        this link later.
       </p>
 
       <div className="mx-auto max-w-lg">
@@ -257,9 +317,12 @@ export function GenerateReel({
         </div>
 
         <div className="mb-6 flex items-center justify-between text-sm">
+          {/* After a refresh there are no photos left in this tab to count, so
+              claiming "0 photos" would be a lie about the reel being made. */}
           <span className="text-zinc-400">
-            {shape.chapters} chapters · {photos.length}{" "}
-            {photos.length === 1 ? "photo" : "photos"}
+            {photos.length > 0
+              ? `${shape.chapters} chapters · ${photoCountLabel(photos.length)}`
+              : "Already in progress"}
           </span>
           <span className="font-mono text-gold-300">{pct}%</span>
         </div>

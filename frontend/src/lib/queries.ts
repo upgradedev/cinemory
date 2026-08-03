@@ -17,6 +17,7 @@ import {
   type ReelResponse,
   type UploadReelRequest,
 } from "./api";
+import { REEL_JOB_MAX_POLL_MS } from "./reel-budget";
 
 export const queryKeys = {
   health: ["health"] as const,
@@ -127,8 +128,12 @@ export const REEL_JOB_POLL_INTERVAL_MS = 4_000;
 /** Bounded total poll duration (~12 min) before the caller gives up and
  *  surfaces the honest "taking longer than expected" state — the same copy
  *  a synchronous gateway timeout already used, reused via a synthetic 504
- *  ApiError below rather than a new UI branch. */
-export const REEL_JOB_MAX_POLL_MS = 12 * 60_000;
+ *  ApiError below rather than a new UI branch.
+ *
+ *  Defined in `lib/reel-budget.ts` and re-exported here (every existing
+ *  importer is unchanged): it is the numerator of the photo-cap arithmetic,
+ *  so it lives next to the cap it determines. */
+export { REEL_JOB_MAX_POLL_MS };
 
 /** A poll tick that fails before even reaching a real job status (network
  *  blip, transient 5xx) is tolerated this many times IN A ROW before the
@@ -217,6 +222,17 @@ export function usePollReelJob(jobId: string | null): ReelJobPollState {
         scheduleNext();
       } catch (err) {
         if (cancelled) return;
+        // A 404 is an ANSWER, not a hiccup: the store looked and there is no
+        // such job (see cinemory.api.get_reel_job — an unknown id and an
+        // unreadable status object both 404). Retrying it three more times
+        // would only make someone who opened a stale or mistyped link stare at
+        // a spinner for 16 more seconds before being told the same thing. The
+        // consecutive-error budget stays for what it was built for: transient
+        // network blips and 5xx during a live multi-minute render.
+        if (err instanceof ApiError && err.status === 404) {
+          giveUp(err);
+          return;
+        }
         consecutiveErrors += 1;
         if (consecutiveErrors > REEL_JOB_MAX_CONSECUTIVE_ERRORS) {
           giveUp(err instanceof Error ? err : new Error(String(err)));

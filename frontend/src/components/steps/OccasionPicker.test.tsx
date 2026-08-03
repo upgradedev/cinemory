@@ -47,3 +47,34 @@ describe("<OccasionPicker /> — disabled-CTA guidance", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("<OccasionPicker /> — the wait, said before it starts", () => {
+  function imageFile(name: string): File {
+    return new File([new Uint8Array([1, 2, 3])], name, { type: "image/png" });
+  }
+
+  it("estimates the wait from the photo count on the last screen before the run", () => {
+    useReelStore.getState().addPhotos([imageFile("a.png")]);
+    useReelStore.getState().setOccasion("wedding");
+    renderPicker();
+    expect(
+      screen.getByText(/1 photo usually takes about 6 minutes\./i),
+    ).toBeInTheDocument();
+  });
+
+  it("moves with the count, so it is never a fixed string", () => {
+    useReelStore.getState().addPhotos([imageFile("a.png"), imageFile("b.png")]);
+    useReelStore.getState().setOccasion("wedding");
+    renderPicker();
+    expect(
+      screen.getByText(/2 photos usually take about 11 minutes\./i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the blocker hint, not the estimate, while no occasion is picked", () => {
+    useReelStore.getState().addPhotos([imageFile("a.png")]);
+    renderPicker();
+    expect(screen.getByText(/pick an occasion to continue/i)).toBeInTheDocument();
+    expect(screen.queryByText(/usually takes/i)).not.toBeInTheDocument();
+  });
+});

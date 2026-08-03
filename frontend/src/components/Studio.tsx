@@ -15,7 +15,16 @@ const STEP_LABEL: Record<string, string> = {
   result: "Step 4 of 4: your reel is ready",
 };
 
-export function Studio() {
+export function Studio({
+  resumeJobId = null,
+  onStartNew,
+}: {
+  /** A reel named by the address bar to reopen rather than start fresh. Null
+   *  on an ordinary visit; see App.tsx and lib/hash-route.ts. */
+  resumeJobId?: string | null;
+  /** Abandon whatever the link pointed at and begin a new reel. */
+  onStartNew?: () => void;
+} = {}) {
   const step = useReelStore((s) => s.step);
   const goTo = useReelStore((s) => s.goTo);
   const [reel, setReel] = useState<ReelResponse | null>(null);
@@ -61,6 +70,8 @@ export function Studio() {
         {step === "occasion" && <OccasionPicker />}
         {step === "generate" && (
           <GenerateReel
+            resumeJobId={resumeJobId}
+            onStartNew={onStartNew}
             onComplete={(r) => {
               setReel(r);
               goTo("result");
