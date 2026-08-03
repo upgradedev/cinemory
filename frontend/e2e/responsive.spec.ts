@@ -126,11 +126,27 @@ test("occasion cards go from a single column on mobile to multiple columns on ta
       .toBeGreaterThan(3);
     const count = await cards.count();
 
-    const lefts: number[] = [];
-    for (let i = 0; i < count; i++) {
-      const box = await cards.nth(i).boundingBox();
-      expect(box, `card ${i} has a layout box at ${width}px`).not.toBeNull();
-      lefts.push(box!.x);
+    // The cards slide in on a stagger, so measuring on first paint catches
+    // them mid-flight: a single column reads as several left edges a few px
+    // apart and the count comes out too high. Widening the cluster tolerance
+    // would hide that rather than fix it, and would also stop the test from
+    // noticing a genuinely wrong layout. Wait for the geometry to stop moving
+    // instead, then measure once.
+    const readLefts = async (): Promise<number[]> => {
+      const xs: number[] = [];
+      for (let i = 0; i < count; i++) {
+        const box = await cards.nth(i).boundingBox();
+        expect(box, `card ${i} has a layout box at ${width}px`).not.toBeNull();
+        xs.push(box!.x);
+      }
+      return xs;
+    };
+    let lefts = await readLefts();
+    for (let settle = 0; settle < 20; settle++) {
+      const again = await readLefts();
+      if (again.every((x, i) => Math.abs(x - lefts[i]) < 0.5)) break;
+      lefts = again;
+      await page.waitForTimeout(100);
     }
     // Cluster left edges with a small tolerance (sub-pixel noise, not a real
     // extra column) to count how many distinct columns actually rendered.
