@@ -7,9 +7,11 @@ build when the shipped ``demo/cinemory-demo.mp4`` drifts out of spec:
 
   * the video is missing, over the 180s hard cap, or implausibly short;
   * it is not H.264/yuv420p 1280x720 ~30fps with a single AAC audio track;
-  * the beat script, the SRT sidecar and the video disagree on length; or
+  * the beat script, the SRT sidecar and the video disagree on length;
   * the SRT cues do not match the beats one-for-one, in order, by timing and
-    by text (so a desynced or re-ordered caption track fails the build).
+    by text (so a desynced or re-ordered caption track fails the build); or
+  * a beat-referenced asset carries a known-false marker (e.g. a stale
+    ``fake-genblaze`` capture) — see ``check_content`` below.
 
 The beat script (``demo/cinemory-demo.beats.json``) is the single source of
 truth; ``demo/build-video.py`` regenerates all three artifacts together.
@@ -18,6 +20,7 @@ Run:  python scripts/check_video.py        # exit 0 = pass, 1 = fail
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -34,6 +37,30 @@ HARD_CAP_S = 180.0        # never ship a demo at/over three minutes
 MIN_S = 60.0              # a real narrated demo is not this short
 DUR_TOL_S = 0.5           # container vs. beat-sum slack
 CUE_TOL_S = 0.05          # per-cue timing slack vs. the beat windows
+
+# ---------------------------------------------------------------------------
+# Content-drift guard — see ``check_content`` for what this does and does not
+# catch. Text-decodable assets (.txt/.json/.md/.srt/.html) are scanned for
+# these substrings (case-insensitive). Extend when a new known-false marker
+# is discovered; keep the list small and specific to avoid false positives on
+# a legitimately-labelled offline/degrade capture.
+FORBIDDEN_TEXT_MARKERS = ["fake-genblaze"]
+
+# Binary assets (images, video) cannot be cheaply content-scanned without
+# OCR, which is exactly the wrong tool for stylised low-contrast text and
+# would trade a real gap for a false sense of safety. Instead, the exact
+# content hash of every asset ever found to embed a false marker is
+# denylisted, so THIS specific bad content can never be shipped again even
+# if a filename is reused or a git revert brings the old bytes back.
+#   6dea54d3... = old demo/video-assets/cards/cinemory-03-live-proof.png
+#                 (showed a mocked "/health" with "provider":"fake-genblaze")
+#   105469db... = old demo/video-assets/cards/cinemory-05-provenance.png
+#                 (showed a mocked manifest with "provider":"fake-genblaze")
+FORBIDDEN_ASSET_SHA256 = {
+    "6dea54d3077bfe00b73f42881c016a009084fb0feb94fb96f450c9bdf8ebda94",
+    "105469db12041b3a3dc44dae0066e8e702b8f69cab4513e468b21b88995e6a68",
+}
+TEXT_ASSET_SUFFIXES = {".txt", ".json", ".md", ".srt", ".html", ".htm"}
 
 _TS = re.compile(r"^(\d{2}):(\d{2}):(\d{2}),(\d{3})$")
 
@@ -85,6 +112,57 @@ class Checks:
         print(f"  [{mark}] {label}" + (f"  ({detail})" if detail else ""))
         if not cond:
             self.failures.append(label)
+
+
+def check_content(c: Checks, beats: list[dict]) -> None:
+    """Fail the build if a beat-referenced asset carries a known-false marker.
+
+    This is the guard against the exact class of drift that shipped
+    ``"provider": "fake-genblaze"`` in two gallery cards: a stale capture,
+    made honest when it was taken, that went false later (the account got
+    funded, the provider changed) with nothing to catch it until a human
+    happened to look. Every asset every beat points at is resolved here —
+    the beat script is the single source of truth for what ships in the
+    video, so nothing unreferenced needs checking and nothing referenced is
+    skipped.
+
+    What this catches:
+      * a TEXT-decodable asset (.txt/.json/.md/.srt/.html) whose content
+        contains one of ``FORBIDDEN_TEXT_MARKERS`` (case-insensitive) — a
+        real, cheap content check, no approximation;
+      * a BINARY asset (image/video) whose exact bytes match a sha256 in
+        ``FORBIDDEN_ASSET_SHA256`` — catches the exact bad content this
+        guard was written for reappearing (a revert, a filename reused for
+        old bytes, a copy-paste from an old branch).
+
+    What this does NOT catch: a brand-new binary image that visually shows
+    a false marker in its pixels but was never denylisted. Doing that
+    generally needs OCR, which is unreliable on small, stylised, low-contrast
+    rendered text — a false PASS from a flaky OCR match would be worse than
+    this narrower, deterministic check. A new false visual still needs a
+    human (or a design-time review) to catch it once and add its hash here;
+    this guard's job is to make sure that specific mistake can never ship
+    silently a second time.
+    """
+    print("content:")
+    seen: set[Path] = set()
+    for beat in beats:
+        for rel in beat["assets"]:
+            path = DEMO / rel
+            if path in seen or not path.exists():
+                continue  # existence already checked above; do not double-report
+            seen.add(path)
+            label = str(path.relative_to(REPO))
+            if path.suffix.lower() in TEXT_ASSET_SUFFIXES:
+                text = path.read_text(encoding="utf-8", errors="replace").lower()
+                hit = next((m for m in FORBIDDEN_TEXT_MARKERS if m.lower() in text), None)
+                c.ok(hit is None, f"no forbidden marker in {label}",
+                     f"found {hit!r}" if hit else "text scanned")
+            else:
+                digest = hashlib.sha256(path.read_bytes()).hexdigest()
+                c.ok(digest not in FORBIDDEN_ASSET_SHA256,
+                     f"{label} not on the known-false denylist",
+                     "binary — identity-checked only, see check_content docstring")
 
 
 def main() -> int:
@@ -163,6 +241,9 @@ def main() -> int:
                 aligned = False
                 print(f"    - cue {i + 1} disagrees with beat {beat['id']}")
         c.ok(aligned, "every cue matches its beat (order, timing, text)")
+
+    # ---- content drift guard (no known-false marker in any shipped asset) ----
+    check_content(c, beats)
 
     return _report(c)
 

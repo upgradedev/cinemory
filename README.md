@@ -23,7 +23,7 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
   h264 720p reel on B2, including a real generation on the live box's upload
   path — see `demo/STATE.md` + `deploy/DEPLOYED.md`.
 - **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
-- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:17).
+- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:12).
   YouTube link: *TODO(owner): paste the URL after upload.*
 
 **Check that the live app really is this commit.** The image is stamped at
@@ -421,13 +421,13 @@ A full testing pyramid runs offline (fakes for Genblaze + B2, no creds):
 | **E2E** | `tests/e2e/` | synthetic memories → reel → B2 → reload manifest → **assert on real SHA-256 the provenance layer recomputes** |
 | **Pen-test** | `tests/security/` | app-security suite driving the real app: authZ/abuse (bounds → 4xx, never 5xx), injection/path-traversal into B2 keys, provenance forgery/tamper-evidence, sensitive-data exposure (incl. the offline-degrade path), SSRF/upload magic-byte validation |
 
-Measured on the latest green CI run on `main` (commit `a07c0a3`, 2026-07-29,
-[run 30448211424](https://github.com/upgradedev/cinemory/actions/runs/30448211424)):
-backend **314 passed + 4 skipped** across the `python` job's three tiers
-(unit 156 passed + 1 skipped, integration 99 passed + 3 skipped, e2e 59
+Measured on the latest green CI run on `main` (commit `2a41507`, 2026-08-02,
+[run 30764058311](https://github.com/upgradedev/cinemory/actions/runs/30764058311)):
+backend **315 passed + 4 skipped** across the `python` job's three tiers
+(unit 156 passed + 1 skipped, integration 100 passed + 3 skipped, e2e 59
 passed; the skips are environment-gated, optional-dependency or
 live-credential tests that do not run without creds), pen-test suite (its
-own `pen-test` CI job) **62 passed**, frontend **280 vitest tests across 39
+own `pen-test` CI job) **62 passed**, frontend **282 vitest tests across 39
 files**.
 
 ```bash
