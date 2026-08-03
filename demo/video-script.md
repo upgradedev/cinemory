@@ -1,6 +1,6 @@
 # Cinemory — demo video
 
-`cinemory-demo.mp4` is a **2:06**, narrated walkthrough of the current app. It is
+`cinemory-demo.mp4` is a **2:05**, narrated walkthrough of the current app. It is
 built beat-by-beat so the picture and the voice can never drift apart, and a CI
 gate (`scripts/check_video.py`) fails the build if they do.
 
@@ -25,10 +25,21 @@ gate (`scripts/check_video.py`) fails the build if they do.
 | 5 | Provenance + Verify | provenance card | Open Provenance, press Verify; the browser recomputes the SHA-256 and the seal flips to Verified. |
 | 6 | What keeps it honest | B2 objects card | Every clip cites its source photo by hash; change a byte and the seal breaks; live failures degrade in the open. |
 | 7 | The stack | architecture card | One core, three ports: Genblaze (Kling/seedance via GMI Cloud), Backblaze B2, FastAPI + React on Cloud Run, offline fakes in CI. |
-| 8 | Close | live-proof card | Live on Cloud Run, mirrored on Firebase, open source. |
+| 8 | Close | live-health card | Live on Cloud Run, mirrored on Firebase, open source. |
 
 The exact spoken text for every beat lives in `cinemory-demo.beats.json` and
 `cinemory-demo.en.srt`.
+
+The beat-8 card (`video-assets/cards/cinemory-03-live-health.png`) is rendered
+by `demo/render-health-card.py` from a real, saved `GET /health` capture
+(`video-assets/health.txt`), not composited by hand. It shows the response
+fields that hold across every deploy (`status`, `service`, `mode`, `provider`,
+`storage`, both origins byte-identical) verbatim, and proves the `build` block
+is real by showing its key names — but elides `commit`/`built_at` with an
+ellipsis rather than a value that goes stale on the very next deploy. See
+`demo/STATE.md` (2026-08-03 entry, "card no longer pins a build commit") for
+why: committing a video that pins a commit hash changes the commit a redeploy
+stamps, so the drift cannot be fixed by recapturing.
 
 ## Rebuilding
 
