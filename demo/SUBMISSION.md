@@ -183,6 +183,10 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   passed**. **Frontend: 282 vitest tests across 39 files.** (Counts from the
   CI run on `main`, 2026-08-02, commit `2a41507`,
   [run 30764058311](https://github.com/upgradedev/cinemory/actions/runs/30764058311).)
+- **Push to `main` builds and deploys itself** once CI is green, with keyless
+  GitHub-to-Google auth and no stored credentials, and the deploy fails unless
+  the live `GET /health` reports the commit it just built. So anyone can
+  confirm in one request that the running app is the code they are reading.
 - **Async job submission + optional per-user accounts (shipped 2026-07-27 to
   2026-07-29, PRs #33 to #38):**
   `POST /reels/jobs` submits a generation as a background job (202 + a job
