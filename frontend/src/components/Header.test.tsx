@@ -40,7 +40,7 @@ describe("<Header />", () => {
     await waitFor(() =>
       expect(screen.getByText(/^Offline$/i)).toBeInTheDocument(),
     );
-    // The visible text must never say "API" — a normal visitor has no model
+    // The visible text must never say "API": a normal visitor has no model
     // of what that means (see e2e/plain-language.spec.ts, which caught this
     // exact string live before this fix).
     expect(screen.queryByText(/API/i)).not.toBeInTheDocument();
