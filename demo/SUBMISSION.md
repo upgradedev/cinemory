@@ -183,11 +183,12 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   pen-test, plus the SDK-boundary Genblaze contract test — which drives a
   **real** Genblaze `Pipeline` + `ObjectStorageSink` (over an in-memory
   backend) so the live sink→store→readback→sha256-chain path is genuinely
-  exercised, not just the offline fakes. **Backend: 315 passed + 4 skipped in
-  CI** (unit 156 · integration 100 · e2e 59); the 4 skips are environment-gated,
+  exercised, not just the offline fakes. **over 350 backend tests in CI**
+  across unit, integration and e2e; a few skips are environment-gated,
   optional-dependency or live-credential tests that do not run without creds.
-  Pen-test suite (its own `pen-test` CI job, `tests/security/`): **62
-  passed**. **Frontend: 282 vitest tests across 39 files.** (Counts from the
+  Pen-test suite (its own `pen-test` CI job, `tests/security/`): **over 60**.
+  **Over 330 frontend tests.** Floors rather than snapshots, so they stay true
+  as tests are added. (Counts from the
   CI run on `main`, 2026-08-02, commit `2a41507`,
   [run 30764058311](https://github.com/upgradedev/cinemory/actions/runs/30764058311).)
 - **Push to `main` builds and deploys itself** once CI is green, with keyless
