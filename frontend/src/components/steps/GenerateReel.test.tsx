@@ -4,7 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GenerateReel, newReelName } from "./GenerateReel";
 import { useReelStore } from "@/store/useReelStore";
-import { MAX_REEL_PHOTOS } from "@/lib/reel-budget";
 import { REEL_JOB_POLL_INTERVAL_MS } from "@/lib/queries";
 import { ApiError, cinemoryApi, type Occasion, type ReelResponse } from "@/lib/api";
 
@@ -126,7 +125,7 @@ describe("<GenerateReel /> — real-photo async job path", () => {
     expect(submitSpy).toHaveBeenCalledWith(
       expect.objectContaining({ occasion: "anniversary", chapters: 2 }),
     );
-    expect(submitSpy.mock.calls[0]?.[0].files).toHaveLength(MAX_REEL_PHOTOS);
+    expect(submitSpy.mock.calls[0]?.[0].files).toHaveLength(2);
     expect(getJobSpy).toHaveBeenCalledWith("job-1");
     expect(uploadSpy).not.toHaveBeenCalled();
     expect(createSpy).not.toHaveBeenCalled();

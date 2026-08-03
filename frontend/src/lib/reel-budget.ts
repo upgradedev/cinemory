@@ -1,30 +1,38 @@
 /**
- * The time budget of one reel, and the photo cap that falls out of it.
+ * The time budget of one reel, and the photo cap that has to fit inside it.
  *
- * Every number here is measured, not guessed, and the cap is DERIVED from them
- * rather than typed in by hand — so if the ceiling or the measurement ever
- * changes, the cap moves with it instead of quietly going stale.
+ * Every number here is measured on the deployed service, and the check that
+ * the cap fits is arithmetic rather than hope — so if the ceiling, the
+ * measurement or the cap moves, a test says so instead of a visitor finding
+ * out by waiting.
  *
- * The arithmetic, in full:
+ * Generation calls now run CONCURRENTLY, up to
+ * `MAX_CONCURRENT_GENERATIONS` at once (see `cinemory.pipeline`). The calls
+ * were always independent: one photo in, one clip out, and a chapter bridge is
+ * generated from neighbouring PHOTOS rather than from a generated clip.
+ * Running them one after another was costing the full sum of their latencies
+ * for no reason. So the cost of a reel is the number of WAVES, not the number
+ * of photos:
  *
- *   budget            720 s   (REEL_JOB_MAX_POLL_MS, the app's poll ceiling)
- *   fixed overhead   - 45 s   (RUN_OVERHEAD_SECONDS)
- *                    ------
- *   left to generate  675 s
- *   per photo        / 314 s  (LIVE_SECONDS_PER_PHOTO, measured live)
- *                    ------
- *   photos             2.14   -> floor -> 2
+ *   waves(n) = ceil(n / 5)
+ *   seconds  = waves x 314 + 45
  *
- * Live generation is strictly SEQUENTIAL, one call per photo (see
- * `cinemory.pipeline.ReelPipeline.run`: a plain nested loop over chapters and
- * photos, each call blocking), so n photos cost n x 314 s of wall clock. That
- * is why the cap is a division and not a bigger number: three photos need
- * ~987 s, which cannot fit in a 720 s window no matter how the work is
- * arranged on this code path.
+ * At the cap of 5 photos that is one wave: 314 + 45 = 359 s, about 6 minutes,
+ * against a 720 s ceiling. Sequentially the same reel would have been
+ * 5 x 314 + 45 = 1615 s, about 27 minutes, which is why 5 photos could never
+ * finish before this.
  *
- * The cap is a property of THIS demo's waiting window, not of the reel maker,
- * which happily accepts up to 60 photos server-side (`cinemory.ingest`). The
- * UI says so in those words rather than implying a product limit.
+ * Measured, live, on the deployed service (2026-08-03), sequentially:
+ *   1 photo  -> 325 s end to end
+ *   2 photos -> 626 s end to end
+ * so ~310 s per generation call and ~15 s of fixed overhead. The 314 s and
+ * 45 s below are both the conservative side of those measurements.
+ *
+ * The cap itself is a product decision (5 photos), not an output of this
+ * arithmetic: the window would allow more. It is a property of THIS demo, not
+ * of the reel maker, which accepts up to 60 photos server-side
+ * (`cinemory.ingest`). The UI says so in those words rather than implying a
+ * product limit.
  */
 
 /**
@@ -40,9 +48,24 @@ export const REEL_JOB_MAX_POLL_MS = 12 * 60_000;
 
 /**
  * Measured wall clock of ONE live image-to-video generation, per photo, in
- * seconds. Measured on the deployed service, 2026-08-03.
+ * seconds. Measured on the deployed service, 2026-08-03: a 1-photo run took
+ * 325 s end to end and a 2-photo sequential run took 626 s, so a call is
+ * ~310 s and this is rounded up.
  */
 export const LIVE_SECONDS_PER_PHOTO = 314;
+
+/**
+ * How many generation calls the backend runs at once
+ * (`cinemory.pipeline.MAX_CONCURRENT_GENERATIONS`). Mirrored here because the
+ * estimate a visitor reads has to match what the server actually does; the two
+ * are pinned together by a contract test.
+ *
+ * Set to the photo cap, so one reel is one wave. Deliberately conservative:
+ * the provider's real concurrency limit is not published to us, so this is a
+ * chosen small number rather than a tuned one, and a rate-limited call backs
+ * off and retries instead of failing.
+ */
+export const MAX_CONCURRENT_GENERATIONS = 5;
 
 /**
  * Everything in a run that is not per-photo generation: sending the photos up,
@@ -53,18 +76,34 @@ export const LIVE_SECONDS_PER_PHOTO = 314;
 export const RUN_OVERHEAD_SECONDS = 45;
 
 /**
- * The most photos one reel can hold in this deployment, derived from the
- * budget above. Never below 1, so a pathological config can still make a reel.
+ * The most photos one reel can hold here.
+ *
+ * A product decision, not an output of the arithmetic above: the waiting
+ * window would allow more than this at the current concurrency. What the
+ * arithmetic must do is CHECK it, which is what `capFitsTheWindow` below is
+ * for and what a test asserts.
  */
-export const MAX_REEL_PHOTOS = Math.max(
-  1,
-  Math.floor((REEL_JOB_MAX_POLL_MS / 1000 - RUN_OVERHEAD_SECONDS) / LIVE_SECONDS_PER_PHOTO),
-);
+export const MAX_REEL_PHOTOS = 5;
+
+/** How many concurrent waves of generation `photoCount` photos take. */
+export function renderWaves(photoCount: number): number {
+  return Math.ceil(Math.max(1, photoCount) / MAX_CONCURRENT_GENERATIONS);
+}
 
 /** Expected wall clock, in seconds, for a reel made from `photoCount` photos. */
 export function estimatedRenderSeconds(photoCount: number): number {
   const n = Math.min(Math.max(Math.floor(photoCount) || 0, 1), MAX_REEL_PHOTOS);
-  return n * LIVE_SECONDS_PER_PHOTO + RUN_OVERHEAD_SECONDS;
+  return renderWaves(n) * LIVE_SECONDS_PER_PHOTO + RUN_OVERHEAD_SECONDS;
+}
+
+/**
+ * Whether a full reel still finishes inside the window the app is willing to
+ * wait. The guard on the cap being a decision rather than a derivation: if
+ * someone raises the cap, lowers the concurrency, or the measurement gets
+ * worse, this goes false and the test that reads it fails.
+ */
+export function capFitsTheWindow(): boolean {
+  return estimatedRenderSeconds(MAX_REEL_PHOTOS) < REEL_JOB_MAX_POLL_MS / 1000;
 }
 
 /**

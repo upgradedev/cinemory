@@ -171,7 +171,25 @@ class GenblazeMediaProvider:
         self._backend = backend
         self._bucket = bucket or os.environ.get("B2_BUCKET_NAME")
         self._download = downloader or _https_download
-        #: The sealed Genblaze manifest from the most recent ``generate`` call.
+        #: The sealed Genblaze manifest from the most recent completed
+        #: ``generate`` call.
+        #:
+        #: The ONLY per-call state on this instance, and read by nobody in
+        #: ``src/`` — it exists so a caller can chain Genblaze's own sealed
+        #: manifest into Cinemory's reel-level provenance, and today only the
+        #: SDK-boundary contract test does. That matters because a reel now
+        #: generates several clips CONCURRENTLY through one adapter instance
+        #: (see ``cinemory.pipeline``), so after a wave this holds whichever
+        #: call happened to finish last, not "the last step". A plain
+        #: attribute assignment is atomic, so the value is always one real
+        #: manifest and never a torn one, but WHICH one is not deterministic
+        #: and must not be treated as it.
+        #:
+        #: Everything else ``generate`` touches is built fresh per call: the
+        #: ``Pipeline`` is a local, and in a live deployment so are the
+        #: provider and the storage backend (``_provider_obj``/``_backend`` are
+        #: injection seams for tests and are None in production). So concurrent
+        #: calls share no SDK object and cannot corrupt each other's result.
         self.last_manifest: Any | None = None
 
     # -- provider / storage wiring (credential-bound; resolved lazily) ---------

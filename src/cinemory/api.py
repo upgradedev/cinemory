@@ -65,7 +65,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 from fastapi.responses import RedirectResponse, Response
 from pydantic import BaseModel, Field
 
-from . import auth, config, jobs
+from . import auth, config, failures, jobs
 from .adapters import FakeMediaProvider, FakeStorage
 from .ingest import IngestError, build_spec_from_photos
 from .models import ReelResult, ReelSpec
@@ -119,57 +119,32 @@ def _reel_response(result: ReelResult) -> dict:
         "manifest_uri": result.manifest_uri,
         "manifest_hash": result.manifest_hash,
         "steps": len(result.steps),
+        # What this run burned: provider calls per model, wall clock per call
+        # and for the run, bytes to and from the provider, objects written to
+        # storage (see cinemory.usage). Carried on the response, so it lands in
+        # the stored job status and comes back from GET /reels/jobs/{job_id}
+        # for any run, at any time afterwards. Absent only for a result built
+        # by hand (tests); never fabricated.
+        **({"usage": result.usage.to_dict()} if result.usage is not None else {}),
     }
-
-
-#: Coarse, visitor-safe categories for WHY a live generation had to fall back,
-#: each with the lowercased needles that identify it. Ordered: the FIRST match
-#: wins, so the most specific and most actionable causes are listed first.
-#:
-#: These are matched against the exception's class name and text, which is a
-#: heuristic and is meant to be one — the exact wording a remote generation
-#: backend uses is not ours to control, and no amount of exception-type
-#: matching would survive it changing. Getting a category wrong costs one
-#: slightly-too-general sentence on screen; the operator's log line below
-#: always carries the real thing either way.
-_DEGRADE_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
-    # Billing. Listed first because it is the one an operator can FIX, and the
-    # one that made this classification necessary: a "(402): Insufficient
-    # credits" that reached a visitor as "taking longer than expected".
-    ("credit", ("402", "insufficient credit", "insufficient balance", "insufficient funds",
-                "out of credit", "payment required", "quota", "billing")),
-    ("busy", ("429", "rate limit", "ratelimit", "too many requests", "overloaded",
-              "at capacity")),
-    ("timeout", ("timeout", "timedout", "timed out", "deadline exceeded", "504", "408")),
-    ("unavailable", ("500", "502", "503", "connectionerror", "connection refused",
-                     "connection reset", "unreachable", "temporarily unavailable",
-                     "name resolution", "dns")),
-    ("refused", ("401", "403", "400", "422", "unauthorized", "unauthorised", "forbidden",
-                 "invalid request", "bad request")),
-)
 
 
 def _degrade_kind(exc: BaseException) -> str:
     """Classify a live-provider failure into ONE coarse, visitor-safe category.
 
     The category is the ONLY thing about the failure that crosses the wire.
-    Everything the exception actually said — which can embed upstream URLs,
-    request identifiers, account details, or a raw provider response body —
+    Everything the exception actually said, which can embed upstream URLs,
+    request identifiers, account details, or a raw provider response body,
     stays in this process's log, where an operator can find it and a browser
     cannot. That split is the whole point: before it existed, a visitor whose
     reel silently fell back learned nothing, and the owner had to read Cloud
     Logging to discover the account had run out of credit.
 
-    Returns ``"unknown"`` when nothing matches, which the UI renders as the
-    honest general sentence rather than a blank (see ``frontend/src/lib/
-    degrade.ts``) — an unclassified failure is still a complete explanation of
-    what the visitor is looking at.
+    The rules themselves live in :mod:`cinemory.failures`, shared with the
+    pipeline, which asks the same classifier a different question: whether a
+    failure is worth retrying. One vocabulary, two readers.
     """
-    haystack = f"{type(exc).__name__} {exc}".lower()
-    for kind, needles in _DEGRADE_PATTERNS:
-        if any(needle in haystack for needle in needles):
-            return kind
-    return "unknown"
+    return failures.classify(exc)
 
 
 def _run_reel(spec: ReelSpec, pipeline: ReelPipeline | None = None) -> dict:

@@ -63,11 +63,13 @@ describe("<OccasionPicker /> — the wait, said before it starts", () => {
   });
 
   it("moves with the count, so it is never a fixed string", () => {
+    // Two photos still cost one wave of concurrent calls, so the wait is the
+    // same as one photo. The SENTENCE still has to agree with the count.
     useReelStore.getState().addPhotos([imageFile("a.png"), imageFile("b.png")]);
     useReelStore.getState().setOccasion("wedding");
     renderPicker();
     expect(
-      screen.getByText(/2 photos usually take about 11 minutes\./i),
+      screen.getByText(/2 photos usually take about 6 minutes\./i),
     ).toBeInTheDocument();
   });
 

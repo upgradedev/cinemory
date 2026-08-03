@@ -224,17 +224,78 @@ forward. No router library: the app already routed on
 `window.location.hash`, so this stays dependency-free (see
 [`frontend/src/lib/hash-route.ts`](frontend/src/lib/hash-route.ts)).
 
-**How many photos, and how long.** Live generation is one image-to-video call
-per photo, run sequentially, measured at **~314s per photo** on the deployed
-service. The app polls a submitted job for at most **12 minutes**
-(`REEL_JOB_MAX_POLL_MS`). Holding back 45s for sending the photos up,
-stitching, storing and sealing, that leaves 675s of generation, so
-`floor(675 / 314)` = **2 photos** per reel here. The cap is derived from those
-numbers rather than typed in
-([`frontend/src/lib/reel-budget.ts`](frontend/src/lib/reel-budget.ts)), the
-UI shows the resulting estimate before and during the run, and a larger
-selection is never silently shortened. It is a limit of this demo's waiting
-window, not of the pipeline, which accepts up to 60 photos server-side.
+**How many photos, and how long.** A reel holds up to **5 photos** here. The
+generation calls run **concurrently**, up to
+`MAX_CONCURRENT_GENERATIONS` (5) at a time: they were always independent, one
+photo in and one clip out, and a chapter bridge is generated from the
+neighbouring chapters' *photos* rather than from a generated clip, so nothing
+in a reel waits on anything else in it. A reel is therefore one wave of calls
+rather than one call per photo.
+
+Measured live on the deployed service (2026-08-03), sequentially: 1 photo took
+**325 s** end to end and 2 photos took **626 s**, so a call is ~310 s and fixed
+overhead is ~15 s. The app polls a job for at most **12 minutes**
+(`REEL_JOB_MAX_POLL_MS`).
+
+```
+sequential   5 x 314 + 45 = 1615 s   about 27 minutes   does not fit
+concurrent   1 x 314 + 45 =  359 s   about  6 minutes   fits, with 6 min spare
+```
+
+That is why 5 photos could never finish before. The cap is a decision, not a
+derivation, and `capFitsTheWindow()` in
+[`frontend/src/lib/reel-budget.ts`](frontend/src/lib/reel-budget.ts) is the
+check that it still fits; a test fails if the cap rises, the concurrency drops,
+or the measurement gets worse. A cross-language contract test
+(`tests/integration/test_budget_contract.py`) pins the concurrency the estimate
+assumes to the concurrency the backend actually runs. The UI shows the
+resulting estimate before and during the run, and a larger selection is never
+silently shortened. The cap is a limit of this demo's waiting window, not of
+the pipeline, which accepts up to 60 photos server-side.
+
+**Order does not depend on who finishes first.** Generation and storage are
+separate phases: the calls overlap, then every artifact is written and sealed
+on one thread in spec order. So the write sequence, the edit and the sealed
+manifest are identical to a fully sequential run, and a test asserts exactly
+that by running the same reel at concurrency 1 and 5 and comparing the sealed
+steps.
+
+**Rate limiting.** The provider's real concurrency limit is not published to
+us, so 5 is a chosen conservative number rather than a tuned one, and it is not
+hoped away: a rate-limited call backs off (exponential, jittered) and retries
+up to `RATE_LIMIT_MAX_ATTEMPTS`. Only a rate limit is retried, because it is
+the only failure that answers to waiting; a dead balance or a rejected request
+fails identically however many times it is asked. Setting
+`CINEMORY_MAX_CONCURRENT_GENERATIONS=1` restores the old sequential behaviour
+without a deploy.
+
+### What a run costs
+
+Every reel reports what it burned, and it is readable per job long after the
+fact, not only in logs: `GET /reels/jobs/{job_id}` returns it inside the job's
+`result.usage` (see [`src/cinemory/usage.py`](src/cinemory/usage.py)).
+
+| field | what it is |
+|---|---|
+| `provider_calls`, `provider_calls_by_model` | generation calls, broken down by model |
+| `duration_ms` | wall clock for the whole run |
+| `provider_seconds` | time summed across calls; diverges from wall clock exactly by what concurrency saved |
+| `calls[]` | per call: model, start, finish, duration, bytes in, bytes out, attempts |
+| `input_bytes_to_provider`, `output_bytes_from_provider` | bytes sent and received |
+| `objects_written`, `bytes_written` | writes to B2, the number that predicts the Class B transaction ceiling |
+| `max_concurrency` | how many calls were allowed to overlap, so the durations are interpretable |
+
+**There is no money in it.** Reliable per-call pricing for these models is not
+available to us, and a made-up euro figure would look authoritative and be
+wrong. What is reported is units burned. The same numbers also go out as one
+greppable log line per run.
+
+Usage rides on the run's *result*, not inside the sealed manifest. The manifest
+already seals the per-step facts it is built from (provider, model,
+`started_at`, `finished_at`, output `size_bytes`); this rollup is
+observability, and putting mutable bookkeeping inside a hashed artifact would
+change the manifest hash of every reel ever made for a reason that has nothing
+to do with provenance.
 
 **Honest limitation.** Polling can be answered from anywhere, but the
 generation itself still runs in-process, on the one instance that accepted

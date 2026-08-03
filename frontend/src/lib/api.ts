@@ -81,6 +81,14 @@ export const ReelResponseSchema = z.object({
   // never rendered. Optional so a response from an older backend still parses
   // and simply reads as the general "was unavailable" case.
   degrade_kind: z.string().optional(),
+  // What this run burned: provider calls per model, wall clock per call and
+  // for the run, bytes to and from the provider, objects written to storage
+  // (see cinemory/usage.py). Passed through as an opaque record: the app does
+  // not render it, the OWNER reads it back per job from
+  // GET /reels/jobs/{job_id} to say exactly what a demo consumed. Declared
+  // here so the response still validates rather than being rejected as an
+  // unexpected shape.
+  usage: z.record(z.unknown()).optional(),
 });
 export type ReelResponse = z.infer<typeof ReelResponseSchema>;
 
