@@ -3,6 +3,7 @@ from cinemory.models import Bridge, Modality
 from cinemory.pipeline import ReelPipeline
 from cinemory.provenance import sha256_bytes, verify_manifest
 from cinemory.synthetic import synth_reel_spec
+from cinemory.usage import RunUsage
 
 
 def _run(with_bridges=False):
@@ -100,8 +101,12 @@ def test_bridge_step_cites_both_source_photos_in_input_order():
 
 def test_no_input_step_records_an_empty_citation():
     """A step generated from no inputs (e.g. a text-only step) leaves the
-    citation empty — driven through the real ``_step`` population path."""
+    citation empty — driven through the real generate + record population
+    path (one call, then the sealing half that runs on the main thread)."""
     pipe = ReelPipeline(FakeMediaProvider(), FakeStorage())
-    rec = pipe._step(model="narrator", prompt="a text-only step", modality=Modality.TEXT,
-                     inputs=[], params={}, reel="demo", kind="clips", name="text.mp4")
+    plan = {"model": "narrator", "prompt": "a text-only step",
+            "modality": Modality.TEXT, "inputs": [], "params": {}}
+    gen = pipe._generate(**plan)
+    rec = pipe._record(gen, reel="demo", kind="clips", name="text.mp4",
+                       usage=RunUsage(reel_name="demo"), **plan)
     assert rec.source_sha256s == []

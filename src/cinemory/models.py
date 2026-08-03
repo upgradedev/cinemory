@@ -8,6 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from .usage import RunUsage
 
 
 class Modality(str, Enum):
@@ -105,3 +109,11 @@ class ReelResult:
     occasion_style: dict = field(default_factory=dict)
     manifest_uri: str | None = None
     manifest_hash: str | None = None
+    #: What this run burned: provider calls per model, wall clock per call and
+    #: for the run, bytes to and from the provider, objects written to storage
+    #: (see :mod:`cinemory.usage`). Rides on the RESULT rather than inside the
+    #: sealed manifest, so it reaches the stored job status and can be read
+    #: back per job afterwards without changing what provenance means or what
+    #: every existing reel's manifest hashes to. ``None`` only for a result
+    #: built by hand in a test.
+    usage: RunUsage | None = None

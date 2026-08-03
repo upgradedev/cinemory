@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
@@ -131,5 +131,57 @@ describe("<App /> — reopening a reel from its link", () => {
     expect(
       screen.getByRole("button", { name: /create your reel/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("<App /> — a reel link pasted into an already-open tab", () => {
+  it("switches to the pasted reel without a reload", async () => {
+    // Changing only the fragment navigates nothing, so without a hashchange
+    // listener the pasted link would sit there doing nothing until the visitor
+    // thought to reload.
+    const getJobSpy = vi
+      .spyOn(cinemoryApi, "getReelJob")
+      .mockReturnValue(new Promise(() => {}));
+    renderApp();
+    expect(
+      screen.getByRole("button", { name: /create your reel/i }),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      window.location.hash = "#reel/PEYsghoylVNUrc2rNAdHJa6_";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    expect(
+      await screen.findByRole("heading", { name: /rolling/i }),
+    ).toBeInTheDocument();
+    expect(getJobSpy).toHaveBeenCalledWith("PEYsghoylVNUrc2rNAdHJa6_");
+  });
+
+  it("says so when the pasted link is malformed", async () => {
+    renderApp();
+    await act(async () => {
+      window.location.hash = "#reel/nope!";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+    expect(
+      screen.getByRole("heading", { name: /couldn.t find that reel/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("ignores the skip link firing hashchange while a reel is open", async () => {
+    // Every keyboard visitor sets #main-content. Tearing down the reel they
+    // are watching because they pressed Tab would be an unpleasant surprise.
+    vi.spyOn(cinemoryApi, "getReelJob").mockReturnValue(new Promise(() => {}));
+    window.location.hash = "#reel/PEYsghoylVNUrc2rNAdHJa6_";
+    renderApp();
+    expect(await screen.findByRole("heading", { name: /rolling/i })).toBeInTheDocument();
+
+    await act(async () => {
+      window.location.hash = "#main-content";
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+    });
+
+    expect(screen.getByRole("heading", { name: /rolling/i })).toBeInTheDocument();
   });
 });

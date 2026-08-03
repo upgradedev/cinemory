@@ -62,17 +62,33 @@ export default function App() {
   //                   that cannot exist
   // Anything else, including the skip link's own #main-content, is not a route
   // and lands on the normal landing page.
+  //
+  // Applied on load AND on every later hash change. The listener is not
+  // decoration: pasting a reel link into a tab that already has this app open
+  // changes only the fragment, so the browser fires `hashchange` and navigates
+  // nothing. Without this the pasted link sat there doing nothing until the
+  // visitor thought to reload, which is the opposite of the point.
   useEffect(() => {
-    const route = parseHashRoute(window.location.hash);
-    if (route.kind === "create") {
-      setStarted(true);
-    } else if (route.kind === "reel") {
-      setResumeJobId(route.jobId);
-      goTo("generate");
-      setStarted(true);
-    } else if (route.kind === "broken") {
-      setBrokenLink(true);
-    }
+    const apply = () => {
+      const route = parseHashRoute(window.location.hash);
+      if (route.kind === "create") {
+        setStarted(true);
+      } else if (route.kind === "reel") {
+        setResumeJobId(route.jobId);
+        setBrokenLink(false);
+        goTo("generate");
+        setStarted(true);
+      } else if (route.kind === "broken") {
+        setResumeJobId(null);
+        setBrokenLink(true);
+      }
+      // `none` is deliberately inert: the skip link sets #main-content on
+      // every keyboard visitor, and clearing the reel we are watching because
+      // someone pressed Tab would be an unpleasant surprise.
+    };
+    apply();
+    window.addEventListener("hashchange", apply);
+    return () => window.removeEventListener("hashchange", apply);
   }, [goTo]);
 
   return (
