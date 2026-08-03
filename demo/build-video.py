@@ -68,6 +68,7 @@ WORK = os.path.join(DEMO, ".video-build")
 CACHE = os.path.join(WORK, "tts-cache")
 
 OUT_MP4 = os.path.join(DEMO, "cinemory-demo.mp4")
+MUSIC_BED = os.path.join(ASSETS, "music", "anniversary-bed.mp3")
 OUT_SRT = os.path.join(DEMO, "cinemory-demo.en.srt")
 OUT_BEATS = os.path.join(DEMO, "cinemory-demo.beats.json")
 
@@ -586,6 +587,10 @@ def main() -> int:
          "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
          "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
          "-movflags", "+faststart", tmp_out])
+    # Lay the generated music bed under the finished cut. This is the last step
+    # on purpose: it stream copies the picture, so nothing above can drift.
+    run([sys.executable, os.path.join(DEMO, "mix-music.py"), tmp_out, MUSIC_BED, tmp_out])
+
     for attempt in range(5):
         try:
             os.replace(tmp_out, OUT_MP4)

@@ -7,8 +7,13 @@ beat-by-beat so the picture and the voice can never drift apart, and a CI gate
 (`scripts/check_video.py`) fails the build if they do.
 
 - **Voice:** ElevenLabs, voice `21m00Tcm4TlvDq8ikWAM` (Rachel), model
-  `eleven_multilingual_v2`. Narration only. **No music**, deliberately: an
-  unlicensed track is a copyright problem we are not going to hand a judge.
+  `eleven_multilingual_v2`. Narration over a **generated** music bed. An
+  unlicensed track is a copyright problem we are not going to hand a judge, so
+  the bed is made the same way every other asset in this app is made:
+  `minimax-music-2.5` through Genblaze, prompt and hash recorded in
+  `demo/cinemory-demo.beats.json`. It is mixed 20.1 LU under the voice by EBU
+  R128, and looped to the length of the film with a constant-power crossfade
+  because the model gives no duration control. See `demo/mix-music.py`.
 - **Why that voice.** The first cut used `pNInz6obpgDQGcFmaJgB` and sounded, in
   its owner's word, "military": clipped and flat, which is the wrong register
   for a memory film. `demo/pick-voice.py` reads the shipped beat-01 line in

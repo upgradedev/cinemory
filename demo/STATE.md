@@ -8,6 +8,44 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > were true on that date and are very likely superseded. If two entries
 > disagree, the higher one wins.
 
+## 2026-08-03: the soundtrack is generated, not licensed (canonical)
+
+> The film had no music because an unlicensed track is a copyright problem we
+> will not hand a judge. Generating it removes the question instead of dodging
+> it: the bed is as clearly ours as the footage. `minimax-music-2.5` through the
+> same Genblaze path every other asset uses, prompted from the occasion the reel
+> in the video actually picks (anniversary: warm romantic strings, 96 bpm),
+> which is exactly what `Occasion.music_style` has always documented itself as
+> being for. Prompt, model and SHA-256 are recorded in
+> `demo/cinemory-demo.beats.json` like every other generated artifact.
+>
+> Two things had to be solved. The model gives **no duration control**, so the
+> bed came back 90.26s against a 169.74s film; `demo/mix-music.py` loops it by
+> crossfading it into a second copy of itself with a constant-power (`qsin`)
+> seam, which on a sustained strings pad is not something you can point at.
+> And the **narration stays dominant**: both tracks are measured with EBU R128
+> and the bed is attenuated to sit exactly **20.1 LU** under the voice, with
+> `amix normalize=0` so the mixer cannot quietly undo the measurement. The
+> film's integrated loudness is **-25.9 LUFS before and after**, so the voice is
+> not one decibel quieter than the cut that was already approved.
+>
+> The picture is **stream copied**, never re-encoded, so every footage beat,
+> caption window and cut survives byte for byte. 169.74s, still under the 180s
+> cap, still ten beats and ten cues.
+>
+> `scripts/check_video.py` gained a `music:` section. The mix is one AAC track,
+> so "exactly one audio stream" still guards against a stray stream but can no
+> longer tell narration-only from narration-plus-music. Two new bounds do, and
+> they are two-sided on purpose: a **floor** (narration-only leaves 44 windows
+> of true dead air between padded lines; with the bed under it that count is 1,
+> so a rebuild that skips the music step fails) and a **ceiling** (the mixed
+> film must still measure within 1.0 LU of the narration it was built from, so a
+> bed mixed anywhere near the voice fails). The bed is also pinned by content
+> hash.
+>
+> Owner action: re-upload `demo/cinemory-demo.mp4` to YouTube and repoint the
+> Devpost video link.
+
 ## 2026-08-03: video published, project SUBMITTED (canonical)
 
 > The demo video is on YouTube at **https://youtu.be/mqBw1hc8TxY** and Devpost
