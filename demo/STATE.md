@@ -17,7 +17,7 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > `synthetic.py`'s abstract colour gradients, so Kling faithfully animated
 > nothing and a viewer saw an empty screen with a caption over it.
 >
-> **The video is now 2:03 (122.97s), and 69.7s of it (57%) is live screen
+> **The video is now 2:04 (124.43s), and 67.9s of it (55%) is live screen
 > capture of the deployed app.** Five of the nine beats are cut from ONE
 > unbroken take against https://cinemory-...run.app at the commit `/health`
 > was reporting: photos in, occasion picked, the real job submitted and
@@ -61,7 +61,7 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 >
 > Narration was rewritten to match the new picture, still ElevenLabs, still
 > **no music**. `scripts/check_video.py` passes unchanged (9 beats, 9 cues,
-> 122.97s, under the 180s cap, single AAC track). The three unused gradient
+> 124.43s, under the 180s cap, single AAC track). The three unused gradient
 > frames were deleted from `video-assets/`.
 
 ## 2026-08-03: health card no longer pins a build commit; plain-language e2e guard added

@@ -134,7 +134,7 @@ BEATS: list[Beat] = [
     Beat(
         "01-hook",
         [card("cinemory-01-thumbnail.png")],
-        "Cinemory — memories, made into film",
+        "Cinemory. Memories, made into film",
         "Your memories, made into film. And sealed, so anyone can prove it is "
         "real. This is Cinemory. It began as an anniversary gift.",
     ),
@@ -151,7 +151,7 @@ BEATS: list[Beat] = [
     Beat(
         "03-occasion",
         [shot("03-occasion.mp4")],
-        "Pick an occasion — it sets the score, the pacing and the titles",
+        "Pick an occasion. It sets the score, the pacing and the titles",
         "Then I pick an occasion. Each one brings its own score, its own pacing "
         "and its own titles. Anniversary runs warm strings at three and a half "
         "seconds a clip. Then I hit generate.",
@@ -160,7 +160,7 @@ BEATS: list[Beat] = [
     Beat(
         "04-rolling",
         [shot("04-rolling.mp4")],
-        "A real model call, not a mock — about five minutes per photo",
+        "A real model call, not a mock. About five minutes per photo",
         "Now the real work. Each photo goes to Kling on GMI Cloud through "
         "Genblaze and comes back as a moving clip. That is a live model call, "
         "so it takes about five minutes a photo. The job runs in the background "
@@ -179,7 +179,7 @@ BEATS: list[Beat] = [
     Beat(
         "06-verify",
         [shot("06-verify.mp4")],
-        "Press Verify — your own browser recomputes the SHA-256",
+        "Press Verify. Your own browser recomputes the SHA-256",
         "Now the part that matters. The provenance panel lists every step, the "
         "model, the prompt, and a hash for each asset. I press Verify, and the "
         "browser recomputes the SHA-256 itself. It matches the sealed manifest "

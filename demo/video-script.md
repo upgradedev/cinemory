@@ -1,6 +1,6 @@
 # Cinemory — demo video
 
-`cinemory-demo.mp4` is a **2:03** (122.97s) narrated walkthrough of the current
+`cinemory-demo.mp4` is a **2:04** (124.43s) narrated walkthrough of the current
 app, and the spine of it is **real screen footage of the deployed product
 actually working**: 69.7s of the runtime, 57%, is live capture. It is built
 beat-by-beat so the picture and the voice can never drift apart, and a CI gate
