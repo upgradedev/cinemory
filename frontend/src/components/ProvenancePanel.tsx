@@ -94,38 +94,6 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
               {reel.manifest_uri}
             </p>
           )}
-          <div className="mt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onVerify}
-              disabled={verify.phase === "verifying"}
-              aria-describedby="verify-outcome"
-            >
-              {verify.phase === "verifying" ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <BadgeCheck className="h-3.5 w-3.5" />
-              )}
-              {verify.phase === "done" ? "Re-verify provenance" : "Verify provenance"}
-            </Button>
-            <p
-              id="verify-outcome"
-              role="status"
-              aria-live="polite"
-              className={
-                verify.phase === "done" && verify.state === "failed"
-                  ? "mt-2 text-xs text-red-400"
-                  : "mt-2 text-xs text-zinc-400"
-              }
-            >
-              {verify.phase === "done"
-                ? verify.detail
-                : verify.phase === "verifying"
-                  ? "Re-fetching the manifest and recomputing its SHA-256 in your browser…"
-                  : "Re-fetch the manifest and recompute its SHA-256 right here, in your browser."}
-            </p>
-          </div>
         </div>
         <div className="min-w-0 rounded-xl border border-white/[0.06] bg-ink-900/50 p-4">
           <p className="text-xs uppercase tracking-wide text-zinc-400">Storage</p>
@@ -141,6 +109,45 @@ export function ProvenancePanel({ reel }: { reel: ReelResponse }) {
             {reel.reel_url ?? "(none)"}
           </p>
         </div>
+      </div>
+
+      {/* Verify sits BELOW the two cards, full width, rather than inside the
+          seal card. Inside, it made that column tall while Storage stayed
+          short, and a two-column grid stretches both, so Storage rendered as a
+          box with a large empty area under one line of text. It also reads
+          better here: re-verifying is the headline action of this panel, not a
+          detail of one field. */}
+      <div className="mt-3">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onVerify}
+          disabled={verify.phase === "verifying"}
+          aria-describedby="verify-outcome"
+        >
+          {verify.phase === "verifying" ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <BadgeCheck className="h-3.5 w-3.5" />
+          )}
+          {verify.phase === "done" ? "Re-verify provenance" : "Verify provenance"}
+        </Button>
+        <p
+          id="verify-outcome"
+          role="status"
+          aria-live="polite"
+          className={
+            verify.phase === "done" && verify.state === "failed"
+              ? "mt-2 text-xs text-red-400"
+              : "mt-2 text-xs text-zinc-400"
+          }
+        >
+          {verify.phase === "done"
+            ? verify.detail
+            : verify.phase === "verifying"
+              ? "Re-fetching the manifest and recomputing its SHA-256 in your browser…"
+              : "Re-fetch the manifest and recompute its SHA-256 right here, in your browser."}
+        </p>
       </div>
 
       {/* Reel asset hash */}
