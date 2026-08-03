@@ -33,8 +33,8 @@ export function Header({ onOpenLibrary }: { onOpenLibrary?: () => void }) {
               badge is gone. An unreachable backend is still worth surfacing
               below, since it explains why generation might not work. */}
           {health.isError && (
-            <Badge variant="muted" title="Backend unreachable">
-              API offline
+            <Badge variant="muted" title="Can't reach Cinemory right now">
+              Offline
             </Badge>
           )}
           <AuthMenu onOpenLibrary={onOpenLibrary ?? (() => {})} />
