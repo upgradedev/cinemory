@@ -134,7 +134,13 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > to its beat by order, timing and text). Captions carry **zero em-dashes**, as
 > do the narration, the SRT and the beat script.
 
-## 2026-08-03: demo video rebuilt around live screen capture; unique reel names
+## 2026-08-03: demo video rebuilt around live screen capture; unique reel names (superseded)
+
+> **Superseded by the top entry.** The video described below was reshot on the
+> same day. In particular the "9/9 checks passed" receipt quoted here was from
+> the two-photo take; the current five-photo video shows **12/12**, and the
+> narration deliberately states no count so it cannot go stale again.
+
 
 > The previous cut was a slide deck: eight still images with a Ken Burns move,
 > **not one second of the product running**. Two of those eight beats (32 of

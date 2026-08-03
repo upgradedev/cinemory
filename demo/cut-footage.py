@@ -51,6 +51,23 @@ CUTS: dict[str, tuple[str, float]] = {
     "07-verify": ("provenance_open", 2.3),
 }
 
+#: beat id -> the mark its clip must not run past.
+#:
+#: ``PHASE_FLOOR`` in capture-live.py guards the other direction (the take being
+#: too QUICK to fill a beat). This guards a beat being too LONG for its phase,
+#: which only matters where the next thing on screen is a distinct event rather
+#: than more of the same picture.
+#:
+#: 04-rolling is the one such beat: the take reloads the tab right after it, and
+#: cut-footage cuts a fixed length out of one continuous recording with no upper
+#: bound of its own. Lengthen beat 04's narration by ~1.7s and its clip would
+#: silently run past ``reload_start``, so the reload would appear twice — once
+#: at the end of beat 04 and again as the whole of beat 05 — with nothing
+#: failing. Checked here so that lands as a build error instead.
+BOUNDS: dict[str, str] = {
+    "04-rolling": "reload_start",
+}
+
 
 def load_build_video():
     spec = importlib.util.spec_from_file_location("bv", os.path.join(DEMO, "build-video.py"))
@@ -97,6 +114,19 @@ def main() -> int:
             raise SystemExit(f"[STOP] take has no mark {mark!r} for beat {beat.id}")
         start = at[mark] + settle
         length = dur + args.headroom
+        limit_mark = BOUNDS.get(beat.id)
+        if limit_mark:
+            if limit_mark not in at:
+                raise SystemExit(f"[STOP] take has no mark {limit_mark!r}, which "
+                                 f"bounds beat {beat.id}")
+            room = at[limit_mark] - start
+            if length > room:
+                raise SystemExit(
+                    f"[STOP] {beat.id} needs {length:.2f}s of picture but its phase "
+                    f"ends at {limit_mark!r} after only {room:.2f}s. Cutting it "
+                    f"anyway would run the clip past that mark and show what "
+                    f"happens next twice. Shorten the narration or re-shoot with "
+                    f"a longer dwell before {limit_mark}.")
         out = os.path.join(FOOTAGE, f"{beat.id}.mp4")
         # Constant-rate 30fps at the delivery resolution. CRF 23 is plenty for
         # flat UI screen content and keeps the committed clips small.
