@@ -1,6 +1,6 @@
 # Cinemory — demo video
 
-`cinemory-demo.mp4` is a **2:17**, narrated walkthrough of the current app. It is
+`cinemory-demo.mp4` is a **2:06**, narrated walkthrough of the current app. It is
 built beat-by-beat so the picture and the voice can never drift apart, and a CI
 gate (`scripts/check_video.py`) fails the build if they do.
 
@@ -22,7 +22,7 @@ gate (`scripts/check_video.py`) fails the build if they do.
 | 2 | The trust problem | real generated frame | Generative video is easy to make and hard to trust; which model, which photos, and was any frame changed. |
 | 3 | What it does | pipeline card | Photos plus an occasion return a scored reel, content-addressed on B2 and SHA-256 sealed. |
 | 4 | The reel plays | two real Kling frames | Four steps — photos, occasion, generate, play — real clips bridged and graded into one film. |
-| 5 | Provenance + Verify | provenance card | Open Provenance, press Verify; the browser recomputes the SHA-256 and the seal flips to Verified, plus a server re-check. |
+| 5 | Provenance + Verify | provenance card | Open Provenance, press Verify; the browser recomputes the SHA-256 and the seal flips to Verified. |
 | 6 | What keeps it honest | B2 objects card | Every clip cites its source photo by hash; change a byte and the seal breaks; live failures degrade in the open. |
 | 7 | The stack | architecture card | One core, three ports: Genblaze (Kling/seedance via GMI Cloud), Backblaze B2, FastAPI + React on Cloud Run, offline fakes in CI. |
 | 8 | Close | live-proof card | Live on Cloud Run, mirrored on Firebase, open source. |
@@ -46,9 +46,12 @@ line never re-synthesizes or re-bills the others. Editing `BEATS` in
 
 `python scripts/check_video.py` ffprobes the committed mp4 and cross-checks it
 against the beat script. It fails the build when the video is over the 180s hard
-cap, is not H.264/yuv420p 1280x720 ~30fps with a single AAC track, or when the
-SRT cues do not match the beats one-for-one in order, timing and text. It needs
-only ffprobe and the standard library, and runs as the `demo-video` CI job.
+cap, is not H.264/yuv420p 1280x720 ~30fps with a single AAC track, when the
+SRT cues do not match the beats one-for-one in order, timing and text, or when
+a beat-referenced asset carries a known-false marker (a stale capture whose
+content went false later, e.g. the `fake-genblaze` cards this gate now
+denylists by content hash). It needs only ffprobe and the standard library,
+and runs as the `demo-video` CI job.
 
 ## The one remaining manual step
 

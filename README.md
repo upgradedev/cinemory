@@ -23,7 +23,7 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
   h264 720p reel on B2, including a real generation on the live box's upload
   path — see `demo/STATE.md` + `deploy/DEPLOYED.md`.
 - **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
-- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:12).
+- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:06).
   YouTube link: *TODO(owner): paste the URL after upload.*
 
 **Check that the live app really is this commit.** The image is stamped at

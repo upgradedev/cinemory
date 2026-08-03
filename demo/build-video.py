@@ -155,8 +155,7 @@ BEATS: list[Beat] = [
         "Press Verify — the seal recomputes to Verified",
         "Then open the Provenance panel. It shows the model, the prompt, and a "
         "hash for every step. Press Verify, and your browser recomputes the "
-        "SHA-256 itself. The seal flips to Verified. A server re-check then "
-        "re-hashes every stored file and reports each check as passed.",
+        "SHA-256 itself. The seal flips to Verified.",
     ),
     Beat(
         "06-honest",

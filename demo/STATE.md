@@ -16,13 +16,20 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > #41), and `GET /reels/cinemory-demo-live` — a real live Genblaze run from
 > 2026-07-21 still resolvable from the live index (`manifest_hash`
 > `fe507e14…`). Every hash/commit string on both cards is sliced
-> programmatically from the saved JSON, never hand-typed. The video was
-> rebuilt (`demo/build-video.py`, ElevenLabs narration unchanged) to
-> **2:12** (131.8s) and passes `scripts/check_video.py`. That same script now
-> also fails CI if any beat-referenced asset carries a known-false marker
-> (text assets are content-scanned; binary assets are checked against a
-> denylist of known-bad content hashes) — so this class of drift fails the
-> build instead of waiting for another manual review.
+> programmatically from the saved JSON, never hand-typed. The `05-verify`
+> narration also lost its last sentence ("A server re-check then re-hashes
+> every stored file and reports each check as passed"): the named reel's
+> real `GET /reels/cinemory-demo-live/verify` receipt is `success: false`
+> (`structural.source_citation` fails — that run predates the field), so
+> the claim did not hold for the exact data the card shows, even though the
+> card itself never asserted it. The seal-recompute sentence stays; it is
+> true for this reel (`seal.manifest_hash` passes). The video was rebuilt
+> (`demo/build-video.py`) to **2:06** (126.2s) and passes
+> `scripts/check_video.py`. That same script now also fails CI if any
+> beat-referenced asset carries a known-false marker (text assets are
+> content-scanned; binary assets are checked against a denylist of
+> known-bad content hashes) — so this class of drift fails the build
+> instead of waiting for another manual review.
 >
 > Authoritative current counts, from the green CI run on `main` (commit
 > `2a41507`, 2026-08-02, run
