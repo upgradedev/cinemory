@@ -46,6 +46,8 @@ demo/.video-build/
 # ignored; only the trimmed per-beat clips are committed).
 !demo/video-assets/footage/*.mp4
 demo/.capture*/
+# Voice comparison audio (demo/pick-voice.py) is a scratch listening aid.
+demo/.voice-probe/
 
 # Firebase Hosting deploy cache
 .firebase/
