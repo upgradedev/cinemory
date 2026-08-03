@@ -2,6 +2,12 @@
 
 _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
 
+> **How to read this file.** It is an append-log, newest entry first. Only the
+> top entry describes the project as it stands; every entry below it is dated
+> history kept for the reasoning, and its numbers, checklists and open blockers
+> were true on that date and are very likely superseded. If two entries
+> disagree, the higher one wins.
+
 ## 2026-08-03 — demo video's two false cards replaced; counts reconciled (canonical)
 
 > An independent review found the demo video embedded two gallery cards
@@ -87,7 +93,7 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
   passed.
 - **Frontend: 280 vitest tests across 39 files** (`frontend` job).
 
-## 2026-07-24 — test counts reconciled to CI (canonical)
+## 2026-07-24 — test counts reconciled to CI
 
 > **Superseded 2026-07-29:** the suite grew again this week (backend 211 →
 > 314; frontend 169 → 280) and five features shipped; see the entry at the
