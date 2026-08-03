@@ -37,13 +37,18 @@ CUTS: dict[str, tuple[str, float]] = {
     "02-photos": ("landing", 0.0),
     "03-occasion": ("step2_open", 0.0),
     "04-rolling": ("generate_clicked", 1.0),
-    "05-reel": ("reel_playing", 0.0),
-    # Start late enough that the green "Verified" badge and the 9/9 server
-    # receipt are on screen for the last several seconds rather than flashing
-    # up as the beat ends: the browser recomputation takes ~9s against the live
-    # service, and the narration's payoff ("the seal reads Verified") lands at
-    # the end of the line.
-    "06-verify": ("provenance_open", 2.3),
+    # The reload beat. Starts the moment the resumed job has rehydrated, so the
+    # app's own "Picking this reel back up" line and the "Already in progress"
+    # counter are on screen for the whole beat: that in-page copy is the
+    # evidence the reload recovered a live job, because Playwright records the
+    # viewport only and the #reel/<id> address bar is never in frame.
+    "05-link": ("resumed", 0.0),
+    "06-reel": ("reel_playing", 0.0),
+    # Start late enough that the green "Verified" badge and the server receipt
+    # are on screen for the last several seconds rather than flashing up as the
+    # beat ends: the browser recomputation takes ~9s against the live service,
+    # and the narration's payoff lands at the end of the line.
+    "07-verify": ("provenance_open", 2.3),
 }
 
 

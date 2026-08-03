@@ -1,8 +1,8 @@
 # Cinemory — demo video
 
-`cinemory-demo.mp4` is a **2:34** (154.00s) narrated walkthrough of the current
+`cinemory-demo.mp4` is a **2:50** (169.70s) narrated walkthrough of the current
 app, and the spine of it is **real screen footage of the deployed product
-actually working**: 68.2s of the runtime is live capture. It is built
+actually working**: 95.9s of the runtime, 56.5%, is live capture. It is built
 beat-by-beat so the picture and the voice can never drift apart, and a CI gate
 (`scripts/check_video.py`) fails the build if they do.
 
@@ -57,32 +57,42 @@ beat-by-beat so the picture and the voice can never drift apart, and a CI gate
 | # | Beat | Picture | Length | The line, in short | Judging criterion |
 |---|------|---------|--------|--------------------|-------------------|
 | 1 | Hook | thumbnail card | 12.8s | The evening you wish you could keep, handed back as a short film with proof of where every frame came from. | Utility |
-| 2 | Photos in | **live footage** | 12.9s | The real app on Cloud Run; two anniversary photos dropped in; no account, no watermark; the photos go to a private Backblaze bucket. | Utility · B2 |
-| 3 | Occasion | **live footage** | 11.9s | Each occasion brings its own music, pacing and titles, including one for award nights and company events. | Utility |
-| 4 | The live job | **live footage** | 14.8s | Each photo becomes a Genblaze pipeline step and goes to Kling on GMI Cloud; a real model call, about five minutes a photo, run as a background job the page polls. | Genblaze · production readiness |
-| 5 | The reel plays | **live footage** | 10.1s | Two photographs, now moving, cut to the music; everyone in them is model generated. | Utility |
-| 6 | Provenance + Verify | **live footage** | 18.5s | The panel lists every step, model, prompt and per-asset hash; Verify recomputes the SHA-256 in the browser; all nine checks pass and you can run them yourself. | Production readiness |
-| 7 | Storage + seal | B2 objects card | 25.2s | Everything lands in B2 at its own content hash, every clip names the photo it came from, Genblaze seals its own provenance beside ours, and an append-only index makes the bucket queryable. | B2 · Genblaze |
-| 8 | The stack | architecture card | 24.0s | One core, three ports, offline fakes with no credentials, Genblaze contract tested against the real SDK, 600+ tests and security scans on every push. | Production readiness · Genblaze |
-| 9 | Close | live-health card | 23.7s | Every push to main deploys itself and only passes if the live service reports that commit; a model outage is said out loud, not faked. | Production readiness · Utility |
+| 2 | Photos in | **live footage** | 19.3s | The real app on Cloud Run; five anniversary photos dropped in; no account, no watermark; five is the cap so a reel finishes while you watch, and the app says that limit belongs to the demo, not the reel maker. | Utility |
+| 3 | Occasion | **live footage** | 10.3s | Each occasion carries its own music, pacing and titles, so an anniversary sounds nothing like an award night. | Utility |
+| 4 | The live job | **live footage** | 19.1s | The app states the wait up front from the photo count; all five photos go through Genblaze to Kling on GMI Cloud at once rather than one behind another; this run packed 25 minutes of model work into 7.5 minutes. | Genblaze · production readiness |
+| 5 | Reload, resume | **live footage** | 16.1s | The job id goes into the link when the job is submitted, so the tab is reloaded mid-run and the same live reel is picked back up. | Production readiness |
+| 6 | The reel plays | **live footage** | 10.4s | Five photographs, now moving, cut to the music the occasion chose; everyone in them is model generated. | Utility |
+| 7 | Provenance + Verify | **live footage** | 20.7s | The panel lists every step, model, prompt and per-asset hash; Verify recomputes the SHA-256 in the browser against the sealed manifest; every check passes and you can run the same check yourself. | B2 |
+| 8 | Storage + seal | B2 objects card | 18.0s | Everything lands in B2 at its own content hash, an append-only index catalogues every object, and each job reports what it burned, so a bucket becomes a library. | B2 · Genblaze |
+| 9 | The stack | architecture card | 20.8s | One core, three ports, offline fakes with no credentials, 600 tests contract tested against the real SDK, and security scans on every push. | Production readiness · Genblaze |
+| 10 | Close | live-health card | 22.2s | Every push to main deploys itself and only passes if the live service reports that commit; when the model fails, the reason is named in plain words rather than left as a spinner. | Production readiness · Utility |
 
 The exact spoken text for every beat lives in `cinemory-demo.beats.json` and
 `cinemory-demo.en.srt`.
 
-**Criterion coverage**, allocating each beat's seconds across the sentences in
-it: real-world utility **32%**, production readiness **36%**, Backblaze B2 **16%**,
-Genblaze **16%**. Every one of the four judged criteria gets its own
-minute-fraction rather than a passing mention. Shares are quoted rather than
-seconds because each re-synthesis shifts the absolute lengths by a little.
+**Criterion coverage**, assigning each beat to the criterion it primarily
+carries: real-world utility **31%** (52.8s), production readiness **35%**
+(59.1s), Backblaze B2 **23%** (38.6s), Genblaze **11%** (19.1s). Every one of
+the four judged criteria gets its own minute-fraction rather than a passing
+mention. Shares are quoted alongside seconds because each re-synthesis shifts
+the absolute lengths by a little.
 
-**On the balance of picture.** Live footage is 68.2s of the 154.00s runtime.
-That is more live-app seconds than the previous cut (67.9s) but a smaller
-share of it (44% vs 55%), because the added narration went onto the three
-evidence cards at the end, where B2, the architecture and the live `/health`
-have to be legible and held still. The five footage beats are the same clips
-and every one of them is still **shorter than its source clip** (slack 0.30s to
-0.87s), so no beat freezes on a cloned frame and the capture self-check
-invariant below still holds.
+**On the balance of picture.** Live footage is **95.9s of the 169.70s runtime
+(56.5%)**, up from 68.2s of 154.00s (44%) in the previous cut. The gain is real
+new picture, not padding: the take is now a full **five-photo** run instead of
+the two a sequential pipeline could fit, and it carries a new sixth footage
+beat in which the tab is reloaded mid-job and the same live reel is picked back
+up from the link. Every footage beat is **shorter than its source clip**, so no
+beat freezes on a cloned frame:
+
+| Beat | Beat length | Source clip | Slack |
+|---|---|---|---|
+| 02-photos | 19.27s | 19.77s | 0.50s |
+| 03-occasion | 10.33s | 10.80s | 0.47s |
+| 04-rolling | 19.13s | 19.60s | 0.47s |
+| 05-link | 16.07s | 16.57s | 0.50s |
+| 06-reel | 10.43s | 10.93s | 0.50s |
+| 07-verify | 20.67s | 21.17s | 0.50s |
 
 ## The live footage
 
@@ -93,16 +103,25 @@ clips committed under `video-assets/footage/`.
 
 Three things worth knowing about that take:
 
-- **It is one unbroken session.** The five footage beats are contiguous spans of
+- **It is one unbroken session.** The six footage beats are contiguous spans of
   a single run, in order. The only thing skipped is the multi-minute wait while
   the model renders, which beat 4 says out loud.
-- **Two photos, not six.** The pipeline makes one live Kling image-to-video call
-  per photo, and a single call measured **~314s** against the live service,
-  while the frontend's poll ceiling is 12 minutes
-  (`REEL_JOB_MAX_POLL_MS`). Two photos (~10.5 min) is the most that fits inside
-  that ceiling, so it is the most the product can be shown doing for real in one
-  continuous take. Three would trip the honest "taking longer than expected"
-  degrade instead of showing a reel.
+- **Five photos, the whole cap.** Generation now runs concurrently
+  (`MAX_CONCURRENT_GENERATIONS`), so a full reel is one *wave* rather than one
+  call after another and the cap fits comfortably inside the frontend's 12-minute
+  poll ceiling (`REEL_JOB_MAX_POLL_MS`). The take shot for this cut ran all five
+  Kling calls at once: **1508.6s of provider work in 445.7s of wall clock**, a
+  3.4x compression, recorded in `video-assets/usage.txt` straight from
+  `GET /reels/jobs/<id>`. The previous cut could only show two photos because a
+  sequential pipeline could not fit more.
+- **The reload is real.** The job id is written into the URL (`#reel/<job_id>`)
+  when the job is submitted, and beat 5 reloads the tab mid-run to prove the
+  work survives it. Playwright records the page viewport only, so the address
+  bar is never in frame; what the picture shows is the app's own resume copy
+  ("Picking this reel back up", "Already in progress"), which is the in-page
+  evidence that the reload recovered a running job. The URL itself is recorded
+  in the marks file and stated in the beat's caption instead of being faked
+  on screen.
 - **The capture self-checks.** Each phase has to supply at least as many seconds
   of picture as its beat's narration needs, or `capture-live.py` exits non-zero
   and says which phase was too quick. A too-fast take fails there, loudly,

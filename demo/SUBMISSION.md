@@ -15,13 +15,15 @@
   serves the identical app. `cinemory.ai` is **not yet mapped** — pending DNS;
   use the run.app URL.)*
 - **Demo video:** recorded + committed —
-  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:34, inside Devpost's 3-min
+  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:50, inside Devpost's 3-min
   cap; ElevenLabs voice-over, no music, A/V-sync-gated in CI via the
-  `demo-video` job). Five of its nine beats are **live screen capture of the
-  deployed app** (68.2s, 44% of the runtime): photos in, occasion picked, the
-  real Kling job polled, the reel playing, Provenance verified 9/9. The
-  narration covers all four judged criteria by the clock: utility **47.7s**,
-  production readiness **54.1s**, Backblaze B2 **24.1s**, Genblaze **24.0s**.
+  `demo-video` job). Six of its ten beats are **live screen capture of the
+  deployed app** (95.9s, 56.5% of the runtime), cut from one unbroken take of a
+  full five-photo run: photos in, occasion picked, all five model calls rolling
+  at once, the tab reloaded mid-job and the reel picked back up from the link,
+  the reel playing, Provenance verified 12/12. The narration covers all four
+  judged criteria by the clock: utility **52.8s**, Genblaze **19.1s**,
+  production readiness **59.1s**, Backblaze B2 **38.6s**.
   `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
   YouTube/Vimeo/Youku link; the repo mp4 alone does not satisfy that rule.
 - **Deadline:** 2026-08-03 5:00pm EDT. Per the rules the app must stay freely
@@ -322,7 +324,7 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - Readiness gate: automatable **100.0% (17/17) PASS**; full **85.6%** (3
   user-gated live items, of which two — live redeploy, live B2 objects — are
   now factually done; see above).
-- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:34) — ElevenLabs
+- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:50) — ElevenLabs
   voice-over, guarded by an A/V-sync CI gate (the `demo-video` job) so audio,
   video and captions cannot drift out of sync.
 - **Devpost draft filled** — submission 1108702

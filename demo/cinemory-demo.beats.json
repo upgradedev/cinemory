@@ -9,7 +9,7 @@
     "voice_id": "21m00Tcm4TlvDq8ikWAM",
     "model_id": "eleven_multilingual_v2"
   },
-  "total_seconds": 154.0,
+  "total_seconds": 169.7,
   "beats": [
     {
       "index": 1,
@@ -29,11 +29,11 @@
       "assets": [
         "video-assets/footage/02-photos.mp4"
       ],
-      "caption": "Drop photos in. The order you choose becomes the edit",
-      "narration": "This is the real app, live on Cloud Run. I drop in two photos from an anniversary dinner. No account, no watermark. The photos go to a private Backblaze bucket that is never made public.",
+      "caption": "Up to five photos. A limit of this demo, not of the reel maker",
+      "narration": "This is the real app, live on Cloud Run, and nothing is staged. I drop in five photos from an anniversary dinner. No account, no watermark. Five is the cap so a reel finishes while you watch, and the app says that limit belongs to the demo, not the reel maker.",
       "start": 12.8,
-      "end": 25.733,
-      "dur": 12.933
+      "end": 32.067,
+      "dur": 19.267
     },
     {
       "index": 3,
@@ -42,10 +42,10 @@
         "video-assets/footage/03-occasion.mp4"
       ],
       "caption": "Six occasions. Each sets the music, pacing and titles",
-      "narration": "I choose the occasion. Each one brings its own music, its own pacing, its own titles. Anniversary is warm strings. There is one for award nights and company events.",
-      "start": 25.733,
-      "end": 37.667,
-      "dur": 11.933
+      "narration": "Then I pick the occasion. Each one carries its own music, its own pacing, its own titles, so an anniversary sounds nothing like an award night.",
+      "start": 32.067,
+      "end": 42.4,
+      "dur": 10.333
     },
     {
       "index": 4,
@@ -53,71 +53,83 @@
       "assets": [
         "video-assets/footage/04-rolling.mp4"
       ],
-      "caption": "A real model call through Genblaze. Five minutes per photo",
-      "narration": "Now the work. Each photo becomes a Genblaze pipeline step, and Genblaze sends it to Kling on GMI Cloud. That is a real model call, about five minutes a photo, so it runs as a background job the page polls.",
-      "start": 37.667,
-      "end": 52.467,
-      "dur": 14.8
+      "caption": "5 photos, about 6 minutes. All five calls run at once",
+      "narration": "The app tells you the wait up front, from the photo count. And here is what changed: all five photos go through Genblaze to Kling on GMI Cloud at once, not one behind another. This run packed twenty-five minutes of model work into seven and a half minutes.",
+      "start": 42.4,
+      "end": 61.533,
+      "dur": 19.133
     },
     {
       "index": 5,
-      "id": "05-reel",
+      "id": "05-link",
       "assets": [
-        "video-assets/footage/05-reel.mp4"
+        "video-assets/footage/05-link.mp4"
       ],
-      "caption": "The reel plays. The people in it are model generated",
-      "narration": "And there it is. Two photographs, now moving, cut to the music. Everyone you see was made by a model, so nobody real is in this demo.",
-      "start": 52.467,
-      "end": 62.533,
-      "dur": 10.067
+      "caption": "The job id is in the link. Reload, and the reel is still there",
+      "narration": "And you are not stuck on this page while it runs. The job id goes into the link the moment the job is submitted, so I can reload the tab and the reel is still here, still being made. That is what makes it usable.",
+      "start": 61.533,
+      "end": 77.6,
+      "dur": 16.067
     },
     {
       "index": 6,
-      "id": "06-verify",
+      "id": "06-reel",
       "assets": [
-        "video-assets/footage/06-verify.mp4"
+        "video-assets/footage/06-reel.mp4"
       ],
-      "caption": "Press Verify. Your own browser recomputes the SHA-256",
-      "narration": "Here is the part that matters. The provenance panel lists every step, the model, the prompt and a hash for every asset. I press Verify, and the browser recomputes the SHA-256. All nine checks pass, and you can run them yourself.",
-      "start": 62.533,
-      "end": 81.033,
-      "dur": 18.5
+      "caption": "The reel plays. The people in it are model generated",
+      "narration": "And there it is. Five photographs, now moving, cut to the music the occasion chose. Everyone you see was made by a model, so nobody real appears in this demo.",
+      "start": 77.6,
+      "end": 88.033,
+      "dur": 10.433
     },
     {
       "index": 7,
-      "id": "07-honest",
+      "id": "07-verify",
+      "assets": [
+        "video-assets/footage/07-verify.mp4"
+      ],
+      "caption": "Press Verify. Your own browser recomputes the SHA-256",
+      "narration": "Here is the part that matters most. The provenance panel lists every step, the model, the prompt, and a hash for every asset. I press Verify, and my own browser recomputes the SHA-256 against the sealed manifest. Every check passes, and you can run the same check yourself.",
+      "start": 88.033,
+      "end": 108.7,
+      "dur": 20.667
+    },
+    {
+      "index": 8,
+      "id": "08-honest",
       "assets": [
         "video-assets/cards/cinemory-04-b2-objects.png"
       ],
       "caption": "Every artifact in B2, content addressed and indexed",
-      "narration": "All of it lands in Backblaze B2. Every photo, every clip, the finished reel and the sealed manifest, each stored under its own content hash, and every clip names the photo it came from. Genblaze seals its own provenance beside ours in the same bucket, and an append-only index catalogues every object, so a bucket of files becomes a library you can query.",
-      "start": 81.033,
-      "end": 106.267,
-      "dur": 25.233
+      "narration": "All of it lands in Backblaze B2. Every photo, every clip, the finished reel and the sealed manifest, each under its own content hash. An append-only index catalogues every object, and each job reports what it burned, so a bucket becomes a library.",
+      "start": 108.7,
+      "end": 126.667,
+      "dur": 17.967
     },
     {
-      "index": 8,
-      "id": "08-stack",
+      "index": 9,
+      "id": "09-stack",
       "assets": [
         "video-assets/cards/cinemory-06-architecture.png"
       ],
       "caption": "One core, three ports. Live adapters, offline fakes in CI",
-      "narration": "This is built to last. One core, three ports, so the live Genblaze and B2 adapters swap for offline fakes and the whole pipeline runs in tests with no credentials. Genblaze is contract tested against the real SDK, so a change there breaks the build instead of the demo. More than six hundred tests, and security scans on every push.",
-      "start": 106.267,
-      "end": 130.3,
-      "dur": 24.033
+      "narration": "This is built to last. One core, three ports, so the live Genblaze and B2 adapters swap for offline fakes and the whole pipeline runs in tests with no credentials. Six hundred tests, contract tested against the real SDK, and security scans on every push.",
+      "start": 126.667,
+      "end": 147.5,
+      "dur": 20.833
     },
     {
-      "index": 9,
-      "id": "09-close",
+      "index": 10,
+      "id": "10-close",
       "assets": [
         "video-assets/cards/cinemory-03-live-health.png"
       ],
       "caption": "Live now · open source · github.com/upgradedev/cinemory",
-      "narration": "Every push to main deploys itself, and it only passes if the live service reports the commit it just built. No screenshot required. And when a model is down, Cinemory says so out loud instead of faking a result. It began as one gift, for one anniversary. It is live now, it is open source, and it is waiting for your photos.",
-      "start": 130.3,
-      "end": 154.0,
-      "dur": 23.7
+      "narration": "Every push to main deploys itself, and it only passes if the live service reports the commit it just built. When the model fails, Cinemory names the reason in plain words instead of leaving you watching a spinner. It began as one gift, for one anniversary. It is live now, open source, and waiting for your photos.",
+      "start": 147.5,
+      "end": 169.7,
+      "dur": 22.2
     }
   ]
 }
