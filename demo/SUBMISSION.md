@@ -15,7 +15,7 @@
   serves the identical app. `cinemory.ai` is **not yet mapped** — pending DNS;
   use the run.app URL.)*
 - **Demo video:** recorded + committed —
-  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:17, inside Devpost's 3-min
+  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:06, inside Devpost's 3-min
   cap; ElevenLabs voice-over, A/V-sync-gated in CI via the `demo-video` job).
   `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
   YouTube/Vimeo/Youku link; the repo mp4 alone does not satisfy that rule.
@@ -176,13 +176,13 @@ GMI Cloud; further Genblaze providers are on the roadmap.
   pen-test, plus the SDK-boundary Genblaze contract test — which drives a
   **real** Genblaze `Pipeline` + `ObjectStorageSink` (over an in-memory
   backend) so the live sink→store→readback→sha256-chain path is genuinely
-  exercised, not just the offline fakes. **Backend: 314 passed + 4 skipped in
-  CI** (unit 156 · integration 99 · e2e 59); the 4 skips are environment-gated,
+  exercised, not just the offline fakes. **Backend: 315 passed + 4 skipped in
+  CI** (unit 156 · integration 100 · e2e 59); the 4 skips are environment-gated,
   optional-dependency or live-credential tests that do not run without creds.
   Pen-test suite (its own `pen-test` CI job, `tests/security/`): **62
-  passed**. **Frontend: 280 vitest tests across 39 files.** (Counts from the
-  CI run on `main`, 2026-07-29, commit `a07c0a3`,
-  [run 30448211424](https://github.com/upgradedev/cinemory/actions/runs/30448211424).)
+  passed**. **Frontend: 282 vitest tests across 39 files.** (Counts from the
+  CI run on `main`, 2026-08-02, commit `2a41507`,
+  [run 30764058311](https://github.com/upgradedev/cinemory/actions/runs/30764058311).)
 - **Async job submission + optional per-user accounts (shipped 2026-07-27 to
   2026-07-29, PRs #33 to #38):**
   `POST /reels/jobs` submits a generation as a background job (202 + a job
@@ -313,7 +313,7 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - Readiness gate: automatable **100.0% (17/17) PASS**; full **85.6%** (3
   user-gated live items, of which two — live redeploy, live B2 objects — are
   now factually done; see above).
-- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:17) — ElevenLabs
+- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:06) — ElevenLabs
   voice-over, guarded by an A/V-sync CI gate (the `demo-video` job) so audio,
   video and captions cannot drift out of sync.
 - **Devpost draft filled** — submission 1108702

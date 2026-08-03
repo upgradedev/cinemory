@@ -1,1 +1,1 @@
-{"status":"ok","service":"cinemory-api","mode":"offline","provider":"fake-genblaze","storage":"FakeStorage"}
+{"status":"ok","service":"cinemory-api","mode":"live","provider":"genblaze","storage":"B2Storage","build":{"commit":"2bc1b190436dc783e02798dd321e033ae7f6d83a","built_at":"2026-08-02T18:48:48Z"}}

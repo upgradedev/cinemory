@@ -1,9 +1,56 @@
 # Cinemory — submission state
 
-_Last updated: 2026-07-29. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
+_Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligible._
 
-## 2026-07-29: async generation, optional accounts and per-user isolation shipped; counts reconciled (canonical)
+## 2026-08-03 — demo video's two false cards replaced; counts reconciled (canonical)
 
+> An independent review found the demo video embedded two gallery cards
+> (`cinemory-03-live-proof.png` at beat `08-close`, `cinemory-05-provenance.png`
+> at beat `05-verify`) that showed a mocked `/health` and manifest with
+> `"provider": "fake-genblaze"` — stale from before the GMI account was
+> funded, and false against the live app, which genuinely reports
+> `provider:"genblaze"`. Both cards are replaced with `cinemory-03-live-health.png`
+> and `cinemory-05-manifest-sealed.png`, built from real captures taken
+> 2026-08-03: `GET /health` on both the Cloud Run origin and the Firebase
+> mirror (byte-identical, including the new `build.commit` block from PR
+> #41), and `GET /reels/cinemory-demo-live` — a real live Genblaze run from
+> 2026-07-21 still resolvable from the live index (`manifest_hash`
+> `fe507e14…`). Every hash/commit string on both cards is sliced
+> programmatically from the saved JSON, never hand-typed. The `05-verify`
+> narration also lost its last sentence ("A server re-check then re-hashes
+> every stored file and reports each check as passed"): the named reel's
+> real `GET /reels/cinemory-demo-live/verify` receipt is `success: false`
+> (`structural.source_citation` fails — that run predates the field), so
+> the claim did not hold for the exact data the card shows, even though the
+> card itself never asserted it. The seal-recompute sentence stays; it is
+> true for this reel (`seal.manifest_hash` passes). The video was rebuilt
+> (`demo/build-video.py`) to **2:06** (126.2s) and passes
+> `scripts/check_video.py`. That same script now also fails CI if any
+> beat-referenced asset carries a known-false marker (text assets are
+> content-scanned; binary assets are checked against a denylist of
+> known-bad content hashes) — so this class of drift fails the build
+> instead of waiting for another manual review.
+>
+> Authoritative current counts, from the green CI run on `main` (commit
+> `2a41507`, 2026-08-02, run
+> [30764058311](https://github.com/upgradedev/cinemory/actions/runs/30764058311)),
+> now identical across `README.md`, `demo/SUBMISSION.md` and this file. This
+> entry supersedes the 2026-07-29 entry below (counts grew: backend 314 →
+> 315, frontend 280 → 282).
+
+- **Backend: 315 passed + 4 skipped in CI** (`python` job, unit 156 ·
+  integration 100 · e2e 59); the 4 skips are environment-gated,
+  optional-dependency or live-credential tests that do not run without
+  creds. Pen-test suite (`tests/security/`, its own `pen-test` job): 62
+  passed.
+- **Frontend: 282 vitest tests across 39 files** (`frontend` job).
+
+## 2026-07-29: async generation, optional accounts and per-user isolation shipped; counts reconciled
+
+> **Superseded 2026-08-03:** the demo video's two stale-provider gallery
+> cards are replaced and the suite grew again (backend 314 → 315; frontend
+> 280 → 282); see the entry at the top of this file. Kept for history.
+>
 > Authoritative current counts, from the green CI run on `main` (commit
 > `a07c0a3`, run
 > [30448211424](https://github.com/upgradedev/cinemory/actions/runs/30448211424)),
@@ -224,7 +271,7 @@ in CI. See `feat/genblaze-adapter-contract` (PR).
 | Criterion | Before | After | Note |
 |---|---|---|---|
 | Real-World Utility | 8.5/10 | 8.5/10 | consumer + B2B event wedge; unchanged |
-| Production Readiness | 8/10 | 9/10 | +SDK contract test; 314 backend passed + 4 skipped + 280 frontend across 39 files (CI on `main`, 2026-07-29); credential-free live-degrade + real-photo ingest; async job submission + optional per-user isolation shipped; playable reels via the stable `/reels/{name}/video` route + a `/reels/{name}/verify` re-verification receipt; drift guarded |
+| Production Readiness | 8/10 | 9/10 | +SDK contract test; 315 backend passed + 4 skipped + 282 frontend across 39 files (CI on `main`, 2026-08-02); credential-free live-degrade + real-photo ingest; async job submission + optional per-user isolation shipped; playable reels via the stable `/reels/{name}/video` route + a `/reels/{name}/verify` re-verification receipt; drift guarded |
 | B2 Storage & Orchestration | 8.5/10 | 9/10 | two real B2 write paths (Genblaze sink + cinemory) + a real queryable `index.jsonl` run index on both fake and B2 adapters |
 | Use of Genblaze | 6/10 | 8.5/10 | load-bearing (gen+sink+manifest); sink→store→readback path covered offline, SDK-verified |
 
