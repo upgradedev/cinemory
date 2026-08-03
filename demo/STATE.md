@@ -17,10 +17,10 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > instead of what it gives a person, and two of the four judged criteria were
 > barely in it.
 >
-> **The video is now 2:30 (149.93s), still under the 180s cap.** Nothing was
+> **The video is now 2:34 (154.00s), still under the 180s cap.** Nothing was
 > taken away from the picture: the same five live-footage beats, the same one
-> unbroken take, and **69.0s of live app** (up from 67.9s). Its share of the
-> runtime falls from 55% to 46% because the added seconds went onto the three
+> unbroken take, and **68.2s of live app** (up from 67.9s). Its share of the
+> runtime falls from 55% to 44% because the added seconds went onto the three
 > evidence cards at the end, where B2, the architecture and the live `/health`
 > have to be legible and held still. Every footage beat is still **shorter than
 > its source clip** (slack 0.30s to 0.87s), so nothing freezes on a cloned
@@ -35,11 +35,16 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > (centroid 1934 Hz), so timbre was never the problem. Its **intonation range
 > is 8.74 semitones, sixth of eight**, against 12.12 for the new default
 > (`XrExE9yKIg1WjnnlVkGX`): about 40% less pitch movement, which delivered over
-> short declarative sentences is what "military" means. The new default also
-> pauses the most in the set (31.9% of the line, longest single pause 0.90s).
-> Alice (`Xb7hH8MSUJpSbSDYk0k2`) is the closest runner-up. Two caveats kept on
-> the record: ranks near a tie move between runs because each synthesis is a
-> fresh sample, and these are acoustic proxies rather than taste.
+> short declarative sentences is what "military" means.
+>
+> **The shipped voice is Rachel (`21m00Tcm4TlvDq8ikWAM`), picked by the owner
+> by ear from the probe samples.** She ranks fourth of eight on spread, so
+> ranking by the metric alone would not have chosen her. That is the honest
+> division of labour here: the numbers ruled out the flat original and prove
+> which voice actually shipped, and they are a poor judge of whether a voice
+> suits a film about someone's anniversary. Two caveats kept on the record:
+> ranks near a tie move between runs because each synthesis is a fresh sample,
+> and these are acoustic proxies rather than taste.
 > `ELEVENLABS_VOICE_ID` still overrides the default, and the TTS cache is keyed
 > on (text, voice, model), so a change re-bills only what changed.
 >
@@ -60,7 +65,7 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > passes when the live service reports the commit it just built.
 >
 > Still ElevenLabs, still **no music**, still nine beats and nine cues.
-> `scripts/check_video.py` passes (149.93s, single AAC track, every cue matched
+> `scripts/check_video.py` passes (154.00s, single AAC track, every cue matched
 > to its beat by order, timing and text). Captions carry **zero em-dashes**, as
 > do the narration, the SRT and the beat script.
 

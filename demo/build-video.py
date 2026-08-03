@@ -37,9 +37,9 @@ Deliverables written next to this script:
 Deps:  Python 3.11+, Pillow, and ffmpeg/ffprobe on PATH.
 Env:   ELEVENLABS_API_KEY  (required — no silent TTS fallback; the build STOPS
                             and reports if the key is missing or errors)
-       ELEVENLABS_VOICE_ID (default XrExE9yKIg1WjnnlVkGX — the warmest, least
-                            hurried of the eight voices measured by
-                            demo/pick-voice.py; see VOICE_ID below)
+       ELEVENLABS_VOICE_ID (default 21m00Tcm4TlvDq8ikWAM, Rachel — chosen by ear
+                            from the shortlist demo/pick-voice.py produced; see
+                            VOICE_ID below)
        ELEVENLABS_MODEL_ID (default eleven_multilingual_v2)
        FPS (default 30) · TAIL_SECONDS (default 0.45)
 
@@ -78,12 +78,14 @@ TAIL = float(os.environ.get("TAIL_SECONDS", "0.45"))
 #: status report. Measured by ``demo/pick-voice.py`` on this script's own beat-01
 #: line and these exact voice settings, the previous voice
 #: (``pNInz6obpgDQGcFmaJgB``) reads in the bottom third of eight candidates for
-#: intonation range: 8.74 semitones of spread, sixth of eight, against 12.12 for
+#: intonation range: 8.74 semitones of spread, sixth of eight, against 11.16 for
 #: this one. It is the DARKEST timbre of the set, so the flatness was never a
 #: timbre problem; it is range, which over short declarative sentences is what
-#: sounded clipped. This voice also pauses the most (31.9% of the line, longest
-#: single pause 0.90s). Override with ELEVENLABS_VOICE_ID to taste.
-VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID") or "XrExE9yKIg1WjnnlVkGX"
+#: sounded clipped. Note that the measurement narrowed the field and did NOT make
+#: the final call: Rachel ranks fourth of eight on spread and was chosen by ear,
+#: which is the right instrument for judging whether a voice suits the film.
+#: Override with ELEVENLABS_VOICE_ID to taste.
+VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID") or "21m00Tcm4TlvDq8ikWAM"  # Rachel
 MODEL_ID = os.environ.get("ELEVENLABS_MODEL_ID") or "eleven_multilingual_v2"
 
 FFMPEG = os.environ.get("FFMPEG", "ffmpeg")
@@ -162,9 +164,9 @@ BEATS: list[Beat] = [
         "03-occasion",
         [shot("03-occasion.mp4")],
         "Six occasions. Each sets the music, pacing and titles",
-        "Then I choose the occasion. Each one brings its own music, its own "
+        "I choose the occasion. Each one brings its own music, its own "
         "pacing, its own titles. Anniversary is warm strings. There is one for "
-        "award nights and company events too.",
+        "award nights and company events.",
         live=True,
     ),
     Beat(
@@ -172,9 +174,9 @@ BEATS: list[Beat] = [
         [shot("04-rolling.mp4")],
         "A real model call through Genblaze. Five minutes per photo",
         "Now the work. Each photo becomes a Genblaze pipeline step, and Genblaze "
-        "sends it to Kling on GMI Cloud to be animated. That is a real model "
+        "sends it to Kling on GMI Cloud. That is a real model "
         "call, about five minutes a photo, so it runs as a background job the "
-        "page can poll.",
+        "page polls.",
         live=True,
     ),
     Beat(
@@ -191,7 +193,7 @@ BEATS: list[Beat] = [
         "Press Verify. Your own browser recomputes the SHA-256",
         "Here is the part that matters. The provenance panel lists every step, "
         "the model, the prompt and a hash for every asset. I press Verify, and "
-        "the browser recomputes the SHA-256 itself. All nine checks pass, and "
+        "the browser recomputes the SHA-256. All nine checks pass, and "
         "you can run them yourself.",
         live=True,
     ),
