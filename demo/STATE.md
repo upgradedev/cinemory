@@ -8,7 +8,72 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > were true on that date and are very likely superseded. If two entries
 > disagree, the higher one wins.
 
-## 2026-08-03: demo narration rewritten, voice swapped by measurement (canonical)
+## 2026-08-03: demo reshot against the shipped product (canonical)
+
+> The cut below was accurate when it was made and had gone stale in a day. Four
+> things shipped after it and the video contradicted all of them: the photo cap
+> is **5** (and the UI says the cap belongs to the demo, not the reel maker),
+> the wait is **derived from the photo count**, generation runs
+> **concurrently**, and the **job id is in the URL** so a reload no longer loses
+> the run. The old narration's "about five minutes a photo" described a
+> sequential pipeline that no longer exists, which by this point was not a
+> stale detail but a misleading one.
+>
+> **Reshot, one unbroken take, a full five-photo run.** The video is now
+> **2:50 (169.70s)**, under the 180s cap, and **95.9s of it (56.5%)** is live
+> screen capture, up from 68.2s (44%). Ten beats, six of them footage. The take
+> is a real job against the live service at the commit `/health` was reporting
+> (`9fe2f24`): five photos in, the cap note held on screen, the occasion picked,
+> all five model calls rolling at once, **the tab reloaded mid-job** and the same
+> live reel picked back up from the link, the reel playing, Provenance verified
+> **12/12**.
+>
+> **What the concurrency actually bought, measured on the run in the video:**
+> `GET /reels/jobs/vKvu63FDtWK3b0Y-wBVsVufi` reports **1508.6s of provider work
+> completed in 445.7s of wall clock** across 5 concurrent Kling calls, a 3.4x
+> compression. Saved verbatim as `demo/video-assets/usage.txt`, and the beat-04
+> narration quotes that run rather than an estimate. The same endpoint is the
+> per-job usage accounting the storage beat refers to.
+>
+> **The reload beat, and what it can honestly show.** Playwright records the
+> page viewport only, so `#reel/<job_id>` in the address bar can never be in
+> frame. Rather than fake an overlay, the beat is built on the app's own resume
+> copy, which is real in-page evidence that the reload recovered a running job:
+> "Picking this reel back up. It carried on without the page open." plus
+> "Already in progress" where the photo count would be. The URL is recorded in
+> the take's marks file and stated in the burned-in caption.
+>
+> **A narration claim was cut because the picture could not back it.** The first
+> pass had beat 3 say "read the line beneath" about the derived estimate, but
+> that line sits below the fold behind the caption band and is not in frame in
+> the take. The claim moved to beat 4, where "5 photos usually take about 6
+> minutes." is plainly legible on the rolling screen for the whole beat, and
+> beat 3 went back to being about the occasions.
+>
+> **Also fixed here, because it would have silently undone a live change:**
+> `deploy/deploy-cloudrun.sh` still pinned `--memory 512Mi`. A 5-photo
+> concurrent run OOM'd live earlier ("Memory limit of 512 MiB exceeded with 527
+> MiB used") and the service was raised to 2Gi by hand, so the next deploy from
+> that script would have put the OOM straight back. The script now pins 2Gi with
+> the reason written next to it.
+>
+> Still ElevenLabs (**Rachel**, `21m00Tcm4TlvDq8ikWAM`, unchanged), still
+> narration only and **no music** (single AAC track). `scripts/check_video.py`
+> passes at 169.70s with every cue matched to its beat by order, timing and
+> text. Zero em-dashes in captions, narration, SRT and beat script. Every
+> footage beat is shorter than its source clip, so nothing freezes on a cloned
+> frame:
+>
+> | Beat | Beat length | Source clip | Slack |
+> |---|---|---|---|
+> | 02-photos | 19.27s | 19.77s | 0.50s |
+> | 03-occasion | 10.33s | 10.80s | 0.47s |
+> | 04-rolling | 19.13s | 19.60s | 0.47s |
+> | 05-link | 16.07s | 16.57s | 0.50s |
+> | 06-reel | 10.43s | 10.93s | 0.50s |
+> | 07-verify | 20.67s | 21.17s | 0.50s |
+
+## 2026-08-03: demo narration rewritten, voice swapped by measurement (superseded)
 
 > The picture was right and the words were wrong. The owner's verdict on the
 > previous cut was that it sounded **"military"**: a run of short declaratives,
@@ -69,7 +134,13 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > to its beat by order, timing and text). Captions carry **zero em-dashes**, as
 > do the narration, the SRT and the beat script.
 
-## 2026-08-03: demo video rebuilt around live screen capture; unique reel names
+## 2026-08-03: demo video rebuilt around live screen capture; unique reel names (superseded)
+
+> **Superseded by the top entry.** The video described below was reshot on the
+> same day. In particular the "9/9 checks passed" receipt quoted here was from
+> the two-photo take; the current five-photo video shows **12/12**, and the
+> narration deliberately states no count so it cannot go stale again.
+
 
 > The previous cut was a slide deck: eight still images with a Ken Burns move,
 > **not one second of the product running**. Two of those eight beats (32 of

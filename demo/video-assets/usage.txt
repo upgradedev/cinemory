@@ -1,0 +1,53 @@
+{
+  "reel_name": "cinemory-reel-msdelnm2-0l1t7ok",
+  "started_at": "2026-08-03T15:48:22.711266+00:00",
+  "finished_at": "2026-08-03T15:55:48.433943+00:00",
+  "duration_ms": 445723,
+  "provider_calls": 5,
+  "provider_calls_by_model": {
+    "Kling-Image2Video-V2.1-Master": 5
+  },
+  "provider_seconds": 1508.619,
+  "max_concurrency": 5,
+  "input_bytes_to_provider": 544103,
+  "output_bytes_from_provider": 26115432,
+  "objects_written": 13,
+  "bytes_written": 36964671,
+  "calls": [
+    {
+      "model": "Kling-Image2Video-V2.1-Master",
+      "started_at": "2026-08-03T15:48:34.356957+00:00",
+      "finished_at": "2026-08-03T15:53:52.678697+00:00",
+      "duration_ms": 318322,
+      "attempts": 1
+    },
+    {
+      "model": "Kling-Image2Video-V2.1-Master",
+      "started_at": "2026-08-03T15:48:34.357367+00:00",
+      "finished_at": "2026-08-03T15:52:52.505697+00:00",
+      "duration_ms": 258148,
+      "attempts": 1
+    },
+    {
+      "model": "Kling-Image2Video-V2.1-Master",
+      "started_at": "2026-08-03T15:48:34.357939+00:00",
+      "finished_at": "2026-08-03T15:53:54.788459+00:00",
+      "duration_ms": 320431,
+      "attempts": 1
+    },
+    {
+      "model": "Kling-Image2Video-V2.1-Master",
+      "started_at": "2026-08-03T15:48:34.358212+00:00",
+      "finished_at": "2026-08-03T15:53:55.771174+00:00",
+      "duration_ms": 321413,
+      "attempts": 1
+    },
+    {
+      "model": "Kling-Image2Video-V2.1-Master",
+      "started_at": "2026-08-03T15:48:34.362468+00:00",
+      "finished_at": "2026-08-03T15:53:24.667004+00:00",
+      "duration_ms": 290305,
+      "attempts": 1
+    }
+  ]
+}

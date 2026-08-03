@@ -154,79 +154,89 @@ BEATS: list[Beat] = [
     Beat(
         "02-photos",
         [shot("02-photos.mp4")],
-        "Drop photos in. The order you choose becomes the edit",
-        "This is the real app, live on Cloud Run. I drop in two photos from an "
-        "anniversary dinner. No account, no watermark. The photos go to a "
-        "private Backblaze bucket that is never made public.",
+        "Up to five photos. A limit of this demo, not of the reel maker",
+        "This is the real app, live on Cloud Run, and nothing is staged. I drop "
+        "in five photos from an anniversary dinner. No account, no watermark. "
+        "Five is the cap so a reel finishes while you watch, and the app says "
+        "that limit belongs to the demo, not the reel maker.",
         live=True,
     ),
     Beat(
         "03-occasion",
         [shot("03-occasion.mp4")],
         "Six occasions. Each sets the music, pacing and titles",
-        "I choose the occasion. Each one brings its own music, its own "
-        "pacing, its own titles. Anniversary is warm strings. There is one for "
-        "award nights and company events.",
+        "Then I pick the occasion. Each one carries its own music, its own "
+        "pacing, its own titles, so an anniversary sounds nothing like an "
+        "award night.",
         live=True,
     ),
     Beat(
         "04-rolling",
         [shot("04-rolling.mp4")],
-        "A real model call through Genblaze. Five minutes per photo",
-        "Now the work. Each photo becomes a Genblaze pipeline step, and Genblaze "
-        "sends it to Kling on GMI Cloud. That is a real model "
-        "call, about five minutes a photo, so it runs as a background job the "
-        "page polls.",
+        "5 photos, about 6 minutes. All five calls run at once",
+        "The app tells you the wait up front, from the photo count. And here is "
+        "what changed: all five photos go through Genblaze to Kling on GMI "
+        "Cloud at once, not one behind another. This run packed twenty-five "
+        "minutes of model work into seven and a half minutes.",
         live=True,
     ),
     Beat(
-        "05-reel",
-        [shot("05-reel.mp4")],
+        "05-link",
+        [shot("05-link.mp4")],
+        "The job id is in the link. Reload, and the reel is still there",
+        "And you are not stuck on this page while it runs. The job id goes into "
+        "the link the moment the job is submitted, so I can reload the tab and "
+        "the reel is still here, still being made. That is what makes it "
+        "usable.",
+        live=True,
+    ),
+    Beat(
+        "06-reel",
+        [shot("06-reel.mp4")],
         "The reel plays. The people in it are model generated",
-        "And there it is. Two photographs, now moving, cut to the music. "
-        "Everyone you see was made by a model, so nobody real is in this demo.",
+        "And there it is. Five photographs, now moving, cut to the music the "
+        "occasion chose. Everyone you see was made by a model, so nobody real "
+        "appears in this demo.",
         live=True,
     ),
     Beat(
-        "06-verify",
-        [shot("06-verify.mp4")],
+        "07-verify",
+        [shot("07-verify.mp4")],
         "Press Verify. Your own browser recomputes the SHA-256",
-        "Here is the part that matters. The provenance panel lists every step, "
-        "the model, the prompt and a hash for every asset. I press Verify, and "
-        "the browser recomputes the SHA-256. All nine checks pass, and "
-        "you can run them yourself.",
+        "Here is the part that matters most. The provenance panel lists every "
+        "step, the model, the prompt, and a hash for every asset. I press "
+        "Verify, and my own browser recomputes the SHA-256 against the sealed "
+        "manifest. Every check passes, and you can run the same check "
+        "yourself.",
         live=True,
     ),
     Beat(
-        "07-honest",
+        "08-honest",
         [card("cinemory-04-b2-objects.png")],
         "Every artifact in B2, content addressed and indexed",
         "All of it lands in Backblaze B2. Every photo, every clip, the finished "
-        "reel and the sealed manifest, each stored under its own content hash, "
-        "and every clip names the photo it came from. Genblaze seals its own "
-        "provenance beside ours in the same bucket, and an append-only index "
-        "catalogues every object, so a bucket of files becomes a library you "
-        "can query.",
+        "reel and the sealed manifest, each under its own content hash. An "
+        "append-only index catalogues every object, and each job reports what "
+        "it burned, so a bucket becomes a library.",
     ),
     Beat(
-        "08-stack",
+        "09-stack",
         [card("cinemory-06-architecture.png")],
         "One core, three ports. Live adapters, offline fakes in CI",
         "This is built to last. One core, three ports, so the live Genblaze and "
         "B2 adapters swap for offline fakes and the whole pipeline runs in "
-        "tests with no credentials. Genblaze is contract tested against the "
-        "real SDK, so a change there breaks the build instead of the demo. More "
-        "than six hundred tests, and security scans on every push.",
+        "tests with no credentials. Six hundred tests, contract tested against "
+        "the real SDK, and security scans on every push.",
     ),
     Beat(
-        "09-close",
+        "10-close",
         [card("cinemory-03-live-health.png")],
         "Live now · open source · github.com/upgradedev/cinemory",
         "Every push to main deploys itself, and it only passes if the live "
-        "service reports the commit it just built. No screenshot required. And "
-        "when a model is down, Cinemory says so out loud instead of faking a "
-        "result. It began as one gift, for one anniversary. It is live now, it "
-        "is open source, and it is waiting for your photos.",
+        "service reports the commit it just built. When the model fails, "
+        "Cinemory names the reason in plain words instead of leaving "
+        "you watching a spinner. It began as one gift, for one anniversary. It "
+        "is live now, open source, and waiting for your photos.",
     ),
 ]
 

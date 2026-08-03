@@ -162,6 +162,12 @@ fi
 # (see src/cinemory/jobs.py) — by default Cloud Run only allocates CPU while a
 # request is in flight, which would starve that thread between polls. See
 # deploy/CLOUDRUN.md for the full async-job note.
+# --memory 2Gi: generation now runs the whole wave CONCURRENTLY
+# (MAX_CONCURRENT_GENERATIONS, see src/cinemory/pipeline.py), so a full 5-photo
+# reel holds five in-flight clips at once instead of one. At the old 512Mi that
+# OOM'd live on 2026-08-03 ("Memory limit of 512 MiB exceeded with 527 MiB
+# used") and the service was raised to 2Gi by hand; this line is what stops the
+# next deploy quietly putting the OOM back.
 gcloud run deploy "${SERVICE}" \
   --image "${IMAGE}" \
   --region "${REGION}" \
@@ -169,7 +175,7 @@ gcloud run deploy "${SERVICE}" \
   --allow-unauthenticated \
   --port 8000 \
   --timeout 600 \
-  --cpu 1 --memory 512Mi \
+  --cpu 1 --memory 2Gi \
   --no-cpu-throttling \
   --min-instances 0 --max-instances 4 \
   --set-env-vars "${ENV_VARS}" \
