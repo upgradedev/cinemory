@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { GenerateReel } from "./GenerateReel";
+import { GenerateReel, newReelName } from "./GenerateReel";
 import { useReelStore } from "@/store/useReelStore";
 import { REEL_JOB_POLL_INTERVAL_MS } from "@/lib/queries";
 import { ApiError, cinemoryApi, type Occasion, type ReelResponse } from "@/lib/api";
@@ -69,12 +69,25 @@ describe("<GenerateReel /> — synthetic (no photos) path", () => {
     // No photos selected → the synthetic /reels path with a derived shape.
     expect(createSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "cinemory-reel",
+        // Unique per run, never the old shared constant: sharing one name made
+        // GET /reels/{name} resolve a different run's reel, which broke the
+        // Provenance panel's re-fetch. See newReelName().
+        name: expect.stringMatching(/^cinemory-reel-[a-z0-9]+-[a-z0-9]+$/),
         occasion: "anniversary",
         chapters: 2,
         per_chapter: 1,
       }),
     );
+  });
+
+  it("names every reel uniquely so provenance re-fetch resolves the right one", () => {
+    const names = new Set(Array.from({ length: 200 }, () => newReelName()));
+    expect(names.size).toBe(200);
+    for (const n of names) {
+      expect(n).toMatch(/^cinemory-reel-[a-z0-9-]+$/);
+      // the backend sanitises this into an object key — keep it key-safe
+      expect(n).not.toMatch(/[^a-z0-9-]/);
+    }
   });
 });
 
