@@ -24,8 +24,8 @@
   the reel playing, Provenance verified 12/12. The narration covers all four
   judged criteria by the clock: utility **52.8s**, Genblaze **19.1s**,
   production readiness **59.1s**, Backblaze B2 **38.6s**.
-  `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
-  YouTube/Vimeo/Youku link; the repo mp4 alone does not satisfy that rule.
+  Hosted at **https://youtu.be/mqBw1hc8TxY**, which is what satisfies Devpost's
+  publicly-hosted YouTube/Vimeo/Youku rule; the repo mp4 alone does not.
 - **Deadline:** 2026-08-03 5:00pm EDT. Per the rules the app must stay freely
   testable through **2026-08-11 5:00pm EDT** — keep the Cloud Run service up
   through judging.
@@ -34,11 +34,11 @@
 
 ## Devpost form — field map (copy-paste)
 
-> **Draft filled 2026-07-21** — submission **1108702**
-> (https://devpost.com/software/cinemory), DRAFT with **3/5 steps done**.
-> Missing only the **Video demo link** (YouTube upload pending) and the
-> owner-only T&C acceptance + final **Submit**. Gallery/thumbnail assets are
-> rendered (7 PNG, 1200×800) and held outside the repo.
+> **SUBMITTED 2026-08-03** — submission **1108702**
+> (https://devpost.com/software/cinemory). The video demo link
+> (https://youtu.be/mqBw1hc8TxY), the gallery/thumbnail assets (7 PNG,
+> 1200×800, held outside the repo) and the T&C acceptance are all in. The
+> field map below is kept as the record of what went into the form.
 
 | Devpost field | Source |
 |---|---|
@@ -51,7 +51,7 @@
 | Genblaze usage + AI models | section "How Genblaze is used" + models table below |
 | Built with | python · fastapi · react · typescript · genblaze · backblaze-b2 · gmi-cloud · ffmpeg · cloud-run · firebase-hosting · firebase-auth |
 | Try it out links | repo + live app + mirror (top of this doc) |
-| Video URL | `TODO(owner): paste YouTube URL` |
+| Video URL | https://youtu.be/mqBw1hc8TxY |
 
 ---
 
@@ -327,22 +327,23 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:50) — ElevenLabs
   voice-over, guarded by an A/V-sync CI gate (the `demo-video` job) so audio,
   video and captions cannot drift out of sync.
-- **Devpost draft filled** — submission 1108702
-  (https://devpost.com/software/cinemory), DRAFT with 3/5 steps done; gallery
-  + thumbnail assets rendered (held outside the repo).
+- **Devpost SUBMITTED** — submission 1108702
+  (https://devpost.com/software/cinemory); gallery + thumbnail assets uploaded
+  (held outside the repo).
 - Docs, Dockerfile, `.env.example`, security scans all green.
 
 **The GMI-credits blocker is CLOSED (2026-07-22)** — the account was funded
 and real live generation is proven (see above). Nothing code-side remains.
 
-**Owner checklist — ONLY these three remain (in order):**
-1. **Upload the demo video to YouTube** (public or unlisted) and paste the URL
-   into the Devpost "Video demo link" field and this doc. Devpost requires a
-   publicly hosted YouTube/Vimeo/Youku link; the repo mp4 does not satisfy it.
-2. **Add the gallery images** (the 7 rendered 1200×800 PNGs, held outside the
-   repo) to the Devpost form.
-3. **Accept the T&C and Submit the project on Devpost** — the draft is already
-   filled (field map at the top of this doc). Deadline 2026-08-03 5:00pm EDT.
+**Owner checklist — all three are done (2026-08-03):**
+1. **The demo video is on YouTube** at https://youtu.be/mqBw1hc8TxY, and that
+   URL is in the Devpost "Video demo link" field and in this doc. Devpost
+   requires a publicly hosted YouTube/Vimeo/Youku link; the repo mp4 alone
+   does not satisfy it.
+2. **The gallery images are uploaded** (the 7 rendered 1200×800 PNGs, held
+   outside the repo).
+3. **The T&C are accepted and the project is submitted on Devpost**, inside the
+   2026-08-03 5:00pm EDT deadline.
 
 Housekeeping after this PR merges: one Cloud Run redeploy to pick up the P0
 fixes (1024×576 synth default, presign region/SigV4, `--timeout 600`), then

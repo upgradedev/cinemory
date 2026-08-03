@@ -1,5 +1,11 @@
 # Cinemory — your memories, made into film
 
+[![CI](https://github.com/upgradedev/cinemory/actions/workflows/ci.yml/badge.svg)](https://github.com/upgradedev/cinemory/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live app](https://img.shields.io/badge/live-Cloud%20Run-4285F4)](https://cinemory-595784992266.europe-west1.run.app)
+[![Demo video](https://img.shields.io/badge/demo-YouTube-FF0000)](https://youtu.be/mqBw1hc8TxY)
+[![Devpost](https://img.shields.io/badge/Devpost-submission-003E54)](https://devpost.com/software/cinemory)
+
 > Turn a set of photos into a scored, cinematic video reel — generated with
 > [Genblaze](https://github.com/backblaze-labs/genblaze), stored on
 > [Backblaze B2](https://www.backblaze.com/cloud-storage), and sealed with
@@ -26,7 +32,7 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:50, of
   which 95.9s — 56.5% — is live screen capture of this deployed app doing the
   real thing, shot as one unbroken five-photo run).
-  YouTube link: *TODO(owner): paste the URL after upload.*
+  Watch it on YouTube: **https://youtu.be/mqBw1hc8TxY**
 
 **Check that the live app really is this commit.** The image is stamped at
 build time, so you can confirm the deployment matches what you are reading

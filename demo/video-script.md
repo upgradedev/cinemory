@@ -204,7 +204,9 @@ ellipsis rather than a value that goes stale on the very next deploy. See
 why: committing a video that pins a commit hash changes the commit a redeploy
 stamps, so the drift cannot be fixed by recapturing.
 
-## The one remaining manual step
+## Where the video is published
 
-Upload `cinemory-demo.mp4` to YouTube (unlisted or public) and paste the URL into
-the Devpost submission and `demo/SUBMISSION.md`.
+`cinemory-demo.mp4` is on YouTube at **https://youtu.be/mqBw1hc8TxY**, and that
+URL is in the Devpost submission and in `demo/SUBMISSION.md`. Rebuilding the
+video does not update the published copy, so a rebuild that changes the cut
+needs a re-upload.

@@ -8,7 +8,23 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > were true on that date and are very likely superseded. If two entries
 > disagree, the higher one wins.
 
-## 2026-08-03: demo reshot against the shipped product (canonical)
+## 2026-08-03: video published, project SUBMITTED (canonical)
+
+> The demo video is on YouTube at **https://youtu.be/mqBw1hc8TxY** and Devpost
+> submission **1108702** (https://devpost.com/software/cinemory) is
+> **submitted**, not a draft: video link, gallery images and T&C are all in.
+> The owner checklists further down this file that still say "upload the video"
+> and "3/5 steps" are dated history and are closed by this entry. One of them
+> also calls the video 2:17, which was true of a cut two entries ago; the
+> shipped cut is 2:50, described in the entry below.
+>
+> `README.md` now carries a badge row (CI, MIT licence, live Cloud Run app,
+> YouTube demo, Devpost) directly under the title.
+>
+> Everything about the video's *content* is unchanged from the entry below,
+> which remains the description of the cut that shipped.
+
+## 2026-08-03: demo reshot against the shipped product
 
 > The cut below was accurate when it was made and had gone stale in a day. Four
 > things shipped after it and the video contradicted all of them: the photo cap
