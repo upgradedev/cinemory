@@ -25,6 +25,35 @@ const STAGES = [
   "Sealing cryptographic provenance",
 ];
 
+/**
+ * A unique name for each generated reel.
+ *
+ * This used to be the constant `"cinemory-reel"`, which quietly broke
+ * provenance for every guest. The reel name is the storage prefix AND the key
+ * `GET /reels/{name}` resolves by, so when every run shared one name that route
+ * returned whichever earlier run the index matched first, not the reel just
+ * made. The Provenance panel then re-fetched that stranger's manifest, compared
+ * it against the seal on screen and correctly reported
+ * "the re-fetched manifest ... does not match the manifest_hash on screen",
+ * while the server receipt reported "Tamper detected" for a perfectly valid
+ * reel. Verified live: a uniquely-named reel passes 8/8 checks, the shared name
+ * 10/11.
+ *
+ * Timestamp first so a listing sorts chronologically, then a per-tab counter so
+ * two reels started in the same millisecond cannot collide (a counter, not just
+ * randomness, so uniqueness is guaranteed rather than merely likely), then a
+ * short random suffix so two different tabs cannot collide either. Kept to
+ * `[a-z0-9-]` because the backend sanitises the name into an object key.
+ */
+let reelSeq = 0;
+
+export function newReelName(): string {
+  const stamp = Date.now().toString(36);
+  const seq = (reelSeq++).toString(36);
+  const rand = Math.random().toString(36).slice(2, 8) || "0";
+  return `cinemory-reel-${stamp}-${seq}${rand}`;
+}
+
 export function GenerateReel({
   onComplete,
 }: {
@@ -62,7 +91,7 @@ export function GenerateReel({
       setJobId(null);
       submitMutation.mutate(
         {
-          name: "cinemory-reel",
+          name: newReelName(),
           occasion: occasionKey ?? "anniversary",
           chapters: shape.chapters,
           files: photos.map((p) => p.file),
@@ -72,7 +101,7 @@ export function GenerateReel({
     } else {
       synthMutation.mutate(
         {
-          name: "cinemory-reel",
+          name: newReelName(),
           occasion: occasionKey ?? "anniversary",
           chapters: shape.chapters,
           per_chapter: shape.per_chapter,
