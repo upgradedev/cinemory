@@ -9,7 +9,7 @@
     "voice_id": "pNInz6obpgDQGcFmaJgB",
     "model_id": "eleven_multilingual_v2"
   },
-  "total_seconds": 126.133,
+  "total_seconds": 125.367,
   "beats": [
     {
       "index": 1,
@@ -20,8 +20,8 @@
       "caption": "Cinemory — memories, made into film",
       "narration": "Your memories, made into film. And sealed, so anyone can prove it's real. This is Cinemory. It began as an anniversary gift, turning a folder of photos into a short film you could actually keep.",
       "start": 0.0,
-      "end": 17.033,
-      "dur": 17.033
+      "end": 15.067,
+      "dur": 15.067
     },
     {
       "index": 2,
@@ -31,9 +31,9 @@
       ],
       "caption": "Easy to make. Hard to trust.",
       "narration": "Generative video like this is easy to make, and hard to trust. When an AI turns your photos into a highlight reel, three questions matter. Which model made it. From which photos. And can you prove that not one frame was changed?",
-      "start": 17.033,
-      "end": 32.433,
-      "dur": 15.4
+      "start": 15.067,
+      "end": 31.133,
+      "dur": 16.067
     },
     {
       "index": 3,
@@ -43,9 +43,9 @@
       ],
       "caption": "Photos in. A scored reel out. Provenance sealed.",
       "narration": "Cinemory answers all three. You give it photos, you pick an occasion, and it returns a scored, cinematic reel. Every clip is stored on Backblaze B2 at its own hash, and sealed with SHA-256 provenance, so the record of how it was made travels with the video.",
-      "start": 32.433,
-      "end": 51.5,
-      "dur": 19.067
+      "start": 31.133,
+      "end": 48.733,
+      "dur": 17.6
     },
     {
       "index": 4,
@@ -56,9 +56,9 @@
       ],
       "caption": "Four steps: photos, occasion, generate, play",
       "narration": "It runs in four steps. Add your photos, choose an occasion that sets the music and the pacing, hit generate, and the reel plays. Real clips, animated from each photo, bridged and graded into one film.",
-      "start": 51.5,
-      "end": 65.333,
-      "dur": 13.833
+      "start": 48.733,
+      "end": 64.467,
+      "dur": 15.733
     },
     {
       "index": 5,
@@ -68,9 +68,9 @@
       ],
       "caption": "Press Verify — the seal recomputes to Verified",
       "narration": "Then open the Provenance panel. It shows the model, the prompt, and a hash for every step. Press Verify, and your browser recomputes the SHA-256 itself. The seal flips to Verified.",
-      "start": 65.333,
-      "end": 78.633,
-      "dur": 13.3
+      "start": 64.467,
+      "end": 77.4,
+      "dur": 12.933
     },
     {
       "index": 6,
@@ -80,9 +80,9 @@
       ],
       "caption": "Every clip cites its source photo, by hash",
       "narration": "Two things keep it honest. Every clip cites the exact source photo it came from, by hash. Change a single byte, and the seal breaks. And when a live model is down, Cinemory degrades in the open, records the provider it actually used, and never fakes a result.",
-      "start": 78.633,
-      "end": 97.467,
-      "dur": 18.833
+      "start": 77.4,
+      "end": 96.367,
+      "dur": 18.967
     },
     {
       "index": 7,
@@ -92,9 +92,9 @@
       ],
       "caption": "One core, three ports. Live adapters, offline fakes.",
       "narration": "The design is one clean core with three ports. Genblaze drives Kling and seedance through GMI Cloud. Backblaze B2 holds every artifact behind a queryable index. FastAPI and React run on Cloud Run. And offline fakes run the whole pipeline in tests, with no credentials.",
-      "start": 97.467,
-      "end": 118.067,
-      "dur": 20.6
+      "start": 96.367,
+      "end": 117.4,
+      "dur": 21.033
     },
     {
       "index": 8,
@@ -104,9 +104,9 @@
       ],
       "caption": "Live now · open source · github.com/upgradedev/cinemory",
       "narration": "It's live on Cloud Run, mirrored on Firebase, and fully open source. Cinemory. Memories, made into film, that you can trust.",
-      "start": 118.067,
-      "end": 126.133,
-      "dur": 8.067
+      "start": 117.4,
+      "end": 125.367,
+      "dur": 7.967
     }
   ]
 }
