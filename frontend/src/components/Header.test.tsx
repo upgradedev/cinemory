@@ -34,11 +34,15 @@ describe("<Header />", () => {
     expect(screen.getByLabelText(/cinemory home/i)).toBeInTheDocument();
   });
 
-  it("shows an offline badge when the backend is unreachable", async () => {
+  it("shows a plain-language offline badge when the backend is unreachable", async () => {
     vi.spyOn(cinemoryApi, "health").mockRejectedValue(new Error("down"));
     renderHeader();
     await waitFor(() =>
-      expect(screen.getByText(/API offline/i)).toBeInTheDocument(),
+      expect(screen.getByText(/^Offline$/i)).toBeInTheDocument(),
     );
+    // The visible text must never say "API": a normal visitor has no model
+    // of what that means (see e2e/plain-language.spec.ts, which caught this
+    // exact string live before this fix).
+    expect(screen.queryByText(/API/i)).not.toBeInTheDocument();
   });
 });
