@@ -15,8 +15,11 @@
   serves the identical app. `cinemory.ai` is **not yet mapped** — pending DNS;
   use the run.app URL.)*
 - **Demo video:** recorded + committed —
-  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:05, inside Devpost's 3-min
-  cap; ElevenLabs voice-over, A/V-sync-gated in CI via the `demo-video` job).
+  [`demo/cinemory-demo.mp4`](cinemory-demo.mp4) (2:03, inside Devpost's 3-min
+  cap; ElevenLabs voice-over, no music, A/V-sync-gated in CI via the
+  `demo-video` job). Five of its nine beats are **live screen capture of the
+  deployed app** (~70s, 57% of the runtime): photos in, occasion picked, the
+  real Kling job polled, the reel playing, Provenance verified 9/9.
   `TODO(owner): paste YouTube URL` — Devpost requires a publicly hosted
   YouTube/Vimeo/Youku link; the repo mp4 alone does not satisfy that rule.
 - **Deadline:** 2026-08-03 5:00pm EDT. Per the rules the app must stay freely
@@ -317,7 +320,7 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges
 - Readiness gate: automatable **100.0% (17/17) PASS**; full **85.6%** (3
   user-gated live items, of which two — live redeploy, live B2 objects — are
   now factually done; see above).
-- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:05) — ElevenLabs
+- Demo video recorded + committed (`demo/cinemory-demo.mp4`, 2:03) — ElevenLabs
   voice-over, guarded by an A/V-sync CI gate (the `demo-video` job) so audio,
   video and captions cannot drift out of sync.
 - **Devpost draft filled** — submission 1108702

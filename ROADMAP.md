@@ -8,7 +8,10 @@ reel. The hackathon-judged core is deliberately **offline and PII-safe**: the
 default demo and all of CI run on **synthetic** photos ([`synthetic.py`](src/cinemory/synthetic.py))
 with zero credentials. Everything below layers *opt-in, consent-gated* reach on
 top of that core — never in CI, never in the default demo, no real photos or
-keys ever committed.
+keys ever committed. (The one set of image files in the repo,
+[`sample-data/anniversary/`](sample-data/README.md), is the demo video's input:
+AI-generated scenes with fictional, model-generated people. CI does not touch
+them.)
 
 ---
 
