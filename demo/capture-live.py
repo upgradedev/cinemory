@@ -46,13 +46,16 @@ UPLOAD = ["03-the-toast.jpg", "06-end-of-the-night.jpg"]
 #: headroom, rounded up. Checked at the end of the take so a too-quick capture
 #: fails HERE, loudly, instead of quietly becoming a frozen frame in the
 #: finished video. Re-derive these whenever a narration line changes length.
+#: Re-derived 2026-08-03 for the rewritten narration: each floor moved by
+#: exactly the change in its beat's measured length, so the per-phase margin
+#: baked in when these were first set is preserved.
 PHASE_FLOOR: list[tuple[str, str, str, float]] = [
-    ("02-photos", "landing", "step2_open", 13.7),
-    ("03-occasion", "step2_open", "generate_clicked", 12.9),
-    ("04-rolling", "generate_clicked", "reel_ready", 16.7),
-    ("05-reel", "reel_playing", "reel_played", 10.4),
+    ("02-photos", "landing", "step2_open", 14.1),
+    ("03-occasion", "step2_open", "generate_clicked", 13.8),
+    ("04-rolling", "generate_clicked", "reel_ready", 18.2),
+    ("05-reel", "reel_playing", "reel_played", 10.5),
     # +2.3s because cut-footage.py starts this cut late (see its CUTS table).
-    ("06-verify", "provenance_open", "verified_read", 21.4),
+    ("06-verify", "provenance_open", "verified_read", 19.6),
 ]
 
 # Capture at the FINAL delivery resolution with a 2x device pixel ratio: the CSS

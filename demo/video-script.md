@@ -1,15 +1,43 @@
 # Cinemory — demo video
 
-`cinemory-demo.mp4` is a **2:04** (124.43s) narrated walkthrough of the current
+`cinemory-demo.mp4` is a **2:30** (149.93s) narrated walkthrough of the current
 app, and the spine of it is **real screen footage of the deployed product
-actually working**: 69.7s of the runtime, 57%, is live capture. It is built
+actually working**: 69.0s of the runtime is live capture. It is built
 beat-by-beat so the picture and the voice can never drift apart, and a CI gate
 (`scripts/check_video.py`) fails the build if they do.
 
-- **Voice:** ElevenLabs, voice `pNInz6obpgDQGcFmaJgB`, model `eleven_multilingual_v2`
-  (the same clear, professional voice our other project demos use). Narration
-  only. **No music**, deliberately: an unlicensed track is a copyright problem
-  we are not going to hand a judge.
+- **Voice:** ElevenLabs, voice `XrExE9yKIg1WjnnlVkGX`, model `eleven_multilingual_v2`.
+  Narration only. **No music**, deliberately: an unlicensed track is a copyright
+  problem we are not going to hand a judge.
+- **Why that voice.** The first cut used `pNInz6obpgDQGcFmaJgB` and sounded, in
+  its owner's word, "military": clipped and flat, which is the wrong register
+  for a memory film. `demo/pick-voice.py` settles the swap with numbers instead
+  of adjectives: it reads the shipped beat-01 line in eight stock voices, at
+  `build-video.py`'s own voice settings, and measures pace, articulation rate,
+  pause share, longest pause, intonation spread and timbre.
+
+  | voice | spread st | sd | wpm | pause% | longest | timbre Hz |
+  |---|---|---|---|---|---|---|
+  | Alice | 13.20 | 4.72 | 178.5 | 25.2% | 0.58s | 2436 |
+  | **Matilda (now)** | **12.12** | 4.29 | 187.4 | **31.9%** | **0.90s** | 2404 |
+  | Lily | 11.99 | 4.48 | 188.8 | 21.4% | 0.46s | 2485 |
+  | Rachel | 11.16 | 4.10 | 193.3 | 26.1% | 0.48s | 2949 |
+  | Brian | 8.84 | 3.82 | 191.0 | 23.3% | 0.86s | 2384 |
+  | **Adam (was)** | **8.74** | 3.75 | 188.1 | 27.4% | 0.88s | **1934** |
+  | Will | 7.65 | 3.71 | 191.0 | 19.3% | 0.86s | 2197 |
+  | George | 6.98 | 3.01 | 190.3 | 26.7% | 0.88s | 1915 |
+
+  The old voice has the **darkest, warmest timbre in the set**, so timbre was
+  never the problem. Its intonation range is 8.74 semitones, sixth of eight,
+  against 12.12 for the one now used: about 40% less pitch movement, which over
+  short declarative sentences is what "military" means. The new default also
+  pauses the most (31.9% of the line, longest single pause 0.90s). Alice is the
+  closest runner-up and is one environment variable away. Two honest caveats:
+  ranks near a tie move between runs because each synthesis is a fresh sample,
+  and these are acoustic proxies, not taste. Run `python demo/pick-voice.py` and
+  listen to the mp3s it writes under `demo/.voice-probe/` before you disagree,
+  then set `ELEVENLABS_VOICE_ID` and rebuild: the TTS cache is keyed on
+  (text, voice, model), so a voice change re-bills only what changed.
 - **Picture:** five of the nine beats are live screen capture of
   https://cinemory-595784992266.europe-west1.run.app doing the real thing.
   The rest are the finished gallery cards, used only where evidence has to be
@@ -20,20 +48,34 @@ beat-by-beat so the picture and the voice can never drift apart, and a CI gate
 
 ## Beats
 
-| # | Beat | Picture | The line, in short |
-|---|------|---------|--------------------|
-| 1 | Hook | thumbnail card | Your memories, made into film, and sealed so anyone can prove it is real. |
-| 2 | Photos in | **live footage** | The live app on Cloud Run; two AI-generated anniversary photos added; the order becomes the edit. |
-| 3 | Occasion | **live footage** | Each occasion carries its own score, pacing and titles; Anniversary is picked and generate is pressed. |
-| 4 | The live job | **live footage** | Each photo goes to Kling on GMI Cloud via Genblaze; a real model call, about five minutes a photo, polled in the background. |
-| 5 | The reel plays | **live footage** | The generated reel plays, stitched from the two uploaded photos. |
-| 6 | Provenance + Verify | **live footage** | The panel lists model, prompt and per-asset hashes; Verify recomputes the SHA-256 in the browser and the seal reads Verified. |
-| 7 | What keeps it honest | B2 objects card | Every artifact sits in B2 at its own content hash; each clip cites its source photo; change a byte and the seal breaks. |
-| 8 | The stack | architecture card | One core, three ports: Genblaze (Kling/seedance via GMI Cloud), Backblaze B2, FastAPI + React on Cloud Run, offline fakes in CI. |
-| 9 | Close | live-health card | Live, open source, and it degrades in the open rather than faking a result. |
+| # | Beat | Picture | Length | The line, in short | Judging criterion |
+|---|------|---------|--------|--------------------|-------------------|
+| 1 | Hook | thumbnail card | 12.6s | The evening you wish you could keep, handed back as a short film with proof of where every frame came from. | Utility |
+| 2 | Photos in | **live footage** | 13.3s | The real app on Cloud Run; two anniversary photos dropped in; no account, no watermark; the photos go to a private Backblaze bucket. | Utility · B2 |
+| 3 | Occasion | **live footage** | 12.2s | Each occasion brings its own music, pacing and titles, including one for award nights and company events. | Utility |
+| 4 | The live job | **live footage** | 15.7s | Each photo becomes a Genblaze pipeline step and goes to Kling on GMI Cloud; a real model call, about five minutes a photo, run as a background job the page polls. | Genblaze · production readiness |
+| 5 | The reel plays | **live footage** | 9.7s | Two photographs, now moving, cut to the music; everyone in them is model generated. | Utility |
+| 6 | Provenance + Verify | **live footage** | 18.1s | The panel lists every step, model, prompt and per-asset hash; Verify recomputes the SHA-256 in the browser; all nine checks pass and you can run them yourself. | Production readiness |
+| 7 | Storage + seal | B2 objects card | 23.4s | Everything lands in B2 at its own content hash, every clip names the photo it came from, Genblaze seals its own provenance beside ours, and an append-only index makes the bucket queryable. | B2 · Genblaze |
+| 8 | The stack | architecture card | 23.0s | One core, three ports, offline fakes with no credentials, Genblaze contract tested against the real SDK, 600+ tests and security scans on every push. | Production readiness · Genblaze |
+| 9 | Close | live-health card | 21.8s | Every push to main deploys itself and only passes if the live service reports that commit; a model outage is said out loud, not faked. | Production readiness · Utility |
 
 The exact spoken text for every beat lives in `cinemory-demo.beats.json` and
 `cinemory-demo.en.srt`.
+
+**Criterion coverage**, allocating each beat's seconds across the sentences in
+it: real-world utility **47.7s**, production readiness **54.1s**, Backblaze B2
+**24.1s**, Genblaze **24.0s**. Every one of the four judged criteria gets its
+own minute-fraction rather than a passing mention.
+
+**On the balance of picture.** Live footage is 69.0s of the 149.93s runtime.
+That is more live-app seconds than the previous cut (67.9s) but a smaller
+share of it (46% vs 55%), because the added narration went onto the three
+evidence cards at the end, where B2, the architecture and the live `/health`
+have to be legible and held still. The five footage beats are unchanged clips
+and every one of them is still **shorter than its source clip** (slack 0.30s to
+0.87s), so no beat freezes on a cloned frame and the capture self-check
+invariant below still holds.
 
 ## The live footage
 
@@ -100,6 +142,7 @@ Footage beats get no synthetic move at all: their motion is the product moving.
 pip install pillow                  # plus ffmpeg/ffprobe on PATH
 export ELEVENLABS_API_KEY=...        # required; the build STOPS if it is missing
 
+python demo/pick-voice.py            # optional: compare narration voices by measurement
 python demo/capture-live.py          # -> demo/.capture/journey.webm (+ marks)
 python demo/cut-footage.py           # -> demo/video-assets/footage/*.mp4
 python demo/build-video.py           # -> demo/cinemory-demo.mp4 (+ .en.srt + .beats.json)
@@ -108,7 +151,10 @@ python demo/build-video.py           # -> demo/cinemory-demo.mp4 (+ .en.srt + .b
 Per-beat narration is cached by a hash of (text + voice + model), so tuning one
 line never re-synthesizes or re-bills the others. Editing `BEATS` in
 `build-video.py` regenerates the video and both sidecars together. Re-running
-`cut-footage.py` after a narration edit re-cuts the clips to the new lengths.
+`cut-footage.py` after a narration edit re-cuts the clips to the new lengths;
+it is only needed when a beat's narration grows **past** its clip, and the
+cheap way to check is a dry run of the audio pass, which prints every beat's
+measured length before a frame is rendered.
 
 ## The sync gate (CI)
 
