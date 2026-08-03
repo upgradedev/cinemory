@@ -8,7 +8,63 @@ _Last updated: 2026-08-03. Deadline: 2026-08-03 5:00pm EDT. $10k. Greece-eligibl
 > were true on that date and are very likely superseded. If two entries
 > disagree, the higher one wins.
 
-## 2026-08-03: health card no longer pins a build commit; plain-language e2e guard added (canonical)
+## 2026-08-03: demo video rebuilt around live screen capture; unique reel names (canonical)
+
+> The previous cut was a slide deck: eight still images with a Ken Burns move,
+> **not one second of the product running**. Two of those eight beats (32 of
+> 125 seconds, a quarter of the runtime) were `frame-clip1-kling.png` and
+> `frame-clip4-kling.png` — genuine Kling output, but generated from
+> `synthetic.py`'s abstract colour gradients, so Kling faithfully animated
+> nothing and a viewer saw an empty screen with a caption over it.
+>
+> **The video is now 2:03 (122.97s), and 69.7s of it (57%) is live screen
+> capture of the deployed app.** Five of the nine beats are cut from ONE
+> unbroken take against https://cinemory-...run.app at the commit `/health`
+> was reporting: photos in, occasion picked, the real job submitted and
+> polled, the reel playing, the Provenance panel opened and Verify pressed.
+> The cards survive only as punctuation, where evidence has to be legible and
+> held still (B2 objects, architecture, live `/health`). `demo/capture-live.py`
+> records the take (system Chrome, no browser download), `demo/cut-footage.py`
+> cuts the per-beat clips, and the capture self-checks that every phase
+> supplies at least as many seconds as its narration needs, so a too-quick
+> take fails loudly instead of becoming a frozen frame.
+>
+> **The inputs are real scenes now.** `sample-data/anniversary/` holds six
+> AI-generated photos of an anniversary gathering, made through Cinemory's own
+> adapter (`GenblazeMediaProvider.generate(modality=IMAGE,
+> model="seedream-5.0-lite")`). The people are fictional and model-generated;
+> see `sample-data/README.md` for the safety and licence position. Two of the
+> six are uploaded in the take, because one live Kling call measured **~314s**
+> and the frontend's poll ceiling is 12 minutes, so two photos (~10.5 min) is
+> the most the product can be shown doing for real in one continuous take.
+>
+> **Found while shooting: provenance was broken in production for every
+> guest.** The frontend named every reel `"cinemory-reel"`, but the reel name
+> is the storage prefix AND the key `GET /reels/{name}` resolves by, so that
+> route returned an earlier run's reel. The Provenance panel re-fetched a
+> stranger's manifest and reported "the re-fetched manifest ... does not match
+> the manifest_hash on screen", and the server receipt said **"10/11 checks
+> passed. Tamper detected."** on a valid reel. Fixed in #48 (`newReelName()`:
+> timestamp + per-tab counter + random suffix). Measured live, before: unique
+> name 8/8, shared name 10/11. After, on camera in the video: **9/9 checks
+> passed, All verified.**
+>
+> **The tremble is gone, measured not eyeballed.** `zoompan` steps its crop
+> origin in whole pixels of its *input*, so at the old `scale=W*2:H*2` the
+> picture sat still for three or four frames and then lurched ~0.9px, about
+> eight times a second. `SUPERSAMPLE` is now 8, and `demo/measure-motion.py`
+> (new) phase-correlates consecutive frames to prove it. On the SHIPPED
+> artifacts, old vs new: hook beat JERK **0.5015 -> 0.0391** (12.8x), stack
+> card **0.4509 -> 0.0542** (8.3x); largest single-frame jump **0.91px ->
+> 0.12px**. The old series reads `0.000 0.000 0.000 0.895` (the lurch); the
+> new one never exceeds 0.12. Footage beats get no synthetic move at all.
+>
+> Narration was rewritten to match the new picture, still ElevenLabs, still
+> **no music**. `scripts/check_video.py` passes unchanged (9 beats, 9 cues,
+> 122.97s, under the 180s cap, single AAC track). The three unused gradient
+> frames were deleted from `video-assets/`.
+
+## 2026-08-03: health card no longer pins a build commit; plain-language e2e guard added
 
 > The previous entry below (same day) replaced two cards that showed a stale
 > `"provider": "fake-genblaze"`. One of its replacements,

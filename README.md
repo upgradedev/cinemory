@@ -23,7 +23,8 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
   h264 720p reel on B2, including a real generation on the live box's upload
   path — see `demo/STATE.md` + `deploy/DEPLOYED.md`.
 - **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
-- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:05).
+- **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:03, of
+  which ~70s is live screen capture of this deployed app doing the real thing).
   YouTube link: *TODO(owner): paste the URL after upload.*
 
 **Check that the live app really is this commit.** The image is stamped at
@@ -482,11 +483,19 @@ See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 This is a hard rule of the project:
 
-- The only input source is [`synthetic.py`](src/cinemory/synthetic.py) —
-  deterministic, programmatically drawn images.
+- Every demo input is machine-generated. Two sources, both non-real:
+  [`synthetic.py`](src/cinemory/synthetic.py) (deterministic, programmatically
+  drawn images — the default everywhere, including the tests and the app's
+  *"Try with sample photos"* button), and
+  [`sample-data/anniversary/`](sample-data/) (six AI-generated scene photos used
+  as the demo video's input, made through Cinemory's own provider adapter; the
+  people in them are **fictional and model-generated**, and none depicts or is
+  meant to resemble a specific real individual). See
+  [`sample-data/README.md`](sample-data/README.md).
 - No real personal media is read, generated, or committed. The private
   anniversary content that inspired Cinemory is **not** in this repo.
-- `.gitignore` blocks common photo formats, a `private/` directory, and `.env`.
+- `.gitignore` blocks common photo formats, a `private/` directory, and `.env`,
+  with a single deliberate exception for `sample-data/anniversary/*.jpg` above.
 - CI runs a gitleaks secret scan on every push/PR.
 - **Deploys carry no stored credential.** Once CI is green on `main`,
   `deploy-cloudrun.yml` builds and deploys the backend, then polls the live

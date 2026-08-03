@@ -41,6 +41,11 @@ sample-data/generated/
 # Keep the committed demo video + its build work dir stays ignored
 !demo/cinemory-demo.mp4
 demo/.video-build/
+# Keep the committed screen capture of the live app that the demo video is cut
+# from (demo/capture-live.py writes the raw take to demo/.capture/, which stays
+# ignored; only the trimmed per-beat clips are committed).
+!demo/video-assets/footage/*.mp4
+demo/.capture*/
 
 # Firebase Hosting deploy cache
 .firebase/
@@ -54,9 +59,14 @@ readiness.json
 .vscode/
 
 # PII SAFETY: never commit real personal media or the private cinemory content
-# The public repo uses SYNTHETIC demo memories only (see src/cinemory/synthetic.py).
+# The public repo uses GENERATED demo memories only (see src/cinemory/synthetic.py
+# and sample-data/README.md).
 *.jpg
 *.jpeg
 *.heic
 private/
 real-memories/
+# The one deliberate exception: the committed AI-generated anniversary scene
+# photos used as the demo video's input. Fictional, model-generated people; no
+# real person's photograph. See sample-data/README.md.
+!sample-data/anniversary/*.jpg
