@@ -122,6 +122,56 @@ def _reel_response(result: ReelResult) -> dict:
     }
 
 
+#: Coarse, visitor-safe categories for WHY a live generation had to fall back,
+#: each with the lowercased needles that identify it. Ordered: the FIRST match
+#: wins, so the most specific and most actionable causes are listed first.
+#:
+#: These are matched against the exception's class name and text, which is a
+#: heuristic and is meant to be one — the exact wording a remote generation
+#: backend uses is not ours to control, and no amount of exception-type
+#: matching would survive it changing. Getting a category wrong costs one
+#: slightly-too-general sentence on screen; the operator's log line below
+#: always carries the real thing either way.
+_DEGRADE_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    # Billing. Listed first because it is the one an operator can FIX, and the
+    # one that made this classification necessary: a "(402): Insufficient
+    # credits" that reached a visitor as "taking longer than expected".
+    ("credit", ("402", "insufficient credit", "insufficient balance", "insufficient funds",
+                "out of credit", "payment required", "quota", "billing")),
+    ("busy", ("429", "rate limit", "ratelimit", "too many requests", "overloaded",
+              "at capacity")),
+    ("timeout", ("timeout", "timedout", "timed out", "deadline exceeded", "504", "408")),
+    ("unavailable", ("500", "502", "503", "connectionerror", "connection refused",
+                     "connection reset", "unreachable", "temporarily unavailable",
+                     "name resolution", "dns")),
+    ("refused", ("401", "403", "400", "422", "unauthorized", "unauthorised", "forbidden",
+                 "invalid request", "bad request")),
+)
+
+
+def _degrade_kind(exc: BaseException) -> str:
+    """Classify a live-provider failure into ONE coarse, visitor-safe category.
+
+    The category is the ONLY thing about the failure that crosses the wire.
+    Everything the exception actually said — which can embed upstream URLs,
+    request identifiers, account details, or a raw provider response body —
+    stays in this process's log, where an operator can find it and a browser
+    cannot. That split is the whole point: before it existed, a visitor whose
+    reel silently fell back learned nothing, and the owner had to read Cloud
+    Logging to discover the account had run out of credit.
+
+    Returns ``"unknown"`` when nothing matches, which the UI renders as the
+    honest general sentence rather than a blank (see ``frontend/src/lib/
+    degrade.ts``) — an unclassified failure is still a complete explanation of
+    what the visitor is looking at.
+    """
+    haystack = f"{type(exc).__name__} {exc}".lower()
+    for kind, needles in _DEGRADE_PATTERNS:
+        if any(needle in haystack for needle in needles):
+            return kind
+    return "unknown"
+
+
 def _run_reel(spec: ReelSpec, pipeline: ReelPipeline | None = None) -> dict:
     """Run the pipeline; degrade THIS request honestly if the live provider fails.
 
@@ -150,11 +200,17 @@ def _run_reel(spec: ReelSpec, pipeline: ReelPipeline | None = None) -> dict:
     except Exception as exc:
         if isinstance(pipeline.provider, FakeMediaProvider):
             raise
+        kind = _degrade_kind(exc)
+        # The operator's copy of the truth: full traceback, full exception text,
+        # plus the category the browser was told — so a report of "it said the
+        # credit ran out" is greppable straight back to the real upstream
+        # failure that produced it.
         _log.exception(
-            "live media provider %r failed for reel %r; regenerating this "
-            "request with the offline provider (storage unchanged)",
+            "live media provider %r failed for reel %r (degrade_kind=%s); regenerating "
+            "this request with the offline provider (storage unchanged)",
             pipeline.provider.name,
             spec.name,
+            kind,
         )
         # The offline provider's deterministic clips are not decodable video,
         # so the regeneration pairs it with the offline stitcher (a real
@@ -167,6 +223,9 @@ def _run_reel(spec: ReelSpec, pipeline: ReelPipeline | None = None) -> dict:
         # Class name only — exception text may embed URLs/identifiers that do
         # not belong in an API response; the full traceback is in the log.
         body["degrade_reason"] = type(exc).__name__
+        # The plain-language category (never the message itself). The UI maps
+        # it to a sentence; nothing here is provider-identifying.
+        body["degrade_kind"] = kind
         return body
 
 

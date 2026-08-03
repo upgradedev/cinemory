@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PhotoUpload } from "./PhotoUpload";
 import { useReelStore } from "@/store/useReelStore";
+import { MAX_REEL_PHOTOS } from "@/lib/reel-budget";
 import { generateSamplePhotos } from "@/lib/sample-photos";
 
 // The generator itself is covered in lib/sample-photos.test.ts; here we mock
@@ -47,12 +48,14 @@ describe("<PhotoUpload /> — sample photos fast path", () => {
     );
 
     expect(generateSamplePhotos).toHaveBeenCalledTimes(1);
-    expect(useReelStore.getState().photos).toHaveLength(5);
+    expect(useReelStore.getState().photos).toHaveLength(MAX_REEL_PHOTOS);
     // Thumbnails render with descriptive alt text, NOT the raw filename.
     expect(await screen.findByAltText("Sample scene 1 description")).toBeInTheDocument();
     expect(screen.queryByAltText("cinemory-sample-1.png")).not.toBeInTheDocument();
     expect(
-      screen.getByText((_, el) => el?.textContent === "5 photos · drag to reorder"),
+      screen.getByText(
+        (_, el) => el?.textContent === `${MAX_REEL_PHOTOS} photos · drag to reorder`,
+      ),
     ).toBeInTheDocument();
     // The step CTA is now enabled and its blocker hint is gone.
     expect(
@@ -110,5 +113,42 @@ describe("<PhotoUpload /> — disabled-CTA guidance", () => {
     expect(cta).toBeDisabled();
     const hint = screen.getByText(/add at least 1 photo to continue/i);
     expect(cta).toHaveAttribute("aria-describedby", hint.id);
+  });
+});
+
+describe("<PhotoUpload /> — the photo cap, said out loud", () => {
+  it("states the cap and that it belongs to the demo, not the product", () => {
+    render(<PhotoUpload />);
+    expect(
+      screen.getByText(new RegExp(`up to ${MAX_REEL_PHOTOS} photos per reel here`, "i")),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/limit of this demo, not of the reel maker/i),
+    ).toBeInTheDocument();
+  });
+
+  it("tells the visitor when a bigger selection was shortened, and announces it", async () => {
+    render(<PhotoUpload />);
+    const input = screen.getByLabelText(/choose photos/i);
+    await userEvent.upload(
+      input,
+      Array.from({ length: MAX_REEL_PHOTOS + 2 }, (_, i) =>
+        new File([new Uint8Array([1, 2, 3])], `p${i}.png`, { type: "image/png" }),
+      ),
+    );
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent(/2 of the photos you picked were left out/i);
+    expect(useReelStore.getState().photos).toHaveLength(MAX_REEL_PHOTOS);
+  });
+
+  it("shows no such notice when the selection fits", async () => {
+    render(<PhotoUpload />);
+    await userEvent.upload(
+      screen.getByLabelText(/choose photos/i),
+      new File([new Uint8Array([1, 2, 3])], "one.png", { type: "image/png" }),
+    );
+    expect(await screen.findByAltText("one.png")).toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

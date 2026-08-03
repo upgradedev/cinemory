@@ -75,6 +75,12 @@ export const ReelResponseSchema = z.object({
   provider: z.string().optional(),
   provider_degraded: z.boolean().optional(),
   degrade_reason: z.string().optional(),
+  // A coarse, visitor-safe CATEGORY for why the live provider could not be
+  // used (see cinemory.api._degrade_kind and lib/degrade.ts). Deliberately
+  // separate from `degrade_reason`, which is an exception class name and is
+  // never rendered. Optional so a response from an older backend still parses
+  // and simply reads as the general "was unavailable" case.
+  degrade_kind: z.string().optional(),
 });
 export type ReelResponse = z.infer<typeof ReelResponseSchema>;
 

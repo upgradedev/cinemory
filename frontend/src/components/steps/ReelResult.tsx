@@ -8,11 +8,9 @@ import { ShareBar } from "../ShareBar";
 import { useOccasions } from "@/lib/queries";
 import { useReelStore } from "@/store/useReelStore";
 import { occasionTheme } from "@/lib/occasion-theme";
+import { degradeNote } from "@/lib/degrade";
 import { reelPlaybackUrl } from "@/lib/utils";
 import type { ReelResponse } from "@/lib/api";
-
-const DEGRADE_NOTE =
-  "Live AI generation was unavailable for this run; storage and provenance are real.";
 
 export function ReelResult({ reel }: { reel: ReelResponse }) {
   const photos = useReelStore((s) => s.photos);
@@ -23,6 +21,11 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
   const theme = occasionTheme(reel.occasion ?? "");
   const playbackUrl = reelPlaybackUrl(reel);
   const degraded = reel.provider_degraded === true;
+  // Not a fixed line any more: the backend classifies WHY the live model could
+  // not be used and this says so in plain words (see lib/degrade.ts). Someone
+  // whose reel fell back because the credit ran out should not have to read a
+  // server log to learn that, which is exactly what happened before.
+  const note = degradeNote(reel.degrade_kind);
 
   return (
     <div className="animate-fade-up">
@@ -75,7 +78,7 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
                     <Badge
                       variant="neutral"
                       className="border-amber-400/30 bg-ink-950/70 text-amber-200 backdrop-blur-sm"
-                      title={DEGRADE_NOTE}
+                      title={note}
                     >
                       <Clapperboard className="h-3.5 w-3.5" />
                       Rendered on the built-in offline generator
@@ -100,7 +103,7 @@ export function ReelResult({ reel }: { reel: ReelResponse }) {
             )}
           </div>
           {degraded && (
-            <p className="mt-2 text-xs text-zinc-400">{DEGRADE_NOTE}</p>
+            <p className="mt-2 text-xs text-zinc-400">{note}</p>
           )}
 
           <div className="mt-6">

@@ -5,12 +5,14 @@ import { StepHeading } from "./PhotoUpload";
 import { useOccasions } from "@/lib/queries";
 import { useReelStore } from "@/store/useReelStore";
 import { occasionTheme } from "@/lib/occasion-theme";
+import { estimateSentence } from "@/lib/reel-budget";
 import { cn } from "@/lib/utils";
 import type { Occasion } from "@/lib/api";
 
 export function OccasionPicker() {
   const { data: occasions, isLoading, isError, refetch } = useOccasions();
   const occasionKey = useReelStore((s) => s.occasionKey);
+  const photos = useReelStore((s) => s.photos);
   const setOccasion = useReelStore((s) => s.setOccasion);
   const goTo = useReelStore((s) => s.goTo);
 
@@ -82,13 +84,22 @@ export function OccasionPicker() {
             Generate my reel
             <ArrowRight className="h-5 w-5" />
           </Button>
-          {!occasionKey && (
+          {!occasionKey ? (
             <p
               id="occasion-cta-hint"
               className="text-center text-xs text-zinc-400 sm:text-right"
             >
               Pick an occasion to continue
             </p>
+          ) : (
+            // The wait, said BEFORE it starts, on the last screen where
+            // someone can still change their mind. Worked out from the photo
+            // count (see lib/reel-budget.ts), never a fixed phrase.
+            photos.length > 0 && (
+              <p className="text-center text-xs text-zinc-400 sm:text-right">
+                {estimateSentence(photos.length)}
+              </p>
+            )
           )}
         </div>
       </div>

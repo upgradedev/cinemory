@@ -292,6 +292,31 @@ describe("usePollReelJob", () => {
     expect(result.current.isPolling).toBe(false);
   });
 
+  it("treats a 404 as a final answer, not a hiccup to retry", async () => {
+    // An unknown or expired reel id 404s. Spending the whole transient-error
+    // budget on it would make someone who opened a stale link wait ~16 more
+    // seconds to be told the same thing.
+    vi.useFakeTimers();
+    const getJob = vi
+      .spyOn(cinemoryApi, "getReelJob")
+      .mockRejectedValue(new ApiError("Request to /reels/jobs/x failed (404).", 404));
+
+    const { result } = renderHook(() => usePollReelJob("job-1"), { wrapper: wrapper() });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(getJob).toHaveBeenCalledTimes(1);
+    expect(result.current.isPolling).toBe(false);
+    expect((result.current.error as ApiError).status).toBe(404);
+
+    // And it stays stopped: no further ticks are scheduled.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(REEL_JOB_POLL_INTERVAL_MS * 5);
+    });
+    expect(getJob).toHaveBeenCalledTimes(1);
+  });
+
   it("times out after the bounded max poll duration with the honest 504 ApiError", async () => {
     vi.useFakeTimers();
     vi.spyOn(cinemoryApi, "getReelJob").mockResolvedValue({
