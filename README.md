@@ -1,4 +1,4 @@
-# Cinemory — your memories, made into film
+# Cinemory: your memories, made into film
 
 [![CI](https://github.com/upgradedev/cinemory/actions/workflows/ci.yml/badge.svg)](https://github.com/upgradedev/cinemory/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -6,14 +6,14 @@
 [![Demo video](https://img.shields.io/badge/demo-YouTube-FF0000)](https://youtu.be/mqBw1hc8TxY)
 [![Devpost](https://img.shields.io/badge/Devpost-submission-003E54)](https://devpost.com/software/cinemory)
 
-> Turn a set of photos into a scored, cinematic video reel — generated with
+> Turn a set of photos into a scored, cinematic video reel, generated with
 > [Genblaze](https://github.com/backblaze-labs/genblaze), stored on
 > [Backblaze B2](https://www.backblaze.com/cloud-storage), and sealed with
 > verifiable SHA-256 **provenance** on every output.
 
 Built for the [Backblaze Generative Media Hackathon](https://backblaze-generative-media.devpost.com/).
 
-![Cinemory — generative media, provenance first: built with Genblaze, stored on Backblaze B2, sealed with SHA-256](demo/video-assets/cards/cinemory-01-thumbnail.png)
+![Cinemory, generative media, provenance first: built with Genblaze, stored on Backblaze B2, sealed with SHA-256](demo/video-assets/cards/cinemory-01-thumbnail.png)
 
 > **Canonical repo:** [github.com/upgradedev/cinemory](https://github.com/upgradedev/cinemory)
 > (local working copy: `repos/cinemory`). Feature roadmap, opt-in connectors,
@@ -21,16 +21,16 @@ Built for the [Backblaze Generative Media Hackathon](https://backblaze-generativ
 
 ## Live demo
 
-- **Cloud Run:** https://cinemory-595784992266.europe-west1.run.app — the API
+- **Cloud Run:** https://cinemory-595784992266.europe-west1.run.app, the API
   (`/health`, `/occasions`, `POST /reels`) plus the React UI, running in
   **live mode** (`/health` reports the effective backends: `mode:"live"`,
   `provider:"genblaze"`, `storage:"B2Storage"`). **Real live generation is
   proven** (2026-07-22): 8 completed Kling renders (~242s avg) and a real
   h264 720p reel on B2, including a real generation on the live box's upload
-  path — see `demo/STATE.md` + `deploy/DEPLOYED.md`.
-- **Firebase mirror:** https://upgradegr-cinemory.web.app — the identical app.
+  path, see `demo/STATE.md` + `deploy/DEPLOYED.md`.
+- **Firebase mirror:** https://upgradegr-cinemory.web.app, the identical app.
 - **Demo video:** [`demo/cinemory-demo.mp4`](demo/cinemory-demo.mp4) (2:50, of
-  which 95.9s — 56.5% — is live screen capture of this deployed app doing the
+  which 95.9s, 56.5%, is live screen capture of this deployed app doing the
   real thing, shot as one unbroken five-photo run).
   Watch it on YouTube: **https://youtu.be/mqBw1hc8TxY**
 
@@ -52,7 +52,7 @@ honest answer rather than a guess.
 ## Verify it yourself
 
 Every reel is sealed with a SHA-256 manifest, and the seal is not a "trust us"
-claim — you can recompute it yourself, offline or in the browser.
+claim, you can recompute it yourself, offline or in the browser.
 
 **Offline, from the CLI** (no credentials needed):
 
@@ -62,7 +62,7 @@ python -m cinemory.cli --name demo --chapters 3 --per-chapter 2 --bridges --out 
 ```
 
 ```
-...
+..
 verify manifest: True
 verify asset:    True
 verify embedded: True
@@ -72,8 +72,7 @@ Three independent checks, computed locally from the bytes written to disk: the
 sealed manifest hash, the reel file's own SHA-256, and the manifest
 re-extracted from *inside* the reel's video container.
 
-**In the running app:** open a reel's Provenance panel and click **Verify** —
-one click runs two independent checks in parallel. The browser re-fetches the
+**In the running app:** open a reel's Provenance panel and click **Verify**, one click runs two independent checks in parallel. The browser re-fetches the
 manifest and recomputes its SHA-256 itself with WebCrypto, so the seal isn't
 taken on the server's word. At the same time, `GET /reels/{name}/verify`
 re-fetches every stored artifact server-side and re-runs each named check,
@@ -85,12 +84,12 @@ different trust boundaries, same answer.
 ## Origin story
 
 Cinemory began as a personal project: a video gift, made from photos, for a
-wedding anniversary — memories turned into a short film scored to music. This
+wedding anniversary, memories turned into a short film scored to music. This
 repository generalizes that idea into a production-shaped generative-media app.
 
 **Privacy first, by construction.** The original anniversary content is private
 and stays private. This public repo and its demo operate on **synthetic demo
-memories only** — images generated programmatically at runtime
+memories only**, images generated programmatically at runtime
 ([`synthetic.py`](src/cinemory/synthetic.py)). No real personal photo or datum
 is read, generated, or committed anywhere in this project. See
 [PII safety](#pii-safety).
@@ -103,16 +102,16 @@ Given a set of (synthetic) memories organised into *chapters*:
 
 ![Cinemory's six-step pipeline: photos to I2V clips to chapter bridges to music-driven cuts to reel to B2 + manifest](demo/video-assets/cards/cinemory-02-pipeline.png)
 
-1. **Photo → clip** — each photo is animated into a short video via an
+1. **Photo → clip**, each photo is animated into a short video via an
    image-to-video model (Genblaze step).
-2. **Chapter bridges** — first-last-frame transitions smoothly connect scenes.
-3. **Music-driven cuts** — scene changes can be planned onto musical beats.
-4. **Stitch** — clips are assembled into one reel (deterministic offline, or a
+2. **Chapter bridges**, first-last-frame transitions smoothly connect scenes.
+3. **Music-driven cuts**, scene changes can be planned onto musical beats.
+4. **Stitch**, clips are assembled into one reel (deterministic offline, or a
    real ffmpeg cinematic colour-grade).
-5. **Store on B2** — every input, clip, the final reel, and the run manifest are
+5. **Store on B2**, every input, clip, the final reel, and the run manifest are
    written to Backblaze B2 under content-addressed keys.
-6. **Provenance** — a SHA-256-sealed manifest records provider, model, prompt,
-   params, timestamps and every asset hash — and **cites each generated clip back
+6. **Provenance**, a SHA-256-sealed manifest records provider, model, prompt,
+   params, timestamps and every asset hash, and **cites each generated clip back
    to its source photo's SHA-256** (`source_sha256s`), so every output traces to
    the exact input it came from. It is persisted to B2 *and* embedded into the
    reel container, and can be re-verified at any time.
@@ -141,18 +140,18 @@ flowchart TD
 ```mermaid
 flowchart LR
     FB["Firebase Hosting mirror<br/>upgradegr-cinemory.web.app<br/>rewrites /health · /occasions · /reels/** → Cloud Run"] --> CR
-    subgraph CR["Cloud Run — one container (Dockerfile)"]
-        UI["React SPA (frontend/, Vite build)<br/>served as static files"] --- API["FastAPI — src/cinemory/api.py"]
+    subgraph CR["Cloud Run, one container (Dockerfile)"]
+        UI["React SPA (frontend/, Vite build)<br/>served as static files"] --- API["FastAPI, src/cinemory/api.py"]
     end
     API --> PIPE["ReelPipeline<br/>depends on ports only"]
-    API -. "GET /reels/{name}/video — playback:<br/>302 to a fresh presigned URL (live)<br/>or streamed bytes (offline)" .-> SB
+    API -. "GET /reels/{name}/video, playback:<br/>302 to a fresh presigned URL (live)<br/>or streamed bytes (offline)" .-> SB
     PIPE --- MP{{"MediaProvider port"}}
     PIPE --- SB{{"StorageBackend port"}}
     PIPE --- ST{{"Stitcher port"}}
     MP -->|"CINEMORY_MODE=live<br/>+ genblaze SDK + GMI_API_KEY"| GEN["GenblazeMediaProvider<br/>Genblaze Pipeline step → GMI Cloud<br/>ObjectStorageSink → genblaze_s3.for_backblaze<br/>per-asset SHA-256 manifest (verify_hash)"]
-    MP -->|"otherwise — CI / offline demo"| FMP["FakeMediaProvider<br/>deterministic bytes"]
-    SB -->|"live + boto3 + B2 creds<br/>(bucket · endpoint · key id · key)"| B2S["B2Storage — boto3, S3-compatible<br/>+ index.jsonl (multi-instance safe)"]
-    SB -->|"otherwise"| FS["FakeStorage — in-memory,<br/>identical index surface"]
+    MP -->|"otherwise. CI / offline demo"| FMP["FakeMediaProvider<br/>deterministic bytes"]
+    SB -->|"live + boto3 + B2 creds<br/>(bucket · endpoint · key id · key)"| B2S["B2Storage, boto3, S3-compatible<br/>+ index.jsonl (multi-instance safe)"]
+    SB -->|"otherwise"| FS["FakeStorage, in-memory,<br/>identical index surface"]
     ST -->|"CINEMORY_STITCH=ffmpeg<br/>+ ffmpeg present"| FF["FfmpegStitcher"]
     ST -->|"otherwise"| FST["FakeStitcher"]
     GEN -. "live generation fails mid-request:<br/>re-run same spec on FakeMediaProvider + FakeStitcher,<br/>SAME storage → provider_degraded: true + degrade_reason" .-> FMP
@@ -164,12 +163,12 @@ flowchart LR
 demo) · `POST /reels/upload` (real photos, base64 JSON) ·
 `POST /reels/upload-multipart` (real photos, multipart) · `GET /reels/{name}`
 (sealed manifest) · `GET /reels/{name}/video` (playback: 302 to a fresh
-presigned B2 URL in live mode, streamed bytes offline — the stable
+presigned B2 URL in live mode, streamed bytes offline, the stable
 `playback_url` every reel response carries) · `GET /reels/{name}/verify`
 (re-verification receipt: re-fetches the manifest and every stored artifact and
-re-runs each named provenance check from those bytes — the seal, the reel /
+re-runs each named provenance check from those bytes, the seal, the reel /
 provenance-reel / per-clip hashes, embedded-manifest equality, source-photo
-citations, and provider/model — returning an aggregate `verify_all` receipt whose
+citations, and provider/model, returning an aggregate `verify_all` receipt whose
 own digest content-addresses the receipt; the React ProvenancePanel renders it
 live in the browser) · `POST /reels/jobs` (submit a generation as a
 background job, 202 + `job_id`, see "Async generation" below) ·
@@ -179,15 +178,15 @@ background job, 202 + `job_id`, see "Async generation" below) ·
 "Optional accounts" below).
 
 **Product UI.** The React client opens on a landing page built for first-time
-comprehension — a **How it works** walkthrough, a preview of sample source
+comprehension, a **How it works** walkthrough, a preview of sample source
 photos (the kind you would upload, honestly labelled as input, not a
-finished reel), and a one-click *"Try with sample photos"* path — before the
+finished reel), and a one-click *"Try with sample photos"* path, before the
 four-step wizard (Photos → Occasion → Generate → Result + Provenance).
 
 The orchestrator depends **only on ports** (`MediaProvider`, `StorageBackend`,
 `Stitcher`). The real adapters wrap Genblaze and B2; the fakes implement the
-same protocols with no network. The *same* pipeline code — including the real
-hashing and provenance — runs in both modes, so CI is green with zero
+same protocols with no network. The *same* pipeline code, including the real
+hashing and provenance, runs in both modes, so CI is green with zero
 credentials while the live path is a one-line adapter swap. In `live` mode the
 real backends are used only when their credentials are present; otherwise the
 API degrades transparently to the offline path, so `POST /reels` never 500s.
@@ -360,10 +359,10 @@ requests happen to be sequential
   clip, chapter bridges, the final reel, the embedded-provenance reel, and the
   `manifest.json`.
 - **Content-addressed layout** (`KeyStrategy.HIERARCHICAL`):
-  `<reel>/<kind>/<sha2>/<sha256>/<name>` — identical bytes deduplicate by hash.
+  `<reel>/<kind>/<sha2>/<sha256>/<name>`, identical bytes deduplicate by hash.
 - **Data orchestration**: the storage backend keeps a queryable run index
   (JSONL catalogue of every object + size + content-type), the analogue of
-  Genblaze's Parquet index sink — a catalogue you can query over your whole
+  Genblaze's Parquet index sink, a catalogue you can query over your whole
   media library.
 - B2 is S3-compatible, so the adapter ([`b2_storage.py`](src/cinemory/adapters/b2_storage.py))
   is a thin boto3 client; credentials come only from the environment.
@@ -378,11 +377,10 @@ lets Genblaze own generation *and* durable storage *and* provenance for every
 generated asset:
 
 - **Generation** is expressed as a real **Genblaze `Pipeline` step**
-  (`Pipeline("cinemory-step").step(provider, model=, prompt=, modality=).run(...)`)
-  — image-to-video, first-last-frame bridge, audio — behind the `MediaProvider`
+  (`Pipeline("cinemory-step").step(provider, model=, prompt=, modality=).run(..)`), image-to-video, first-last-frame bridge, audio, behind the `MediaProvider`
   port.
 - **Storage + provenance done *by* Genblaze:** the adapter attaches Genblaze's
-  own `ObjectStorageSink` over a `genblaze_s3.S3StorageBackend.for_backblaze(...)`
+  own `ObjectStorageSink` over a `genblaze_s3.S3StorageBackend.for_backblaze(..)`
   backend, so Genblaze downloads the model output, content-addresses it, persists
   it to **Backblaze B2**, and seals a **SHA-256 provenance manifest** for the run
   (`result.manifest.verify_hash()`).
@@ -392,15 +390,14 @@ generated asset:
   Genblaze owns per-asset provenance; Cinemory owns the composed-reel provenance.
 - **Verified against the real SDK.** The adapter's every call and result shape is
   contract-tested against the *actual* published Genblaze SDK using its own
-  shipped mock provider (`genblaze_core.testing`), so API drift fails CI —
-  ([`tests/integration/test_genblaze_contract.py`](tests/integration/test_genblaze_contract.py)).
+  shipped mock provider (`genblaze_core.testing`), so API drift fails CI, ([`tests/integration/test_genblaze_contract.py`](tests/integration/test_genblaze_contract.py)).
   `genblaze-core` is installed in CI (pure-Python, no credentials); only the live
   GMICloud generation and B2 writes need keys.
-- **Provider port; GMI Cloud live today** — generation sits behind the
+- **Provider port; GMI Cloud live today**, generation sits behind the
   `MediaProvider` port. Live generation currently supports the **GMI Cloud**
   provider via Genblaze ([`config.py`](src/cinemory/config.py) gates live
   readiness on it); other Genblaze providers (OpenAI, Google, Runway, Luma)
-  are scaffolded in config and on the roadmap — the port design lets them
+  are scaffolded in config and on the roadmap, the port design lets them
   slot in without touching the pipeline.
 
 ### AI providers & models
@@ -418,45 +415,42 @@ GMI Cloud; further Genblaze providers are on the roadmap.
 
 ## Occasions, sharing & opt-in connectors
 
-Beyond the core pipeline, Cinemory adds distribution and personalization — the
+Beyond the core pipeline, Cinemory adds distribution and personalization, the
 core stays offline/PII-safe; the connectors are **opt-in and consent-gated**
 (never in CI or the default demo). Full detail + go-live steps in
 **[`ROADMAP.md`](ROADMAP.md)**.
 
-- **Occasion themes** ([`occasions.py`](src/cinemory/occasions.py)) — six
+- **Occasion themes** ([`occasions.py`](src/cinemory/occasions.py)), six
   config-driven presets (anniversary, graduation, birthday, wedding,
   year-in-review, business-event/award-ceremony) that adjust scene labels,
   prompt direction, music mood, pacing and aspect ratio. Select via
   `--occasion`, `POST /reels` or `GET /occasions`; recorded in the sealed
   manifest. Add a theme = add one dict entry.
-- **Web Share + export** ([`frontend/src/lib/share.ts`](frontend/src/lib/share.ts)) —
-  native OS share sheet (`navigator.share({files})`) to Instagram / Facebook /
+- **Web Share + export** ([`frontend/src/lib/share.ts`](frontend/src/lib/share.ts)), native OS share sheet (`navigator.share({files})`) to Instagram / Facebook /
   LinkedIn / YouTube with **no platform API review**, plus a download button and
   per-platform deep-links.
-- **Google Photos Picker** ([`connectors/google_photos.py`](src/cinemory/connectors/google_photos.py))
-  — OAuth consent → Picker session → user hand-picks in Google's UI → poll →
+- **Google Photos Picker** ([`connectors/google_photos.py`](src/cinemory/connectors/google_photos.py)). OAuth consent → Picker session → user hand-picks in Google's UI → poll →
   download picked bytes. (Library auto-curation is impossible since Google
   removed the read-scopes; the **pick** flow is the sanctioned path.)
 - **YouTube upload** ([`connectors/youtube.py`](src/cinemory/connectors/youtube.py))
-  + **LinkedIn share** ([`connectors/linkedin.py`](src/cinemory/connectors/linkedin.py))
-  — implemented where the API allows; account-type/audit caveats in `ROADMAP.md`.
+  + **LinkedIn share** ([`connectors/linkedin.py`](src/cinemory/connectors/linkedin.py)), implemented where the API allows; account-type/audit caveats in `ROADMAP.md`.
 
 Every connector runs through an injectable HTTP transport seam, so the
-multi-step flows are unit-tested offline with a fake transport — no network, no
+multi-step flows are unit-tested offline with a fake transport, no network, no
 credentials, no third-party import in CI. Enable the live path with
 `pip install 'cinemory[connectors]'`.
 
 **Not built (show-stoppers, see `ROADMAP.md`):** an Apple/iCloud *server*
-connector (no third-party API exists — only a native iOS PhotoKit app; the
+connector (no third-party API exists, only a native iOS PhotoKit app; the
 mobile `<input type=file>` already streams iCloud originals), and *personal*
-Instagram/Facebook auto-posting (Graph API is Business/Creator-only — the
+Instagram/Facebook auto-posting (Graph API is Business/Creator-only, the
 share-sheet covers it).
 
 ---
 
 ## Quickstart
 
-### Offline (no credentials — this is what CI runs)
+### Offline (no credentials, this is what CI runs)
 
 ```bash
 pip install -r requirements-dev.txt
@@ -481,7 +475,7 @@ uvicorn cinemory.api:app --reload
 > reports the effective `provider`/`storage`), so `POST /reels` never 500s.
 > If the live provider fails mid-request, the reel is re-run on the offline
 > provider against the same real storage and the response is labelled
-> `provider_degraded: true` + `degrade_reason` — the manifest records the
+> `provider_degraded: true` + `degrade_reason`, the manifest records the
 > provider that actually generated the assets.
 
 ### Live (real Genblaze + Backblaze B2)
@@ -533,13 +527,12 @@ pytest tests/unit      # or a single layer
 `scripts/readiness.py` is a machine-checkable submission gate: it scores the repo
 against the four challenge criteria (**Real-World Utility · Production Readiness ·
 B2 Storage & Orchestration · Use of Genblaze**) plus our own fifth,
-**Application Security**, with **real-evidence** checks —
-each one *drives the actual code path* (the API via `TestClient`, the pipeline,
+**Application Security**, with **real-evidence** checks, each one *drives the actual code path* (the API via `TestClient`, the pipeline,
 the real B2 adapter against an in-memory S3 stub, the real Genblaze SDK), never a
 file-existence stub. Each check is `pass` / `fail` / `user-gated` (a lift that
-needs a human-held credential — a write-entitled B2 key, a `GMI_API_KEY`, a live
+needs a human-held credential, a write-entitled B2 key, a `GMI_API_KEY`, a live
 redeploy). It prints a per-criterion report, emits `readiness.json`, and **exits
-non-zero when the automatable completeness drops below 95%** — so the `readiness`
+non-zero when the automatable completeness drops below 95%**, so the `readiness`
 CI job fails on any regression. User-gated items are excluded from the automatable
 % and listed as the remaining live-credential lifts.
 
@@ -552,16 +545,16 @@ The gate is itself covered end-to-end in `tests/e2e/test_readiness_gate.py`
 
 ### Security checks (all in CI, all offline)
 
-- **Pen-test suite** — `tests/security/`, a `pen-test` CI job of real
+- **Pen-test suite**, `tests/security/`, a `pen-test` CI job of real
   application-security assertions against the live FastAPI app / pipeline /
   adapters: authorization & abuse limits, injection / path-traversal into
   content-addressed B2 keys, provenance forgery / tamper-evidence, sensitive-data
   exposure (including the credential-free offline-degrade path), and SSRF / upload
   magic-byte validation. Mirrored as the gate's **Application Security** criterion.
-- **gitleaks v8.18.4** — secret scan, fail-fast before build (`--redact`).
-- **CodeQL** — SAST for `python` + `javascript-typescript`.
-- **SCA/CVE gate** — `pip-audit --strict` (Python) + `npm audit` (frontend + web).
-- **ruff** — lint.
+- **gitleaks v8.18.4**, secret scan, fail-fast before build (`--redact`).
+- **CodeQL**. SAST for `python` + `javascript-typescript`.
+- **SCA/CVE gate**, `pip-audit --strict` (Python) + `npm audit` (frontend + web).
+- **ruff**, lint.
 
 ```bash
 pytest tests/security  # the pen-test layer, offline, no creds
@@ -577,7 +570,7 @@ This is a hard rule of the project:
 
 - Every demo input is machine-generated. Two sources, both non-real:
   [`synthetic.py`](src/cinemory/synthetic.py) (deterministic, programmatically
-  drawn images — the default everywhere, including the tests and the app's
+  drawn images, the default everywhere, including the tests and the app's
   *"Try with sample photos"* button), and
   [`sample-data/anniversary/`](sample-data/) (six AI-generated scene photos used
   as the demo video's input, made through Cinemory's own provider adapter; the
@@ -591,8 +584,7 @@ This is a hard rule of the project:
 - CI runs a gitleaks secret scan on every push/PR.
 - **Deploys carry no stored credential.** Once CI is green on `main`,
   `deploy-cloudrun.yml` builds and deploys the backend, then polls the live
-  `GET /health` and **fails if `build.commit` is not the commit it just built**
-  — a deploy is finished when the running app says so, not when `gcloud` exits
+  `GET /health` and **fails if `build.commit` is not the commit it just built**, a deploy is finished when the running app says so, not when `gcloud` exits
   0. It checks out the exact commit CI validated rather than whatever `main`
   points at by then, so the build stamp never names untested code. Auth is
   **Workload Identity Federation: no service-account key is stored in this
@@ -648,7 +640,7 @@ that and makes no guarantee about it.
 
 ```
 src/cinemory/
-  models.py        domain types (ReelSpec, Chapter, Bridge, Asset, ...)
+  models.py        domain types (ReelSpec, Chapter, Bridge, Asset..)
   ports.py         MediaProvider · StorageBackend · Stitcher protocols
   pipeline.py      ReelPipeline orchestrator
   provenance.py    SHA-256 manifest: build · verify · embed · extract
@@ -668,9 +660,9 @@ src/cinemory/
     _http.py                      injectable HTTP transport seam
     google_photos.py              OAuth + Photos Picker flow
     youtube.py · linkedin.py      upload / share
-frontend/          React SPA (Vite · TS) — the product UI; served by Firebase
+frontend/          React SPA (Vite · TS), the product UI; served by Firebase
                    Hosting AND the Cloud Run container (Dockerfile builds it)
-web/               legacy TS browser client — Web Share reference impl; still
+web/               legacy TS browser client. Web Share reference impl; still
                    type-checked/built in CI, not served by the container
 tests/             unit · integration · e2e
 ROADMAP.md         features · show-stoppers · connector go-live steps
@@ -678,5 +670,5 @@ ROADMAP.md         features · show-stoppers · connector go-live steps
 
 ## License
 
-MIT — see [LICENSE](LICENSE). Genblaze is MIT; Cinemory (the founder's own
+MIT, see [LICENSE](LICENSE). Genblaze is MIT; Cinemory (the founder's own
 product/brand) is reused here by concept and pattern, with synthetic data only.
